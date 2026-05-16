@@ -1,0 +1,369 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  sku                 String?              @unique
+  barcode             String?              @unique
+  description         String?
+  price               Int
+  costPrice           Int                  @default(0)
+  stock               Int                  @default(0)
+  minStock            Int                  @default(5)
+  unit                String               @default("pcs")
+  category            String?
+  imageUrl            String?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  supplierId          Int?                 @map("supplier_id")
+  supplier            Supplier?            @relation(fields: [supplierId], references: [id])
+  saleItems           SaleItem[]
+  saleReturnItems     SaleReturnItem[]
+  supplierReturnItems SupplierReturnItem[]
+  purchaseItems       PurchaseItem[]
+  stockMovements      StockMovement[]
+
+  @@index([supplierId])
+  @@map("products")
+}
+
+model Sale {
+  id             String          @id @default(cuid())
+  invoiceNumber  String          @unique
+  subtotal       Int
+  paidAmount     Int
+  paymentMethod  String          @default("cash") @map("payment_method")
+  createdAt      DateTime        @default(now())
+  cashierId      Int
+  customerId     Int?            @map("customer_id")
+  cashier        User            @relation(fields: [cashierId], references: [id])
+  customer       Customer?       @relation(fields: [customerId], references: [id])
+  items          SaleItem[]
+  returns        SaleReturn[]
+  messageLogs    MessageLog[]
+  stockMovements StockMovement[]
+
+  @@index([cashierId, createdAt])
+  @@index([customerId, createdAt])
+  @@map("sales")
+}
+
+model SaleItem {
+  id             String           @id @default(cuid())
+  saleId         String
+  sale           Sale             @relation(fields: [saleId], references: [id])
+  productId      Int
+  product        Product          @relation(fields: [productId], references: [id])
+  qty            Int
+  price          Int
+  subtotal       Int
+  returnItems    SaleReturnItem[]
+  stockMovements StockMovement[]
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model SaleReturn {
+  id          String           @id @default(cuid())
+  returnType  String           @default("CUSTOMER_RETURN") @map("return_type")
+  saleId      String           @map("sale_id")
+  createdById Int?             @map("created_by_id")
+  reason      String
+  notes       String?
+  status      String           @default("COMPLETED")
+  totalRefund Int?             @map("total_refund")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  sale        Sale             @relation(fields: [saleId], references: [id])
+  createdBy   User?            @relation("SaleReturnCreatedBy", fields: [createdById], references: [id])
+  items       SaleReturnItem[]
+
+  @@index([saleId, createdAt])
+  @@index([returnType, createdAt])
+  @@index([createdById, createdAt])
+  @@index([reason, createdAt])
+  @@map("sale_returns")
+}
+
+model SaleReturnItem {
+  id         String     @id @default(cuid())
+  returnId   String     @map("return_id")
+  saleItemId String     @map("sale_item_id")
+  productId  Int        @map("product_id")
+  qty        Int
+  price      Int
+  subtotal   Int
+  createdAt  DateTime   @default(now()) @map("created_at")
+  saleReturn SaleReturn @relation(fields: [returnId], references: [id])
+  saleItem   SaleItem   @relation(fields: [saleItemId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
+
+  @@index([returnId])
+  @@index([saleItemId])
+  @@index([productId])
+  @@map("sale_return_items")
+}
+
+model MessageLog {
+  id            String   @id @default(cuid())
+  type          String
+  targetType    String   @map("target_type")
+  targetPhone   String?  @map("target_phone")
+  targetName    String?  @map("target_name")
+  status        String
+  provider      String?
+  relatedSaleId String?  @map("related_sale_id")
+  payload       Json?
+  errorMessage  String?  @map("error_message")
+  createdById   Int?     @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  relatedSale   Sale?    @relation(fields: [relatedSaleId], references: [id])
+  createdBy     User?    @relation("MessageLogCreatedBy", fields: [createdById], references: [id])
+
+  @@index([type, status, createdAt])
+  @@index([targetType, createdAt])
+  @@index([relatedSaleId, createdAt])
+  @@index([createdById, createdAt])
+  @@map("message_logs")
+}
+
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  type      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, code])
+  @@map("payment_methods")
+}
+
+model PaymentSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_settings")
+}
+
+model Customer {
+  id            Int       @id @default(autoincrement())
+  customerCode  String    @unique @map("customer_code")
+  name          String
+  phone         String?   @unique
+  email         String?
+  address       String?
+  notes         String?
+  loyaltyPoints Int       @default(0) @map("loyalty_points")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  sales         Sale[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("customers")
+}
+
+model Supplier {
+  id              Int              @id @default(autoincrement())
+  code            String           @unique
+  name            String
+  contactPerson   String?          @map("contact_person")
+  phone           String?
+  email           String?
+  address         String?
+  notes           String?
+  type            String           @default("SUPPLIER")
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
+  products        Product[]
+  purchases       Purchase[]
+  supplierReturns SupplierReturn[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([isActive])
+  @@index([type, isActive])
+  @@map("suppliers")
+}
+
+model SupplierReturn {
+  id             String               @id @default(cuid())
+  returnNumber   String               @unique @map("return_number")
+  supplierId     Int                  @map("supplier_id")
+  createdById    Int                  @map("created_by_id")
+  reason         String
+  notes          String?
+  totalAmount    Int                  @default(0) @map("total_amount")
+  status         String               @default("COMPLETED")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  supplier       Supplier             @relation(fields: [supplierId], references: [id])
+  createdBy      User                 @relation("SupplierReturnCreatedBy", fields: [createdById], references: [id])
+  items          SupplierReturnItem[]
+  stockMovements StockMovement[]
+
+  @@index([supplierId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([status, createdAt])
+  @@map("supplier_returns")
+}
+
+model SupplierReturnItem {
+  id               String          @id @default(cuid())
+  supplierReturnId String          @map("supplier_return_id")
+  productId        Int             @map("product_id")
+  qty              Int
+  costPrice        Int             @map("cost_price")
+  subtotal         Int
+  createdAt        DateTime        @default(now()) @map("created_at")
+  supplierReturn   SupplierReturn  @relation(fields: [supplierReturnId], references: [id])
+  product          Product         @relation(fields: [productId], references: [id])
+  stockMovements   StockMovement[]
+
+  @@index([supplierReturnId])
+  @@index([productId])
+  @@map("supplier_return_items")
+}
+
+model Purchase {
+  id             String          @id @default(cuid())
+  purchaseNumber String          @unique @map("purchase_number")
+  supplierId     Int             @map("supplier_id")
+  userId         Int?            @map("created_by_id")
+  purchaseDate   DateTime        @default(now()) @map("purchase_date")
+  status         String          @default("draft")
+  subtotal       Int             @default(0)
+  total          Int             @default(0)
+  paidAmount     Int             @default(0) @map("paid_amount")
+  notes          String?
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  supplier       Supplier        @relation(fields: [supplierId], references: [id])
+  user           User?           @relation("PurchaseCreatedBy", fields: [userId], references: [id])
+  items          PurchaseItem[]
+  stockMovements StockMovement[]
+
+  @@index([supplierId, purchaseDate])
+  @@index([userId, purchaseDate])
+  @@index([status, purchaseDate])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id             String          @id @default(cuid())
+  purchaseId     String          @map("purchase_id")
+  productId      Int             @map("product_id")
+  purchase       Purchase        @relation(fields: [purchaseId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  qty            Int
+  costPrice      Int             @map("cost_price")
+  subtotal       Int
+  stockMovements StockMovement[]
+
+  @@index([purchaseId])
+  @@index([productId])
+  @@map("purchase_items")
+}
+
+model StockMovement {
+  id                   String              @id @default(cuid())
+  productId            Int                 @map("product_id")
+  saleId               String?             @map("sale_id")
+  saleItemId           String?             @map("sale_item_id")
+  purchaseId           String?             @map("purchase_id")
+  purchaseItemId       String?             @map("purchase_item_id")
+  supplierReturnId     String?             @map("supplier_return_id")
+  supplierReturnItemId String?             @map("supplier_return_item_id")
+  createdById          Int?                @map("created_by_id")
+  type                 String
+  qty                  Int
+  stockBefore          Int                 @map("stock_before")
+  stockAfter           Int                 @map("stock_after")
+  reference            String?
+  notes                String?
+  createdAt            DateTime            @default(now()) @map("created_at")
+  product              Product             @relation(fields: [productId], references: [id])
+  sale                 Sale?               @relation(fields: [saleId], references: [id])
+  saleItem             SaleItem?           @relation(fields: [saleItemId], references: [id])
+  purchase             Purchase?           @relation(fields: [purchaseId], references: [id])
+  purchaseItem         PurchaseItem?       @relation(fields: [purchaseItemId], references: [id])
+  supplierReturn       SupplierReturn?     @relation(fields: [supplierReturnId], references: [id])
+  supplierReturnItem   SupplierReturnItem? @relation(fields: [supplierReturnItemId], references: [id])
+  createdBy            User?               @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([type, createdAt])
+  @@index([saleId])
+  @@index([purchaseId])
+  @@index([supplierReturnId])
+  @@index([createdById, createdAt])
+  @@map("stock_movements")
+}
+
+model Role {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  roleId          Int              @map("role_id")
+  name            String
+  email           String           @unique
+  emailVerifiedAt DateTime?        @map("email_verified_at")
+  password        String
+  phone           String?
+  isActive        Boolean          @default(true) @map("is_active")
+  rememberToken   String?          @map("remember_token")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
+  role            Role             @relation(fields: [roleId], references: [id])
+  sales           Sale[]
+  saleReturns     SaleReturn[]     @relation("SaleReturnCreatedBy")
+  messageLogs     MessageLog[]     @relation("MessageLogCreatedBy")
+  purchases       Purchase[]       @relation("PurchaseCreatedBy")
+  supplierReturns SupplierReturn[] @relation("SupplierReturnCreatedBy")
+  stockMovements  StockMovement[]  @relation("StockMovementCreatedBy")
+
+  @@map("users")
+}
+
+model Setting {
+  key       String   @id
+  value     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}

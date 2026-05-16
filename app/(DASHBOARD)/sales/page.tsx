@@ -1,0 +1,629 @@
+import Link from "next/link";
+import { Prisma } from "@prisma/client";
+import {
+  Banknote,
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Landmark,
+  QrCode,
+  ShoppingCart,
+  TrendingUp,
+} from "lucide-react";
+
+import { requireProtectedPage } from "@/lib/page-guards";
+import { prisma } from "@/lib/prisma";
+import LiveSearchInput from "@/components/search/live-search-input";
+
+type SalesPageProps = {
+  searchParams?: Promise<{
+    from?: string;
+    to?: string;
+    cashier?: string;
+    payment?: string;
+    q?: string;
+    page?: string;
+  }>;
+};
+
+const PAGE_SIZE = 7;
+
+function rupiah(amount: number) {
+  return `Rp ${amount.toLocaleString("id-ID")}`;
+}
+
+function formatDateTime(date: Date) {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function dateRange(from?: string, to?: string) {
+  const createdAt: Prisma.DateTimeFilter = {};
+
+  if (from) {
+    createdAt.gte = new Date(`${from}T00:00:00`);
+  }
+
+  if (to) {
+    createdAt.lte = new Date(`${to}T23:59:59`);
+  }
+
+  return Object.keys(createdAt).length ? createdAt : undefined;
+}
+
+function displayDate(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function paymentIcon(paymentMethod: string) {
+  const method = paymentMethod.toUpperCase();
+
+  if (method.includes("QRIS")) {
+    return <QrCode className="h-4 w-4" />;
+  }
+
+  if (method.includes("TRANSFER") || method.includes("BANK")) {
+    return <Landmark className="h-4 w-4" />;
+  }
+
+  return <Banknote className="h-4 w-4" />;
+}
+
+function buildHref(
+  params: Record<string, string | undefined>,
+  nextPage: number,
+) {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      query.set(key, value);
+    }
+  }
+
+  if (nextPage > 1) {
+    query.set("page", String(nextPage));
+  }
+
+  const queryString = query.toString();
+
+  return queryString ? `/sales?${queryString}` : "/sales";
+}
+
+function returnedAmount(
+  returns: {
+    totalRefund: number | null;
+    items: {
+      subtotal: number;
+    }[];
+  }[],
+) {
+  return returns.reduce((total, saleReturn) => {
+    const fallback = saleReturn.items.reduce(
+      (itemTotal, item) => itemTotal + item.subtotal,
+      0,
+    );
+
+    return total + (saleReturn.totalRefund ?? fallback);
+  }, 0);
+}
+
+export default async function SalesPage({ searchParams }: SalesPageProps) {
+  const session = await requireProtectedPage();
+  const params = (await searchParams) ?? {};
+  const q = String(params.q ?? "").trim();
+  const payment = String(params.payment ?? "").trim();
+  const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
+  const dateFilter = dateRange(params.from, params.to);
+  const cashierId =
+    session.role === "cashier"
+      ? session.sub
+      : params.cashier
+        ? Number(params.cashier)
+        : null;
+  const where: Prisma.SaleWhereInput = {
+    ...(cashierId ? { cashierId } : {}),
+    ...(payment ? { paymentMethod: payment } : {}),
+    ...(dateFilter ? { createdAt: dateFilter } : {}),
+    ...(q
+      ? {
+          OR: [
+            {
+              invoiceNumber: {
+                contains: q,
+                mode: "insensitive",
+              },
+            },
+            {
+              customer: {
+                name: {
+                  contains: q,
+                  mode: "insensitive",
+                },
+              },
+            },
+            {
+              customer: {
+                phone: {
+                  contains: q,
+                  mode: "insensitive",
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const [sales, totals, customerReturns, cashiers, paymentMethods] =
+    await Promise.all([
+      prisma.sale.findMany({
+        where,
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip: (currentPage - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        select: {
+          id: true,
+          invoiceNumber: true,
+          createdAt: true,
+          subtotal: true,
+          paymentMethod: true,
+          cashier: {
+            select: {
+              name: true,
+            },
+          },
+          customer: {
+            select: {
+              name: true,
+            },
+          },
+          items: {
+            select: {
+              id: true,
+            },
+          },
+          returns: {
+            where: {
+              returnType: "CUSTOMER_RETURN",
+            },
+            select: {
+              totalRefund: true,
+              items: {
+                select: {
+                  subtotal: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.sale.aggregate({
+        where,
+        _count: {
+          _all: true,
+        },
+        _sum: {
+          subtotal: true,
+        },
+      }),
+      prisma.saleReturn.findMany({
+        where: {
+          returnType: "CUSTOMER_RETURN",
+          sale: where,
+        },
+        select: {
+          totalRefund: true,
+          items: {
+            select: {
+              subtotal: true,
+            },
+          },
+        },
+      }),
+      session.role === "cashier"
+        ? Promise.resolve([])
+        : prisma.user.findMany({
+            orderBy: {
+              name: "asc",
+            },
+            select: {
+              id: true,
+              name: true,
+            },
+          }),
+      prisma.paymentMethod.findMany({
+        orderBy: {
+          code: "asc",
+        },
+        select: {
+          code: true,
+          name: true,
+        },
+      }),
+    ]);
+  const paymentLabel = new Map(
+    paymentMethods.map((method) => [method.code, method.name]),
+  );
+  const totalRefund = returnedAmount(customerReturns);
+  const totalSales = totals._count._all;
+  const netOmzet = (totals._sum.subtotal ?? 0) - totalRefund;
+  const pageCount = Math.max(1, Math.ceil(totalSales / PAGE_SIZE));
+  const safePage = Math.min(currentPage, pageCount);
+  const rangeLabel =
+    params.from || params.to
+      ? `${displayDate(params.from) || "Awal"} - ${displayDate(params.to) || "Hari ini"}`
+      : "Semua tanggal";
+  const pageParams = {
+    from: params.from,
+    to: params.to,
+    cashier: session.role === "cashier" ? undefined : params.cashier,
+    payment,
+    q,
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="page-title">Riwayat Penjualan</h1>
+          <p className="mt-3 text-slate-500 dark:text-slate-400">
+            {session.role === "cashier"
+              ? "Transaksi milik kasir login."
+              : "Semua transaksi dengan filter dasar."}
+          </p>
+        </div>
+        <div className="inline-flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+          <Calendar className="h-4 w-4 text-slate-500" />
+          <span>{rangeLabel}</span>
+          <ChevronDown className="h-4 w-4 text-slate-400" />
+        </div>
+      </div>
+
+      <form className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[180px_180px_1fr_1fr_1.2fr_160px]">
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Tanggal Mulai
+            </span>
+            <input
+              type="date"
+              name="from"
+              defaultValue={params.from ?? ""}
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Tanggal Akhir
+            </span>
+            <input
+              type="date"
+              name="to"
+              defaultValue={params.to ?? ""}
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
+            />
+          </label>
+
+          {session.role !== "cashier" ? (
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Kasir
+              </span>
+              <select
+                name="cashier"
+                defaultValue={params.cashier ?? ""}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
+              >
+                <option value="">Semua Kasir</option>
+                {cashiers.map((cashier) => (
+                  <option key={cashier.id} value={cashier.id}>
+                    {cashier.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <input type="hidden" name="cashier" value={String(session.sub)} />
+          )}
+
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Metode Pembayaran
+            </span>
+            <select
+              name="payment"
+              defaultValue={payment}
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
+            >
+              <option value="">Semua Payment</option>
+              {paymentMethods.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Invoice / Customer
+            </span>
+            <LiveSearchInput
+              initialValue={q}
+              placeholder="Cari invoice, customer, telepon..."
+            />
+          </label>
+
+          <button className="mt-auto inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 text-sm font-semibold text-white shadow-lg shadow-teal-900/10 transition hover:bg-teal-700">
+            <Filter className="h-4 w-4" />
+            Filter
+          </button>
+        </div>
+      </form>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+            <ShoppingCart className="h-8 w-8" />
+          </span>
+          <div>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Total Transaksi
+            </p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+              {totalSales}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Transaksi
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+            <TrendingUp className="h-8 w-8" />
+          </span>
+          <div>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Total Omzet
+            </p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+              {rupiah(netOmzet)}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Total penjualan
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+        <div className="hidden overflow-x-auto lg:block">
+          <table className="w-full min-w-[980px] text-left">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
+              <tr>
+                <th className="px-5 py-4">Invoice</th>
+                <th className="px-5 py-4">Tanggal</th>
+                <th className="px-5 py-4">Customer</th>
+                <th className="px-5 py-4">Kasir</th>
+                <th className="px-5 py-4">Total</th>
+                <th className="px-5 py-4">Payment</th>
+                <th className="px-5 py-4 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {sales.length === 0 ? (
+                <tr>
+                  <td className="px-5 py-10 text-center text-sm text-slate-500" colSpan={7}>
+                    Tidak ada transaksi sesuai filter.
+                  </td>
+                </tr>
+              ) : null}
+              {sales.map((sale) => {
+                const refund = returnedAmount(sale.returns);
+                const hasReturn = refund > 0;
+                const paymentName =
+                  paymentLabel.get(sale.paymentMethod) ?? sale.paymentMethod;
+
+                return (
+                  <tr key={sale.id} className="text-sm">
+                    <td className="px-5 py-4">
+                      <p className="font-bold text-slate-950 dark:text-white">
+                        {sale.invoiceNumber}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {sale.items.length} item
+                        </span>
+                        {hasReturn ? (
+                          <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                            Ada retur
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                      {formatDateTime(sale.createdAt)}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                      {sale.customer?.name ?? "Walk-in"}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                      {sale.cashier.name}
+                    </td>
+                    <td
+                      className={`px-5 py-4 font-bold tabular-nums ${
+                        hasReturn
+                          ? "text-rose-600 dark:text-rose-300"
+                          : "text-slate-950 dark:text-white"
+                      }`}
+                    >
+                      {hasReturn ? `- ${rupiah(refund)}` : rupiah(sale.subtotal)}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        {paymentIcon(sale.paymentMethod)}
+                        {paymentName}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <Link
+                        href={`/invoices/${sale.id}`}
+                        className="inline-flex h-9 items-center justify-center rounded-lg border border-teal-300 px-4 text-sm font-semibold text-teal-700 transition hover:bg-teal-50 dark:border-teal-500/50 dark:text-teal-200 dark:hover:bg-teal-500/10"
+                      >
+                        Invoice
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="divide-y divide-slate-200 lg:hidden dark:divide-slate-800">
+          {sales.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-500">
+              Tidak ada transaksi sesuai filter.
+            </div>
+          ) : null}
+          {sales.map((sale) => {
+            const refund = returnedAmount(sale.returns);
+            const hasReturn = refund > 0;
+            const paymentName =
+              paymentLabel.get(sale.paymentMethod) ?? sale.paymentMethod;
+
+            return (
+              <div key={sale.id} className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-slate-950 dark:text-white">
+                      {sale.invoiceNumber}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      {formatDateTime(sale.createdAt)}
+                    </p>
+                  </div>
+                  <p
+                    className={`shrink-0 text-right font-bold tabular-nums ${
+                      hasReturn
+                        ? "text-rose-600 dark:text-rose-300"
+                        : "text-slate-950 dark:text-white"
+                    }`}
+                  >
+                    {hasReturn ? `- ${rupiah(refund)}` : rupiah(sale.subtotal)}
+                  </p>
+                </div>
+                <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 dark:text-slate-300">
+                  <p>
+                    <span className="block text-xs font-medium text-slate-400">
+                      Customer
+                    </span>
+                    {sale.customer?.name ?? "Walk-in"}
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-400">
+                      Kasir
+                    </span>
+                    {sale.cashier.name}
+                  </p>
+                  <p className="inline-flex items-center gap-2">
+                    <span className="block text-xs font-medium text-slate-400">
+                      Payment
+                    </span>
+                    {paymentIcon(sale.paymentMethod)}
+                    {paymentName}
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-400">
+                      Item
+                    </span>
+                    {sale.items.length} item
+                    {hasReturn ? (
+                      <span className="ml-2 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                        Ada retur
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+                <Link
+                  href={`/invoices/${sale.id}`}
+                  className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-teal-300 text-sm font-semibold text-teal-700 dark:border-teal-500/50 dark:text-teal-200"
+                >
+                  Invoice
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col gap-4 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Menampilkan{" "}
+            {totalSales === 0
+              ? "0"
+              : `${(safePage - 1) * PAGE_SIZE + 1} - ${Math.min(
+                  safePage * PAGE_SIZE,
+                  totalSales,
+                )}`}{" "}
+            dari {totalSales} data
+          </p>
+          <div className="flex items-center gap-2">
+            <Link
+              aria-disabled={safePage === 1}
+              href={buildHref(pageParams, Math.max(1, safePage - 1))}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300 ${
+                safePage === 1 ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+            {Array.from({ length: pageCount }, (_, index) => index + 1)
+              .slice(0, 5)
+              .map((pageNumber) => (
+                <Link
+                  key={pageNumber}
+                  href={buildHref(pageParams, pageNumber)}
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-semibold ${
+                    pageNumber === safePage
+                      ? "border-teal-600 bg-teal-600 text-white"
+                      : "border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300"
+                  }`}
+                >
+                  {pageNumber}
+                </Link>
+              ))}
+            <Link
+              aria-disabled={safePage === pageCount}
+              href={buildHref(pageParams, Math.min(pageCount, safePage + 1))}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300 ${
+                safePage === pageCount ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

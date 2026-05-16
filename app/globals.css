@@ -1,26 +1,245 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-app-sans);
   --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --font-app-sans: var(--font-app), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --background: oklch(0.985 0.002 247.839);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.437 0.078 188.216);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.14 182.503);
+  --radius: 0.625rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.437 0.078 188.216);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.14 182.503);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.704 0.14 182.503);
+  --primary-foreground: oklch(0.129 0.042 264.695);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.279 0.041 260.031);
+  --input: oklch(0.279 0.041 260.031);
+  --ring: oklch(0.704 0.14 182.503);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.704 0.14 182.503);
+  --sidebar-primary-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(0.279 0.041 260.031);
+  --sidebar-ring: oklch(0.704 0.14 182.503);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100;
+    font-family: var(--font-app), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-feature-settings: "tnum", "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .owner-shell,
+  .cashier-shell {
+    @apply min-h-screen w-full min-w-0 overflow-x-hidden bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  .surface-panel {
+    @apply min-w-0 rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100;
+  }
+
+  .surface-panel-soft {
+    @apply min-w-0 rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 transition-colors duration-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100;
+  }
+
+  .metric-value {
+    @apply font-semibold tabular-nums tracking-tight text-slate-900 dark:text-slate-100;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl;
+  }
+
+  .table-scroll {
+    @apply w-full overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800;
+  }
+
+  .data-table {
+    @apply min-w-[720px] w-full;
+  }
+
+  .btn-primary {
+    @apply min-h-10 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400;
+  }
+
+  .btn-secondary {
+    @apply min-h-10 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+}
+
+@layer utilities {
+  .owner-shell input,
+  .owner-shell select,
+  .owner-shell textarea,
+  .cashier-shell input,
+  .cashier-shell select,
+  .cashier-shell textarea {
+    min-height: 2.5rem;
+  }
+
+  .dark .owner-shell input,
+  .dark .owner-shell select,
+  .dark .owner-shell textarea,
+  .dark .cashier-shell input,
+  .dark .cashier-shell select,
+  .dark .cashier-shell textarea {
+    border-color: rgb(51 65 85) !important;
+    background-color: rgb(15 23 42) !important;
+    color: rgb(241 245 249) !important;
+  }
+
+  .dark .owner-shell input::placeholder,
+  .dark .owner-shell textarea::placeholder,
+  .dark .cashier-shell input::placeholder,
+  .dark .cashier-shell textarea::placeholder {
+    color: rgb(100 116 139);
+  }
+
+  .dark .owner-shell input:focus,
+  .dark .owner-shell select:focus,
+  .dark .owner-shell textarea:focus,
+  .dark .cashier-shell input:focus,
+  .dark .cashier-shell select:focus,
+  .dark .cashier-shell textarea:focus {
+    border-color: rgb(20 184 166) !important;
+    box-shadow: 0 0 0 2px rgb(20 184 166 / 0.2);
+  }
+
+  .owner-shell table,
+  .cashier-shell table {
+    @apply bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100;
+  }
+
+  .owner-shell thead,
+  .cashier-shell thead {
+    @apply bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200;
+  }
+
+  .owner-shell tbody tr,
+  .cashier-shell tbody tr {
+    @apply border-slate-200 bg-white transition-colors duration-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800;
+  }
+
+  .owner-shell th,
+  .owner-shell td,
+  .cashier-shell th,
+  .cashier-shell td {
+    @apply text-slate-700 dark:text-slate-300;
+  }
+
+  .owner-shell .text-white,
+  .cashier-shell .text-white {
+    @apply text-slate-900 dark:text-slate-100;
+  }
+
+  .owner-shell .text-zinc-500,
+  .owner-shell .text-zinc-600,
+  .owner-shell .text-slate-400,
+  .cashier-shell .text-zinc-500,
+  .cashier-shell .text-zinc-600,
+  .cashier-shell .text-slate-400 {
+    @apply text-slate-500 dark:text-slate-400;
+  }
+
+  .owner-shell .border-white\/10,
+  .cashier-shell .border-white\/10 {
+    @apply border-slate-200 dark:border-slate-800;
+  }
+
+  .dark .owner-shell .border-dashed,
+  .dark .cashier-shell .border-dashed {
+    border-color: rgb(51 65 85) !important;
+    background-color: rgb(15 23 42);
+    color: rgb(148 163 184);
+  }
 }
