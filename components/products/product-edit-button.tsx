@@ -167,14 +167,22 @@ export default function ProductEditButton({
                 className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
                 placeholder="Harga jual"
               />
-              <input
-                type="number"
-                min="0"
-                value={form.costPrice}
-                onChange={(event) => updateForm("costPrice", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Harga beli"
-              />
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Harga Modal / HPP
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.costPrice}
+                  onChange={(event) => updateForm("costPrice", event.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Harga modal / HPP"
+                />
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
+                  Digunakan untuk menghitung laba dan margin. Tidak ditampilkan ke kasir.
+                </span>
+              </label>
               <input
                 type="number"
                 min="0"

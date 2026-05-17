@@ -1,6 +1,7 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { isReturnReason } from "@/lib/returns";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -10,12 +11,8 @@ type ReturnItemInput = {
   qty: number;
 };
 
-function accessWhere(session: { role: string | null; sub: number }) {
-  return session.role === "cashier" ? { sale: { cashierId: session.sub } } : {};
-}
-
 export async function GET(req: Request) {
-  const auth = requireCashier(req);
+  const auth = requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -25,7 +22,7 @@ export async function GET(req: Request) {
   const q = String(searchParams.get("q") ?? "").trim();
   const where: Prisma.SaleReturnWhereInput = {
     returnType: "CUSTOMER_RETURN",
-    ...accessWhere(auth.session),
+    sale: FINAL_SALE_STATUS_WHERE,
     ...(q
       ? {
           OR: [
@@ -100,7 +97,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = requireCashier(req);
+  const auth = requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -169,9 +166,7 @@ export async function POST(req: Request) {
         const sale = await tx.sale.findFirst({
           where: {
             id: saleId,
-            ...(auth.session.role === "cashier"
-              ? { cashierId: auth.session.sub }
-              : {}),
+            ...FINAL_SALE_STATUS_WHERE,
           },
           select: {
             id: true,
@@ -197,6 +192,7 @@ export async function POST(req: Request) {
             productId: true,
             qty: true,
             price: true,
+            unitCost: true,
             subtotal: true,
             product: {
               select: {
@@ -260,8 +256,16 @@ export async function POST(req: Request) {
             productSku: saleItem.product.sku,
             stockBefore: saleItem.product.stock,
             qty,
-            price: saleItem.price,
-            subtotal: qty * saleItem.price,
+            unitPrice:
+              saleItem.qty > 0
+                ? Math.round(saleItem.subtotal / saleItem.qty)
+                : saleItem.price,
+            unitCost: saleItem.unitCost,
+            subtotal:
+              qty *
+              (saleItem.qty > 0
+                ? Math.round(saleItem.subtotal / saleItem.qty)
+                : saleItem.price),
           });
         }
 
@@ -310,7 +314,8 @@ export async function POST(req: Request) {
               saleItemId: item.saleItemId,
               productId: item.productId,
               qty: item.qty,
-              price: item.price,
+              price: item.unitPrice,
+              unitCost: item.unitCost,
               subtotal: item.subtotal,
             },
           });
@@ -337,7 +342,8 @@ export async function POST(req: Request) {
             product_sku: item.productSku,
             product_name: item.productName,
             qty: item.qty,
-            price: item.price,
+            price: item.unitPrice,
+            unit_price: item.unitPrice,
             subtotal: item.subtotal,
             stock_before: stockBefore,
             stock_after: stockAfter,

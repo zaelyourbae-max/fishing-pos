@@ -1,5 +1,26 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import {
+  canUsePOS,
+  isOwnerRole,
+} from "@/lib/permissions";
+
+export {
+  canAccessCustomers,
+  canAccessPurchases,
+  canAccessReports,
+  canAccessReturns,
+  canAccessSettings,
+  canAccessSuppliers,
+  canManageProducts,
+  canManageUsers,
+  canUsePOS,
+  canViewCostPrice,
+  canViewProfit,
+  isOwnerRole,
+  isRoleSlug,
+  type RoleSlug,
+} from "@/lib/permissions";
 
 const SESSION_SECRET =
   process.env.SESSION_SECRET ?? "dev-session-secret-change-me";
@@ -21,9 +42,6 @@ type GuardResult =
       ok: false;
       response: NextResponse;
     };
-
-const OWNER_ROLES = ["owner", "developer"];
-const CASHIER_ROLES = ["owner", "cashier", "developer"];
 
 function base64Url(input: string) {
   return Buffer.from(input).toString("base64url");
@@ -123,7 +141,7 @@ export function requireOwner(request: Request): GuardResult {
     return auth;
   }
 
-  if (!auth.session.role || !OWNER_ROLES.includes(auth.session.role)) {
+  if (!isOwnerRole(auth.session.role)) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -147,7 +165,7 @@ export function requireCashier(request: Request): GuardResult {
     return auth;
   }
 
-  if (!auth.session.role || !CASHIER_ROLES.includes(auth.session.role)) {
+  if (!canUsePOS(auth.session.role)) {
     return {
       ok: false,
       response: NextResponse.json(

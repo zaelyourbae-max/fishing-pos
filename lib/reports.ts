@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { getSettings } from "@/lib/settings";
 
 export const LOW_STOCK_LIMIT = 10;
@@ -52,12 +53,19 @@ function createdAtRange(range?: OwnerReportRange, fallbackStart?: Date) {
   return Object.keys(createdAt).length > 0 ? { createdAt } : {};
 }
 
+function finalSaleWhere(range?: OwnerReportRange, fallbackStart?: Date) {
+  return {
+    ...createdAtRange(range, fallbackStart),
+    ...FINAL_SALE_STATUS_WHERE,
+  };
+}
+
 export async function getOwnerReportTransactions(
   take = 200,
   range?: OwnerReportRange,
 ) {
   const safeTake = Math.min(Math.max(take, 1), 200);
-  const where = createdAtRange(range, startOfMonth());
+  const where = finalSaleWhere(range, startOfMonth());
 
   const [sales, paymentMethods] = await Promise.all([
     prisma.sale.findMany({
@@ -73,6 +81,8 @@ export async function getOwnerReportTransactions(
         subtotal: true,
         paidAmount: true,
         paymentMethod: true,
+        transactionStatus: true,
+        paymentStatus: true,
         cashier: {
           select: {
             name: true,
@@ -115,6 +125,7 @@ export async function getOwnerReportReturns(take = 200, range?: OwnerReportRange
     where: {
       returnType: "CUSTOMER_RETURN",
       ...createdAtRange(range, startOfMonth()),
+      sale: FINAL_SALE_STATUS_WHERE,
     },
     orderBy: {
       createdAt: "desc",
@@ -156,6 +167,14 @@ function reasonLabel(reason: string) {
   return RETURN_REASON_LABELS[reason as ReturnReason] ?? reason;
 }
 
+function marginPercent(profit: number, revenue: number) {
+  return revenue > 0 ? (profit / revenue) * 100 : 0;
+}
+
+function moneyNumber(amount: unknown) {
+  return Math.round(Number(amount ?? 0));
+}
+
 export async function getOwnerReportSummary(range?: OwnerReportRange) {
   return getOwnerReportSummaryForRange(range);
 }
@@ -165,6 +184,8 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
   const monthStart = startOfMonth();
   const activeRange = createdAtRange(range, monthStart);
   const todayRange = createdAtRange(undefined, todayStart);
+  const activeSaleWhere = finalSaleWhere(range, monthStart);
+  const todaySaleWhere = finalSaleWhere(undefined, todayStart);
   const [
     settings,
     todaySales,
@@ -183,10 +204,12 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
     monthPurchases,
     recentSupplierReturns,
     paymentMethods,
+    profitSaleItems,
+    profitReturnItems,
   ] = await Promise.all([
     getSettings(),
     prisma.sale.aggregate({
-      where: todayRange,
+      where: todaySaleWhere,
       _sum: {
         subtotal: true,
       },
@@ -195,7 +218,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       },
     }),
     prisma.sale.aggregate({
-      where: activeRange,
+      where: activeSaleWhere,
       _sum: {
         subtotal: true,
       },
@@ -205,7 +228,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
     }),
     prisma.sale.groupBy({
       by: ["paymentMethod"],
-      where: todayRange,
+      where: todaySaleWhere,
       _sum: {
         subtotal: true,
       },
@@ -215,7 +238,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
     }),
     prisma.sale.groupBy({
       by: ["paymentMethod"],
-      where: activeRange,
+      where: activeSaleWhere,
       _sum: {
         subtotal: true,
       },
@@ -226,7 +249,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
     prisma.saleItem.groupBy({
       by: ["productId"],
       where: {
-        sale: activeRange,
+        sale: activeSaleWhere,
       },
       _sum: {
         qty: true,
@@ -279,6 +302,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       where: {
         returnType: "CUSTOMER_RETURN",
         ...todayRange,
+        sale: FINAL_SALE_STATUS_WHERE,
       },
       _sum: {
         totalRefund: true,
@@ -291,6 +315,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       where: {
         returnType: "CUSTOMER_RETURN",
         ...activeRange,
+        sale: FINAL_SALE_STATUS_WHERE,
       },
       _sum: {
         totalRefund: true,
@@ -304,6 +329,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       where: {
         returnType: "CUSTOMER_RETURN",
         ...activeRange,
+        sale: FINAL_SALE_STATUS_WHERE,
       },
       _sum: {
         totalRefund: true,
@@ -316,6 +342,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       where: {
         returnType: "CUSTOMER_RETURN",
         ...activeRange,
+        sale: FINAL_SALE_STATUS_WHERE,
       },
       orderBy: {
         createdAt: "desc",
@@ -398,6 +425,45 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
         name: true,
       },
     }),
+    prisma.saleItem.findMany({
+      where: {
+        sale: activeSaleWhere,
+      },
+      select: {
+        productId: true,
+        qty: true,
+        subtotal: true,
+        subtotalAfterDiscount: true,
+        unitCost: true,
+        product: {
+          select: {
+            name: true,
+            sku: true,
+          },
+        },
+      },
+    }),
+    prisma.saleReturnItem.findMany({
+      where: {
+        saleReturn: {
+          returnType: "CUSTOMER_RETURN",
+          ...activeRange,
+          sale: FINAL_SALE_STATUS_WHERE,
+        },
+      },
+      select: {
+        productId: true,
+        qty: true,
+        subtotal: true,
+        unitCost: true,
+        product: {
+          select: {
+            name: true,
+            sku: true,
+          },
+        },
+      },
+    }),
   ]);
   const productIds = bestSellerGroups.map((item) => item.productId);
   const products = productIds.length
@@ -432,6 +498,73 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       total: item._sum.totalRefund ?? 0,
     }))
     .sort((a, b) => b.returns - a.returns || b.total - a.total);
+  const salesCogs = profitSaleItems.reduce(
+    (total, item) => total + item.qty * item.unitCost,
+    0,
+  );
+  const returnCogs = profitReturnItems.reduce(
+    (total, item) => total + item.qty * item.unitCost,
+    0,
+  );
+  const netCogs = Math.max(salesCogs - returnCogs, 0);
+  const profitByProduct = new Map<
+    number,
+    {
+      productId: number;
+      name: string;
+      sku: string;
+      qty: number;
+      revenue: number;
+      cogs: number;
+      profit: number;
+    }
+  >();
+
+  for (const item of profitSaleItems) {
+    const itemRevenue = moneyNumber(item.subtotalAfterDiscount) || item.subtotal;
+    const current = profitByProduct.get(item.productId) ?? {
+      productId: item.productId,
+      name: item.product.name,
+      sku: item.product.sku ?? "-",
+      qty: 0,
+      revenue: 0,
+      cogs: 0,
+      profit: 0,
+    };
+
+    current.qty += item.qty;
+    current.revenue += itemRevenue;
+    current.cogs += item.qty * item.unitCost;
+    current.profit = current.revenue - current.cogs;
+    profitByProduct.set(item.productId, current);
+  }
+
+  for (const item of profitReturnItems) {
+    const productId = item.productId;
+    const current = profitByProduct.get(productId) ?? {
+      productId,
+      name: item.product.name,
+      sku: item.product.sku ?? "-",
+      qty: 0,
+      revenue: 0,
+      cogs: 0,
+      profit: 0,
+    };
+
+    current.qty -= item.qty;
+    current.revenue -= item.subtotal;
+    current.cogs -= item.qty * item.unitCost;
+    current.profit = current.revenue - current.cogs;
+    profitByProduct.set(productId, current);
+  }
+
+  const netRevenue = Math.max((monthSales._sum.subtotal ?? 0) - monthReturnValue, 0);
+  const grossProfit = netRevenue - netCogs;
+  const hasUnitCostSnapshot = profitSaleItems.some((item) => item.unitCost > 0);
+  const incompleteReturnCostCount = profitReturnItems.filter(
+    (item) => item.qty > 0 && item.unitCost <= 0,
+  ).length;
+  const hasIncompleteReturnCost = incompleteReturnCostCount > 0;
 
   return {
     settings,
@@ -501,6 +634,30 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       totalPurchaseMonth: monthPurchaseValue,
       netPurchaseMonth: Math.max(monthPurchaseValue - monthSupplierReturnValue, 0),
       recent: recentSupplierReturns,
+    },
+    profit: {
+      hasUnitCostSnapshot,
+      grossRevenue: monthSales._sum.subtotal ?? 0,
+      returnRevenue: monthReturnValue,
+      netRevenue,
+      salesCogs,
+      returnCogs,
+      netCogs,
+      grossProfit,
+      netProfit: grossProfit,
+      hasIncompleteReturnCost,
+      incompleteReturnCostCount,
+      marginPercent: marginPercent(
+        grossProfit,
+        netRevenue,
+      ),
+      topProducts: Array.from(profitByProduct.values())
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 5)
+        .map((item) => ({
+          ...item,
+          marginPercent: marginPercent(item.profit, item.revenue),
+        })),
     },
   };
 }

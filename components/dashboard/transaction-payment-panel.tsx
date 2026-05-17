@@ -14,6 +14,8 @@ type SaleRow = {
   itemCount: number;
   returnCount: number;
   paymentMethod: string;
+  transactionStatus: string;
+  paymentStatus: string;
   items: {
     name: string;
     sku: string;
@@ -104,6 +106,22 @@ function paymentTone(method: string) {
   return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
 }
 
+function statusTone(status: string) {
+  if (status === "SUCCESS" || status === "PAID") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
+  }
+
+  if (status === "PENDING" || status === "WAITING_PROOF") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200";
+  }
+
+  if (status === "CANCELLED" || status === "FAILED") {
+    return "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200";
+  }
+
+  return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+}
+
 export default function TransactionPaymentPanel({
   recentSales,
   paymentSummary,
@@ -177,6 +195,12 @@ export default function TransactionPaymentPanel({
                       )}`}
                     >
                       {sale.paymentMethod}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusTone(sale.transactionStatus)}`}>
+                      {sale.transactionStatus}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusTone(sale.paymentStatus)}`}>
+                      {sale.paymentStatus}
                     </span>
                     {sale.returnCount > 0 ? (
                       <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
@@ -299,6 +323,8 @@ export default function TransactionPaymentPanel({
                 ["Kasir", selectedSale.cashierName],
                 ["Waktu", selectedSale.createdAt],
                 ["Payment", selectedSale.paymentMethod],
+                ["Transaction Status", selectedSale.transactionStatus],
+                ["Payment Status", selectedSale.paymentStatus],
                 ["Item", `${selectedSale.itemCount} item`],
                 ["Total", selectedSale.subtotal],
               ].map(([label, value]) => (

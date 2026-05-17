@@ -25,6 +25,13 @@ import SaleMessageActions from "@/components/message-actions/sale-message-action
 import PaymentConfirmationModal from "@/components/pos/payment-confirmation-modal";
 import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type Product = {
   id: number;
@@ -34,6 +41,7 @@ type Product = {
   category: string;
   imageUrl?: string | null;
   price: number;
+  costPrice?: number | null;
   stock: number;
 };
 
@@ -44,12 +52,24 @@ type ApiProduct = {
   barcode?: string | null;
   category: string | { name?: string | null } | null;
   image_url?: string | null;
+  cost_price?: number | string;
   selling_price: number | string;
   current_stock: number | string;
 };
 
+type DiscountType = "NONE" | "FIXED" | "PERCENT";
+
 type CartItem = Product & {
   qty: number;
+  discountType: DiscountType;
+  discountValue: number;
+  discountReason: string;
+};
+
+type DiscountDraft = {
+  type: DiscountType;
+  value: string;
+  reason: string;
 };
 
 type UserPayload = {
@@ -75,6 +95,9 @@ type CheckoutSuccess = {
   invoiceNumber: string;
   total: number;
   paymentMethod: string;
+  transactionStatus: string;
+  paymentStatus: string;
+  paymentProofUrl?: string | null;
 };
 
 type PaymentMethod = {
@@ -117,6 +140,8 @@ type SummaryDetailItem = {
   cashier?: string;
   itemCount?: number;
   paymentMethod?: string;
+  transactionStatus?: string;
+  paymentStatus?: string;
 };
 
 type SummaryDetail = {
@@ -134,11 +159,78 @@ function rupiah(amount: number) {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 }
 
+function cartLineSubtotalBeforeDiscount(item: CartItem) {
+  return item.price * item.qty;
+}
+
+function discountAmountFor(
+  type: DiscountType,
+  value: number,
+  subtotalBeforeDiscount: number,
+) {
+  if (type === "NONE") {
+    return 0;
+  }
+
+  if (type === "PERCENT") {
+    return Math.round((subtotalBeforeDiscount * value) / 100);
+  }
+
+  return Math.round(value);
+}
+
+function cartLineDiscountAmount(item: CartItem) {
+  const subtotalBeforeDiscount = cartLineSubtotalBeforeDiscount(item);
+
+  return discountAmountFor(
+    item.discountType,
+    item.discountValue,
+    subtotalBeforeDiscount,
+  );
+}
+
+function cartLineTotal(item: CartItem) {
+  return Math.max(
+    cartLineSubtotalBeforeDiscount(item) - cartLineDiscountAmount(item),
+    0,
+  );
+}
+
+function cartLineDiscountLabel(item: CartItem) {
+  const amount = cartLineDiscountAmount(item);
+
+  if (amount <= 0) {
+    return "Tanpa diskon";
+  }
+
+  if (item.discountType === "PERCENT") {
+    return `${item.discountValue}% (${rupiah(amount)})`;
+  }
+
+  return rupiah(amount);
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function statusBadgeClass(status: string) {
+  if (status === "SUCCESS" || status === "PAID") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
+  }
+
+  if (status === "PENDING" || status === "WAITING_PROOF") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200";
+  }
+
+  if (status === "CANCELLED" || status === "FAILED") {
+    return "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200";
+  }
+
+  return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
 }
 
 function readCategory(category: ApiProduct["category"]) {
@@ -274,14 +366,27 @@ export default function PosApp({
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [proofMessage, setProofMessage] = useState("");
+  const [discountModalItemId, setDiscountModalItemId] = useState<number | null>(
+    null,
+  );
+  const [discountDraft, setDiscountDraft] = useState<DiscountDraft>({
+    type: "NONE",
+    value: "0",
+    reason: "",
+  });
+  const [discountModalError, setDiscountModalError] = useState("");
 
   const request = useCallback(
     async (url: string, init: RequestInit = {}) => {
+      const isFormData = init.body instanceof FormData;
       const response = await fetch(url, {
         ...init,
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json",
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...init.headers,
         },
@@ -315,6 +420,8 @@ export default function PosApp({
         category: readCategory(product.category),
         imageUrl: product.image_url ?? null,
         price: Number(product.selling_price),
+        costPrice:
+          product.cost_price === undefined ? null : Number(product.cost_price),
         stock: Number(product.current_stock),
       }));
 
@@ -400,8 +507,14 @@ export default function PosApp({
 
   const subtotal = useMemo(() => {
     return cart.reduce((acc, item) => {
-      return acc + item.price * item.qty;
+      return acc + cartLineTotal(item);
     }, 0);
+  }, [cart]);
+  const subtotalBeforeDiscount = useMemo(() => {
+    return cart.reduce((acc, item) => acc + cartLineSubtotalBeforeDiscount(item), 0);
+  }, [cart]);
+  const totalItemDiscount = useMemo(() => {
+    return cart.reduce((acc, item) => acc + cartLineDiscountAmount(item), 0);
   }, [cart]);
   const selectedPaymentMethod = paymentMethods.find(
     (method) => method.code === paymentMethod,
@@ -441,11 +554,43 @@ export default function PosApp({
   const currentRole = user?.role?.slug ?? currentUser.role?.slug ?? "cashier";
   const canOpenInventoryDetails =
     currentRole === "owner" || currentRole === "developer";
+  const discountModalItem =
+    discountModalItemId === null
+      ? null
+      : cart.find((item) => item.id === discountModalItemId) ?? null;
+  const discountDraftValue = Number(discountDraft.value || 0);
+  const discountDraftSubtotalBefore = discountModalItem
+    ? cartLineSubtotalBeforeDiscount(discountModalItem)
+    : 0;
+  const discountDraftAmount =
+    discountModalItem && Number.isFinite(discountDraftValue)
+      ? discountAmountFor(
+          discountDraft.type,
+          Math.max(discountDraftValue, 0),
+          discountDraftSubtotalBefore,
+        )
+      : 0;
+  const discountDraftSubtotalAfter = Math.max(
+    discountDraftSubtotalBefore - discountDraftAmount,
+    0,
+  );
+  const discountDraftBelowCost =
+    Boolean(
+      canOpenInventoryDetails &&
+        discountModalItem &&
+        discountModalItem.costPrice &&
+        discountModalItem.costPrice > 0 &&
+        discountModalItem.qty > 0 &&
+        discountDraftSubtotalAfter / discountModalItem.qty <
+          discountModalItem.costPrice,
+    );
 
   function addToCart(product: Product) {
     setSuccessMessage("");
     setLastSaleId("");
     setCheckoutSuccess(null);
+    setProofFile(null);
+    setProofMessage("");
     setErrorMessage("");
 
     if (product.stock <= 0) {
@@ -472,9 +617,124 @@ export default function PosApp({
         {
           ...product,
           qty: 1,
+          discountType: "NONE",
+          discountValue: 0,
+          discountReason: "",
         },
       ];
     });
+  }
+
+  function updateItemDiscount(
+    id: number,
+    discountType: DiscountType,
+    discountValue: number,
+    discountReason: string,
+  ) {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        const safeValue = Number.isFinite(discountValue)
+          ? Math.max(discountValue, 0)
+          : 0;
+
+        return {
+          ...item,
+          discountType,
+          discountValue: discountType === "NONE" ? 0 : safeValue,
+          discountReason:
+            discountType === "NONE" || safeValue <= 0 ? "" : discountReason.trim(),
+        };
+      }),
+    );
+  }
+
+  function openDiscountModal(item: CartItem) {
+    setDiscountModalItemId(item.id);
+    setDiscountDraft({
+      type: item.discountType,
+      value: String(item.discountValue),
+      reason: item.discountReason,
+    });
+    setDiscountModalError("");
+  }
+
+  function closeDiscountModal() {
+    setDiscountModalItemId(null);
+    setDiscountModalError("");
+  }
+
+  function saveDiscountModal() {
+    if (!discountModalItem) {
+      return;
+    }
+
+    const discountValue = Number(discountDraft.value || 0);
+
+    if (!Number.isFinite(discountValue) || discountValue < 0) {
+      setDiscountModalError("Diskon item tidak boleh negatif.");
+      return;
+    }
+
+    if (discountDraft.type === "PERCENT" && discountValue > 100) {
+      setDiscountModalError("Diskon persen tidak boleh lebih dari 100%.");
+      return;
+    }
+
+    if (
+      discountDraft.type === "FIXED" &&
+      discountValue > discountDraftSubtotalBefore
+    ) {
+      setDiscountModalError("Diskon nominal tidak boleh melebihi subtotal item.");
+      return;
+    }
+
+    const discountAmount = discountAmountFor(
+      discountDraft.type,
+      discountValue,
+      discountDraftSubtotalBefore,
+    );
+
+    if (discountAmount > 0 && !discountDraft.reason.trim()) {
+      setDiscountModalError("Alasan diskon wajib diisi.");
+      return;
+    }
+
+    updateItemDiscount(
+      discountModalItem.id,
+      discountDraft.type,
+      discountValue,
+      discountDraft.reason,
+    );
+    closeDiscountModal();
+  }
+
+  function validateCartDiscounts() {
+    for (const item of cart) {
+      const discountAmount = cartLineDiscountAmount(item);
+      const subtotalBeforeDiscount = cartLineSubtotalBeforeDiscount(item);
+
+      if (item.discountValue < 0 || discountAmount < 0) {
+        return "Diskon item tidak boleh negatif.";
+      }
+
+      if (item.discountType === "PERCENT" && item.discountValue > 100) {
+        return `Diskon persen ${item.name} tidak boleh lebih dari 100%.`;
+      }
+
+      if (item.discountType === "FIXED" && discountAmount > subtotalBeforeDiscount) {
+        return `Diskon nominal ${item.name} tidak boleh melebihi subtotal item.`;
+      }
+
+      if (discountAmount > 0 && !item.discountReason.trim()) {
+        return `Alasan diskon ${item.name} wajib diisi.`;
+      }
+    }
+
+    return "";
   }
 
   function increaseQty(id: number) {
@@ -534,6 +794,13 @@ export default function PosApp({
       return;
     }
 
+    const discountError = validateCartDiscounts();
+
+    if (discountError) {
+      setErrorMessage(discountError);
+      return;
+    }
+
     const paid = checkoutPaidAmount();
 
     if (!Number.isFinite(paid) || paid < subtotal) {
@@ -556,6 +823,12 @@ export default function PosApp({
     }
 
     const paid = checkoutPaidAmount();
+    const discountError = validateCartDiscounts();
+
+    if (discountError) {
+      setErrorMessage(discountError);
+      return;
+    }
 
     setLoadingCheckout(true);
     setErrorMessage("");
@@ -577,20 +850,35 @@ export default function PosApp({
           items: cart.map((item) => ({
             product_id: item.id,
             quantity: item.qty,
+            discount_type: item.discountType,
+            discount_value: item.discountValue,
+            discount_reason: item.discountReason,
           })),
         }),
       });
 
+      const responseTransactionStatus =
+        response.data?.transaction_status ?? response.data?.status ?? "SUCCESS";
+      const responsePaymentStatus = response.data?.payment_status ?? "PAID";
+      const saleNumber = response.data?.sale_number ?? "";
+
       setSuccessMessage(
-        `Transaksi berhasil - ${response.data?.sale_number ?? ""}`,
+        responsePaymentStatus === "WAITING_PROOF"
+          ? `Transaksi QRIS tersimpan pending - ${saleNumber}`
+          : `Transaksi berhasil - ${saleNumber}`,
       );
       setLastSaleId(response.data?.id ?? "");
       setCheckoutSuccess({
         id: response.data?.id ?? "",
-        invoiceNumber: response.data?.sale_number ?? "",
+        invoiceNumber: saleNumber,
         total: Number(response.data?.grand_total ?? 0),
         paymentMethod: response.data?.payment_method ?? "cash",
+        transactionStatus: responseTransactionStatus,
+        paymentStatus: responsePaymentStatus,
+        paymentProofUrl: response.data?.payment_proof_url ?? null,
       });
+      setProofFile(null);
+      setProofMessage("");
       setCart([]);
       setPaidAmount("");
       setPaymentModalOpen(false);
@@ -611,6 +899,56 @@ export default function PosApp({
       setErrorMessage(error instanceof Error ? error.message : "Checkout gagal");
     } finally {
       setLoadingCheckout(false);
+    }
+  }
+
+  async function uploadPaymentProof() {
+    if (!checkoutSuccess?.id || uploadingProof) {
+      return;
+    }
+
+    if (!proofFile) {
+      setErrorMessage("Pilih file bukti pembayaran QRIS terlebih dahulu.");
+      return;
+    }
+
+    setUploadingProof(true);
+    setErrorMessage("");
+    setProofMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.set("file", proofFile);
+
+      const response = await request(
+        `/api/sales/${checkoutSuccess.id}/payment-proof`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      setCheckoutSuccess((current) =>
+        current
+          ? {
+              ...current,
+              transactionStatus:
+                response.data?.transaction_status ?? current.transactionStatus,
+              paymentStatus: response.data?.payment_status ?? current.paymentStatus,
+              paymentProofUrl:
+                response.data?.payment_proof_url ?? current.paymentProofUrl,
+            }
+          : current,
+      );
+      setProofFile(null);
+      setProofMessage("Bukti QRIS tersimpan. Transaksi sudah SUCCESS / PAID.");
+      await fetchSummary();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Gagal upload bukti pembayaran.",
+      );
+    } finally {
+      setUploadingProof(false);
     }
   }
 
@@ -738,6 +1076,20 @@ export default function PosApp({
                           {item.cashier} - {item.itemCount ?? 0} item -{" "}
                           {item.paymentMethod}
                         </p>
+                        {item.transactionStatus || item.paymentStatus ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {item.transactionStatus ? (
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(item.transactionStatus)}`}>
+                                {item.transactionStatus}
+                              </span>
+                            ) : null}
+                            {item.paymentStatus ? (
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(item.paymentStatus)}`}>
+                                {item.paymentStatus}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                       <p className="font-bold tabular-nums">
                         {rupiah(item.amount ?? 0)}
@@ -837,7 +1189,9 @@ export default function PosApp({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Checkout Success
+                {checkoutSuccess.paymentStatus === "WAITING_PROOF"
+                  ? "QRIS Pending"
+                  : "Checkout Success"}
               </p>
               <h2 className="metric-value text-xl">
                 {checkoutSuccess.invoiceNumber}
@@ -849,6 +1203,14 @@ export default function PosApp({
                 </span>{" "}
                 - {checkoutSuccess.paymentMethod}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(checkoutSuccess.transactionStatus)}`}>
+                  {checkoutSuccess.transactionStatus}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(checkoutSuccess.paymentStatus)}`}>
+                  {checkoutSuccess.paymentStatus}
+                </span>
+              </div>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -870,6 +1232,37 @@ export default function PosApp({
               </div>
             </div>
           </div>
+          {checkoutSuccess.paymentMethod.toUpperCase().includes("QRIS") &&
+          checkoutSuccess.paymentStatus === "WAITING_PROOF" ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
+                Upload bukti QRIS untuk menyelesaikan transaksi.
+              </p>
+              <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) =>
+                    setProofFile(event.target.files?.[0] ?? null)
+                  }
+                  className="min-h-11 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-slate-900 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-100 file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-amber-800 dark:border-amber-500/30 dark:bg-slate-950 dark:text-slate-100 dark:file:bg-amber-500/15 dark:file:text-amber-200"
+                />
+                <button
+                  type="button"
+                  onClick={uploadPaymentProof}
+                  disabled={uploadingProof || !proofFile}
+                  className="min-h-11 rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {uploadingProof ? "Mengupload..." : "Upload Proof"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {proofMessage ? (
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+              {proofMessage}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -1303,9 +1696,16 @@ export default function PosApp({
                         {item.sku}
                       </p>
                     </div>
-                    <p className="shrink-0 font-bold tabular-nums text-slate-950 dark:text-slate-50">
-                      {rupiah(item.price * item.qty)}
-                    </p>
+                    <div className="shrink-0 text-right">
+                      <p className="font-bold tabular-nums text-slate-950 dark:text-slate-50">
+                        {rupiah(cartLineTotal(item))}
+                      </p>
+                      {cartLineDiscountAmount(item) > 0 ? (
+                        <p className="text-xs tabular-nums text-rose-600 dark:text-rose-300">
+                          -{rupiah(cartLineDiscountAmount(item))}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1327,6 +1727,41 @@ export default function PosApp({
                       +
                     </button>
                   </div>
+
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/60">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          Diskon Item
+                        </p>
+                        <p className="mt-1 text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                          {cartLineDiscountLabel(item)}
+                        </p>
+                        {cartLineDiscountAmount(item) > 0 &&
+                        item.discountReason ? (
+                          <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                            {item.discountReason}
+                          </p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openDiscountModal(item)}
+                        className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-teal-300 px-3 text-xs font-bold text-teal-700 transition hover:bg-teal-50 dark:border-teal-500/40 dark:text-teal-200 dark:hover:bg-teal-500/10"
+                      >
+                        Edit Diskon
+                      </button>
+                    </div>
+                    {canOpenInventoryDetails &&
+                    item.costPrice &&
+                    item.costPrice > 0 &&
+                    item.qty > 0 &&
+                    cartLineTotal(item) / item.qty < item.costPrice ? (
+                      <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                        Harga efektif setelah diskon berada di bawah HPP.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1338,6 +1773,26 @@ export default function PosApp({
                 </span>
                 <span className="metric-value text-2xl">{rupiah(subtotal)}</span>
               </div>
+              {totalItemDiscount > 0 ? (
+                <div className="space-y-2 rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm dark:border-rose-500/20 dark:bg-rose-500/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-600 dark:text-slate-300">
+                      Subtotal sebelum diskon
+                    </span>
+                    <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                      {rupiah(subtotalBeforeDiscount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-rose-700 dark:text-rose-200">
+                      Total diskon item
+                    </span>
+                    <span className="font-semibold tabular-nums text-rose-700 dark:text-rose-200">
+                      -{rupiah(totalItemDiscount)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -1404,6 +1859,142 @@ export default function PosApp({
           </section>
         </aside>
       </div>
+      <Dialog
+        open={discountModalItem !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDiscountModal();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Diskon</DialogTitle>
+            <DialogDescription>
+              {discountModalItem?.name ?? "Item keranjang"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Tipe Diskon
+              </span>
+              <select
+                value={discountDraft.type}
+                onChange={(event) => {
+                  const nextType = event.target.value as DiscountType;
+                  setDiscountDraft((current) => ({
+                    ...current,
+                    type: nextType,
+                    value: nextType === "NONE" ? "0" : current.value,
+                    reason: nextType === "NONE" ? "" : current.reason,
+                  }));
+                  setDiscountModalError("");
+                }}
+                className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value="NONE">Tanpa Diskon</option>
+                <option value="FIXED">Nominal Rupiah</option>
+                <option value="PERCENT">Persen %</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Nilai Diskon
+              </span>
+              <input
+                type="number"
+                min="0"
+                max={discountDraft.type === "PERCENT" ? 100 : undefined}
+                disabled={discountDraft.type === "NONE"}
+                value={discountDraft.value}
+                onChange={(event) => {
+                  setDiscountDraft((current) => ({
+                    ...current,
+                    value: event.target.value,
+                  }));
+                  setDiscountModalError("");
+                }}
+                placeholder={discountDraft.type === "PERCENT" ? "0 - 100" : "0"}
+                className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-900"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Alasan Diskon
+              </span>
+              <textarea
+                value={discountDraft.reason}
+                disabled={discountDraftAmount <= 0}
+                onChange={(event) => {
+                  setDiscountDraft((current) => ({
+                    ...current,
+                    reason: event.target.value,
+                  }));
+                  setDiscountModalError("");
+                }}
+                rows={3}
+                placeholder={
+                  discountDraftAmount > 0
+                    ? "Wajib diisi jika ada diskon"
+                    : "Kosong jika tanpa diskon"
+                }
+                className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-900"
+              />
+            </label>
+
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/70">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-slate-500 dark:text-slate-400">
+                  Subtotal sebelum diskon
+                </span>
+                <span className="font-semibold tabular-nums">
+                  {rupiah(discountDraftSubtotalBefore)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-rose-700 dark:text-rose-200">
+                  Total diskon
+                </span>
+                <span className="font-semibold tabular-nums text-rose-700 dark:text-rose-200">
+                  -{rupiah(discountDraftAmount)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2 dark:border-slate-800">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">
+                  Subtotal setelah diskon
+                </span>
+                <span className="font-bold tabular-nums">
+                  {rupiah(discountDraftSubtotalAfter)}
+                </span>
+              </div>
+            </div>
+
+            {discountDraftBelowCost ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                Harga efektif setelah diskon berada di bawah HPP.
+              </p>
+            ) : null}
+
+            {discountModalError ? (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                {discountModalError}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={saveDiscountModal}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+            >
+              Simpan Diskon
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

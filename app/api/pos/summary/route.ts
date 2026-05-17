@@ -1,5 +1,6 @@
 import { requireCashier } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { NextResponse } from "next/server";
 
 type DetailType =
@@ -37,6 +38,7 @@ export async function GET(req: Request) {
   const isOwner = isOwnerRole(auth.session.role);
   const saleWhere = {
     createdAt: todayRange(),
+    ...FINAL_SALE_STATUS_WHERE,
     ...(isOwner ? {} : { cashierId: auth.session.sub }),
   };
 
@@ -180,6 +182,8 @@ export async function GET(req: Request) {
         createdAt: true,
         subtotal: true,
         paymentMethod: true,
+        transactionStatus: true,
+        paymentStatus: true,
         cashier: {
           select: {
             name: true,
@@ -217,6 +221,8 @@ export async function GET(req: Request) {
           cashier: sale.cashier.name,
           itemCount: sale._count.items,
           paymentMethod: sale.paymentMethod,
+          transactionStatus: sale.transactionStatus,
+          paymentStatus: sale.paymentStatus,
           amount: sale.subtotal,
         })),
       },

@@ -1,0 +1,2 @@
+ALTER TABLE "sale_return_items"
+ADD COLUMN IF NOT EXISTS "unit_cost" INTEGER NOT NULL DEFAULT 0;

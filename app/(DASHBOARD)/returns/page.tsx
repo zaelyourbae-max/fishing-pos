@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 
-import { requireProtectedPage } from "@/lib/page-guards";
+import { requireReturnsPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, RETURN_REASON_LABELS, rupiah } from "@/lib/returns";
 import LiveSearchInput from "@/components/search/live-search-input";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 
 type ReturnsPageProps = {
   searchParams?: Promise<{
@@ -13,12 +14,16 @@ type ReturnsPageProps = {
 };
 
 export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
-  const session = await requireProtectedPage();
+  const session = await requireReturnsPage();
   const params = (await searchParams) ?? {};
   const q = String(params.q ?? "").trim();
+  const saleWhere = {
+    ...FINAL_SALE_STATUS_WHERE,
+    ...(session.role === "cashier" ? { cashierId: session.sub } : {}),
+  };
   const where: Prisma.SaleReturnWhereInput = {
     returnType: "CUSTOMER_RETURN",
-    ...(session.role === "cashier" ? { sale: { cashierId: session.sub } } : {}),
+    sale: saleWhere,
     ...(q
       ? {
           OR: [
@@ -108,9 +113,8 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
         <div>
           <h1 className="page-title">Retur Customer</h1>
           <p className="mt-3 text-slate-500 dark:text-slate-400">
-            {session.role === "cashier"
-              ? "Retur untuk transaksi milik kasir login."
-              : "Barang dikembalikan customer dari invoice penjualan. Retur ini mengurangi omzet bersih."}
+            Barang dikembalikan customer dari invoice penjualan. Retur ini
+            mengurangi omzet bersih.
           </p>
         </div>
 
@@ -121,14 +125,12 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
           >
             Buat Retur Customer
           </Link>
-          {session.role !== "cashier" ? (
-            <Link
-              href="/returns/supplier"
-              className="rounded-2xl border border-slate-300 bg-white px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-            >
-              Retur Supplier
-            </Link>
-          ) : null}
+          <Link
+            href="/returns/supplier"
+            className="rounded-2xl border border-slate-300 bg-white px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+          >
+            Retur Supplier
+          </Link>
         </div>
       </div>
 

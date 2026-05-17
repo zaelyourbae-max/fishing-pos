@@ -1,5 +1,6 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -8,7 +9,7 @@ export async function GET(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = requireCashier(req);
+  const auth = requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -19,9 +20,7 @@ export async function GET(
     where: {
       id,
       returnType: "CUSTOMER_RETURN",
-      ...(auth.session.role === "cashier"
-        ? { sale: { cashierId: auth.session.sub } }
-        : {}),
+      sale: FINAL_SALE_STATUS_WHERE,
     },
     select: {
       id: true,

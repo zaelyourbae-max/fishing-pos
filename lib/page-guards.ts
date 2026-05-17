@@ -1,10 +1,19 @@
 import { redirect } from "next/navigation";
 
 import { getServerSession } from "@/lib/server-session";
-import type { TokenPayload } from "@/lib/auth-session";
+import {
+  canAccessReports,
+  canAccessReturns,
+  canAccessCustomers,
+  canManageProducts,
+  canUsePOS,
+  isOwnerRole,
+  type RoleSlug,
+  type TokenPayload,
+} from "@/lib/auth-session";
 
 type ProtectedSession = TokenPayload & {
-  role: "owner" | "cashier" | "developer";
+  role: RoleSlug;
 };
 
 export async function requireProtectedPage(): Promise<ProtectedSession> {
@@ -14,11 +23,7 @@ export async function requireProtectedPage(): Promise<ProtectedSession> {
     redirect("/login");
   }
 
-  if (
-    session.role !== "owner" &&
-    session.role !== "cashier" &&
-    session.role !== "developer"
-  ) {
+  if (!canUsePOS(session.role)) {
     redirect("/login");
   }
 
@@ -28,8 +33,48 @@ export async function requireProtectedPage(): Promise<ProtectedSession> {
 export async function requireOwnerPage(): Promise<ProtectedSession> {
   const session = await requireProtectedPage();
 
-  if (session.role !== "owner" && session.role !== "developer") {
+  if (!isOwnerRole(session.role)) {
     redirect("/cashier");
+  }
+
+  return session;
+}
+
+export async function requireReportsPage(): Promise<ProtectedSession> {
+  const session = await requireProtectedPage();
+
+  if (!canAccessReports(session.role)) {
+    redirect("/cashier");
+  }
+
+  return session;
+}
+
+export async function requireReturnsPage(): Promise<ProtectedSession> {
+  const session = await requireProtectedPage();
+
+  if (!canAccessReturns(session.role)) {
+    redirect("/cashier");
+  }
+
+  return session;
+}
+
+export async function requireCustomersPage(): Promise<ProtectedSession> {
+  const session = await requireProtectedPage();
+
+  if (!canAccessCustomers(session.role)) {
+    redirect("/cashier");
+  }
+
+  return session;
+}
+
+export async function requireManageProductsPage(): Promise<ProtectedSession> {
+  const session = await requireProtectedPage();
+
+  if (!canManageProducts(session.role)) {
+    redirect("/products");
   }
 
   return session;

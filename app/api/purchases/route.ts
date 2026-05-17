@@ -1,4 +1,4 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -21,7 +21,7 @@ function purchaseNumber() {
 }
 
 export async function POST(req: Request) {
-  const auth = requireCashier(req);
+  const auth = requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

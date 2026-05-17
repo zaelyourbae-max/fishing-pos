@@ -21,9 +21,17 @@ import {
 
 import LogoutButton from "@/components/layout/logout-button";
 import ThemeToggle from "@/components/layout/theme-toggle";
+import {
+  canAccessReports,
+  canAccessReturns,
+  canAccessSettings,
+  canAccessSuppliers,
+  canManageUsers,
+  type RoleSlug,
+} from "@/lib/permissions";
 
 type SidebarProps = {
-  role: "owner" | "cashier" | "developer";
+  role: RoleSlug;
 };
 
 type MenuItem = {
@@ -32,24 +40,44 @@ type MenuItem = {
   icon: LucideIcon;
 };
 
-const ownerMenus: MenuItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "POS", href: "/pos", icon: ShoppingCart },
-  { name: "Produk", href: "/products", icon: Package },
-  { name: "Penjualan", href: "/sales", icon: FileText },
-  { name: "Retur", href: "/returns", icon: RotateCcw },
-  { name: "Pembelian", href: "/purchases", icon: PackagePlus },
-  { name: "Supplier", href: "/suppliers", icon: Truck },
-  { name: "Laporan", href: "/reports", icon: BarChart3 },
-  { name: "User", href: "/users", icon: Users },
-  { name: "Pengaturan", href: "/settings", icon: Settings },
-];
+function buildMenus(role: RoleSlug): MenuItem[] {
+  const menus: MenuItem[] = [
+    role === "cashier"
+      ? { name: "Dashboard", href: "/cashier", icon: LayoutDashboard }
+      : { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "POS", href: "/pos", icon: ShoppingCart },
+    { name: "Produk", href: "/products", icon: Package },
+    { name: "Penjualan", href: "/sales", icon: FileText },
+  ];
 
-const cashierMenus: MenuItem[] = [
-  { name: "POS", href: "/pos", icon: ShoppingCart },
-  { name: "Riwayat Penjualan Saya", href: "/sales", icon: FileText },
-  { name: "Retur Saya", href: "/returns", icon: RotateCcw },
-];
+  if (canAccessReturns(role)) {
+    menus.push({ name: "Retur", href: "/returns", icon: RotateCcw });
+  }
+
+  menus.push({ name: "Customer", href: "/customers", icon: Users });
+
+  if (role !== "cashier") {
+    menus.push({ name: "Pembelian", href: "/purchases", icon: PackagePlus });
+  }
+
+  if (canAccessSuppliers(role)) {
+    menus.push({ name: "Supplier", href: "/suppliers", icon: Truck });
+  }
+
+  if (canAccessReports(role)) {
+    menus.push({ name: "Laporan", href: "/reports", icon: BarChart3 });
+  }
+
+  if (canManageUsers(role)) {
+    menus.push({ name: "User", href: "/users", icon: Users });
+  }
+
+  if (canAccessSettings(role)) {
+    menus.push({ name: "Pengaturan", href: "/settings", icon: Settings });
+  }
+
+  return menus;
+}
 
 function Brand() {
   return (
@@ -110,7 +138,7 @@ function MenuList({
 }
 
 export default function Sidebar({ role }: SidebarProps) {
-  const menus = role === "cashier" ? cashierMenus : ownerMenus;
+  const menus = buildMenus(role);
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 

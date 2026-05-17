@@ -1,8 +1,8 @@
 import ReturnForm from "@/components/returns/return-form";
-import { requireProtectedPage } from "@/lib/page-guards";
+import { requireReturnsPage } from "@/lib/page-guards";
 
 export default async function NewReturnPage() {
-  await requireProtectedPage();
+  await requireReturnsPage();
 
   return <ReturnForm />;
 }

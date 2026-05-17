@@ -4,6 +4,25 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum TransactionStatus {
+  SUCCESS
+  PENDING
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  WAITING_PROOF
+  PAID
+  FAILED
+}
+
+enum SaleItemDiscountType {
+  NONE
+  FIXED
+  PERCENT
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -39,24 +58,37 @@ model Product {
 
 model Sale {
   id             String          @id @default(cuid())
-  invoiceNumber  String          @unique
-  subtotal       Int
-  paidAmount     Int
-  paymentMethod  String          @default("cash") @map("payment_method")
-  createdAt      DateTime        @default(now())
-  cashierId      Int
-  customerId     Int?            @map("customer_id")
-  cashier        User            @relation(fields: [cashierId], references: [id])
-  customer       Customer?       @relation(fields: [customerId], references: [id])
-  items          SaleItem[]
+    invoiceNumber  String          @unique
+    subtotal       Int
+    paidAmount     Int
+    paymentMethod  String          @default("CASH") @map("payment_method")
+    transactionStatus TransactionStatus @default(SUCCESS) @map("transaction_status")
+    paymentStatus     PaymentStatus     @default(PAID) @map("payment_status")
+    paymentProofUrl    String?          @map("payment_proof_url")
+    paymentProofUploadedAt DateTime?    @map("payment_proof_uploaded_at")
+    paymentProofUploadedById Int?       @map("payment_proof_uploaded_by_id")
+    cancelReason   String?          @map("cancel_reason")
+    cancelledAt    DateTime?        @map("cancelled_at")
+    cancelledById  Int?             @map("cancelled_by_id")
+    createdAt      DateTime        @default(now())
+    cashierId      Int
+    customerId     Int?            @map("customer_id")
+    cashier        User            @relation(fields: [cashierId], references: [id])
+    customer       Customer?       @relation(fields: [customerId], references: [id])
+    paymentProofUploadedBy User?   @relation("SalePaymentProofUploadedBy", fields: [paymentProofUploadedById], references: [id])
+    cancelledBy    User?           @relation("SaleCancelledBy", fields: [cancelledById], references: [id])
+    items          SaleItem[]
   returns        SaleReturn[]
   messageLogs    MessageLog[]
   stockMovements StockMovement[]
 
-  @@index([cashierId, createdAt])
-  @@index([customerId, createdAt])
-  @@map("sales")
-}
+    @@index([cashierId, createdAt])
+    @@index([customerId, createdAt])
+    @@index([transactionStatus, paymentStatus, createdAt])
+    @@index([paymentProofUploadedById, paymentProofUploadedAt])
+    @@index([cancelledById, cancelledAt])
+    @@map("sales")
+  }
 
 model SaleItem {
   id             String           @id @default(cuid())
@@ -66,7 +98,15 @@ model SaleItem {
   product        Product          @relation(fields: [productId], references: [id])
   qty            Int
   price          Int
+  unitCost       Int              @default(0) @map("unit_cost")
   subtotal       Int
+  originalPrice  Decimal          @default(0) @map("original_price") @db.Decimal(12, 2)
+  discountType   SaleItemDiscountType @default(NONE) @map("discount_type")
+  discountValue  Decimal          @default(0) @map("discount_value") @db.Decimal(12, 2)
+  discountAmount Decimal          @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  discountReason String?          @map("discount_reason")
+  subtotalBeforeDiscount Decimal  @default(0) @map("subtotal_before_discount") @db.Decimal(12, 2)
+  subtotalAfterDiscount  Decimal  @default(0) @map("subtotal_after_discount") @db.Decimal(12, 2)
   returnItems    SaleReturnItem[]
   stockMovements StockMovement[]
 
@@ -104,6 +144,7 @@ model SaleReturnItem {
   productId  Int        @map("product_id")
   qty        Int
   price      Int
+  unitCost   Int        @default(0) @map("unit_cost")
   subtotal   Int
   createdAt  DateTime   @default(now()) @map("created_at")
   saleReturn SaleReturn @relation(fields: [returnId], references: [id])
@@ -349,8 +390,10 @@ model User {
   updatedAt       DateTime         @updatedAt @map("updated_at")
   deletedAt       DateTime?        @map("deleted_at")
   role            Role             @relation(fields: [roleId], references: [id])
-  sales           Sale[]
-  saleReturns     SaleReturn[]     @relation("SaleReturnCreatedBy")
+    sales           Sale[]
+    uploadedSalePaymentProofs Sale[] @relation("SalePaymentProofUploadedBy")
+    cancelledSales  Sale[] @relation("SaleCancelledBy")
+    saleReturns     SaleReturn[]     @relation("SaleReturnCreatedBy")
   messageLogs     MessageLog[]     @relation("MessageLogCreatedBy")
   purchases       Purchase[]       @relation("PurchaseCreatedBy")
   supplierReturns SupplierReturn[] @relation("SupplierReturnCreatedBy")

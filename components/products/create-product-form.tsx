@@ -185,7 +185,7 @@ export default function CreateProductForm() {
 
         <div>
           <label className="text-sm text-slate-300">
-            Harga Beli
+            Harga Modal / HPP
           </label>
 
           <input
@@ -195,8 +195,11 @@ export default function CreateProductForm() {
               setCostPrice(e.target.value)
             }
             className="w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 text-slate-900 outline-none dark:text-slate-100"
-            placeholder="Harga beli"
+            placeholder="Harga modal / HPP"
           />
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            Digunakan untuk menghitung laba dan margin. Tidak ditampilkan ke kasir.
+          </p>
         </div>
         </div>
 

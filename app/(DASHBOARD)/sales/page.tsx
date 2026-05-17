@@ -16,6 +16,8 @@ import {
 import { requireProtectedPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import LiveSearchInput from "@/components/search/live-search-input";
+import CancelSaleButton from "@/components/sales/cancel-sale-button";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 
 type SalesPageProps = {
   searchParams?: Promise<{
@@ -84,6 +86,22 @@ function paymentIcon(paymentMethod: string) {
   return <Banknote className="h-4 w-4" />;
 }
 
+function statusBadgeClass(status: string) {
+  if (status === "SUCCESS" || status === "PAID") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
+  }
+
+  if (status === "PENDING" || status === "WAITING_PROOF") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200";
+  }
+
+  if (status === "CANCELLED" || status === "FAILED") {
+    return "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200";
+  }
+
+  return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+}
+
 function buildHref(
   params: Record<string, string | undefined>,
   nextPage: number,
@@ -121,6 +139,13 @@ function returnedAmount(
 
     return total + (saleReturn.totalRefund ?? fallback);
   }, 0);
+}
+
+function saleDiscountAmount(items: { discountAmount: unknown }[]) {
+  return items.reduce(
+    (total, item) => total + Math.round(Number(item.discountAmount ?? 0)),
+    0,
+  );
 }
 
 export default async function SalesPage({ searchParams }: SalesPageProps) {
@@ -169,8 +194,12 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         }
       : {}),
   };
+  const finalSaleWhere: Prisma.SaleWhereInput = {
+    ...where,
+    ...FINAL_SALE_STATUS_WHERE,
+  };
 
-  const [sales, totals, customerReturns, cashiers, paymentMethods] =
+  const [sales, totals, revenueTotals, customerReturns, cashiers, paymentMethods] =
     await Promise.all([
       prisma.sale.findMany({
         where,
@@ -185,6 +214,10 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           createdAt: true,
           subtotal: true,
           paymentMethod: true,
+          transactionStatus: true,
+          paymentStatus: true,
+          cancelReason: true,
+          cancelledAt: true,
           cashier: {
             select: {
               name: true,
@@ -198,6 +231,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           items: {
             select: {
               id: true,
+              discountAmount: true,
             },
           },
           returns: {
@@ -224,10 +258,16 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           subtotal: true,
         },
       }),
+      prisma.sale.aggregate({
+        where: finalSaleWhere,
+        _sum: {
+          subtotal: true,
+        },
+      }),
       prisma.saleReturn.findMany({
         where: {
           returnType: "CUSTOMER_RETURN",
-          sale: where,
+          sale: finalSaleWhere,
         },
         select: {
           totalRefund: true,
@@ -264,7 +304,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   );
   const totalRefund = returnedAmount(customerReturns);
   const totalSales = totals._count._all;
-  const netOmzet = (totals._sum.subtotal ?? 0) - totalRefund;
+  const netOmzet = (revenueTotals._sum.subtotal ?? 0) - totalRefund;
   const pageCount = Math.max(1, Math.ceil(totalSales / PAGE_SIZE));
   const safePage = Math.min(currentPage, pageCount);
   const rangeLabel =
@@ -418,7 +458,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
         <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full min-w-[980px] text-left">
+          <table className="w-full min-w-[1100px] text-left">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
               <tr>
                 <th className="px-5 py-4">Invoice</th>
@@ -427,13 +467,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 <th className="px-5 py-4">Kasir</th>
                 <th className="px-5 py-4">Total</th>
                 <th className="px-5 py-4">Payment</th>
+                <th className="px-5 py-4">Status</th>
                 <th className="px-5 py-4 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {sales.length === 0 ? (
                 <tr>
-                  <td className="px-5 py-10 text-center text-sm text-slate-500" colSpan={7}>
+                  <td className="px-5 py-10 text-center text-sm text-slate-500" colSpan={8}>
                     Tidak ada transaksi sesuai filter.
                   </td>
                 </tr>
@@ -441,6 +482,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
               {sales.map((sale) => {
                 const refund = returnedAmount(sale.returns);
                 const hasReturn = refund > 0;
+                const discountTotal = saleDiscountAmount(sale.items);
                 const paymentName =
                   paymentLabel.get(sale.paymentMethod) ?? sale.paymentMethod;
 
@@ -459,7 +501,22 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                             Ada retur
                           </span>
                         ) : null}
+                        {discountTotal > 0 ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                            Diskon {rupiah(discountTotal)}
+                          </span>
+                        ) : null}
+                        {sale.transactionStatus === "CANCELLED" ? (
+                          <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                            Dibatalkan
+                          </span>
+                        ) : null}
                       </div>
+                      {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
+                        <p className="mt-2 max-w-xs text-xs text-rose-600 dark:text-rose-300">
+                          {sale.cancelReason}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                       {formatDateTime(sale.createdAt)}
@@ -484,14 +541,30 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                         {paymentIcon(sale.paymentMethod)}
                         {paymentName}
                       </span>
+                      <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
+                        {sale.paymentStatus}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
+                        {sale.transactionStatus}
+                      </span>
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <Link
-                        href={`/invoices/${sale.id}`}
-                        className="inline-flex h-9 items-center justify-center rounded-lg border border-teal-300 px-4 text-sm font-semibold text-teal-700 transition hover:bg-teal-50 dark:border-teal-500/50 dark:text-teal-200 dark:hover:bg-teal-500/10"
-                      >
-                        Invoice
-                      </Link>
+                      <div className="flex justify-end gap-2">
+                        {sale.transactionStatus === "PENDING" ? (
+                          <CancelSaleButton
+                            saleId={sale.id}
+                            invoiceNumber={sale.invoiceNumber}
+                          />
+                        ) : null}
+                        <Link
+                          href={`/invoices/${sale.id}`}
+                          className="inline-flex h-9 items-center justify-center rounded-lg border border-teal-300 px-4 text-sm font-semibold text-teal-700 transition hover:bg-teal-50 dark:border-teal-500/50 dark:text-teal-200 dark:hover:bg-teal-500/10"
+                        >
+                          Invoice
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -509,6 +582,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           {sales.map((sale) => {
             const refund = returnedAmount(sale.returns);
             const hasReturn = refund > 0;
+            const discountTotal = saleDiscountAmount(sale.items);
             const paymentName =
               paymentLabel.get(sale.paymentMethod) ?? sale.paymentMethod;
 
@@ -553,6 +627,17 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     {paymentIcon(sale.paymentMethod)}
                     {paymentName}
                   </p>
+                  <p className="flex flex-wrap gap-2">
+                    <span className="block w-full text-xs font-medium text-slate-400">
+                      Status
+                    </span>
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
+                      {sale.transactionStatus}
+                    </span>
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
+                      {sale.paymentStatus}
+                    </span>
+                  </p>
                   <p>
                     <span className="block text-xs font-medium text-slate-400">
                       Item
@@ -563,8 +648,31 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                         Ada retur
                       </span>
                     ) : null}
+                    {discountTotal > 0 ? (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                        Diskon {rupiah(discountTotal)}
+                      </span>
+                    ) : null}
+                    {sale.transactionStatus === "CANCELLED" ? (
+                      <span className="ml-2 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                        Dibatalkan
+                      </span>
+                    ) : null}
                   </p>
                 </div>
+                {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
+                  <p className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
+                    {sale.cancelReason}
+                  </p>
+                ) : null}
+                {sale.transactionStatus === "PENDING" ? (
+                  <div className="mt-4">
+                    <CancelSaleButton
+                      saleId={sale.id}
+                      invoiceNumber={sale.invoiceNumber}
+                    />
+                  </div>
+                ) : null}
                 <Link
                   href={`/invoices/${sale.id}`}
                   className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-teal-300 text-sm font-semibold text-teal-700 dark:border-teal-500/50 dark:text-teal-200"

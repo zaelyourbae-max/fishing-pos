@@ -2,6 +2,7 @@ import AutoPrintInvoice from "@/components/invoice/auto-print-invoice";
 import PrintInvoiceButton from "@/components/invoice/print-invoice-button";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import { requireProtectedPage } from "@/lib/page-guards";
+import { isOwnerRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
 import Link from "next/link";
@@ -20,6 +21,10 @@ function rupiah(amount: number) {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 }
 
+function moneyNumber(amount: unknown) {
+  return Math.round(Number(amount ?? 0));
+}
+
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
@@ -29,6 +34,22 @@ function formatDate(date: Date) {
 
 function returnReasonLabel(reason: string) {
   return RETURN_REASON_LABELS[reason as ReturnReason] ?? reason;
+}
+
+function statusBadgeClass(status: string) {
+  if (status === "SUCCESS" || status === "PAID") {
+    return "bg-emerald-50 text-emerald-700";
+  }
+
+  if (status === "PENDING" || status === "WAITING_PROOF") {
+    return "bg-amber-50 text-amber-700";
+  }
+
+  if (status === "CANCELLED" || status === "FAILED") {
+    return "bg-rose-50 text-rose-700";
+  }
+
+  return "bg-zinc-100 text-zinc-700";
 }
 
 export default async function InvoicePage({
@@ -57,8 +78,31 @@ export default async function InvoicePage({
           customerCode: true,
         },
       },
+      paymentProofUploadedBy: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+      cancelledBy: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
       items: {
-        include: {
+        select: {
+          id: true,
+          qty: true,
+          price: true,
+          subtotal: true,
+          originalPrice: true,
+          discountType: true,
+          discountValue: true,
+          discountAmount: true,
+          discountReason: true,
+          subtotalBeforeDiscount: true,
+          subtotalAfterDiscount: true,
           product: {
             select: {
               name: true,
@@ -100,7 +144,17 @@ export default async function InvoicePage({
     notFound();
   }
 
+  const canViewProofAudit = isOwnerRole(session.role);
   const totalQty = sale.items.reduce((total, item) => total + item.qty, 0);
+  const totalItemDiscount = sale.items.reduce(
+    (total, item) => total + moneyNumber(item.discountAmount),
+    0,
+  );
+  const subtotalBeforeDiscount = sale.items.reduce((total, item) => {
+    const storedSubtotal = moneyNumber(item.subtotalBeforeDiscount);
+
+    return total + (storedSubtotal > 0 ? storedSubtotal : item.price * item.qty);
+  }, 0);
   const changeAmount = Math.max(sale.paidAmount - sale.subtotal, 0);
   const totalReturn = sale.returns.reduce(
     (total, saleReturn) => total + (saleReturn.totalRefund ?? 0),
@@ -146,6 +200,14 @@ export default async function InvoicePage({
                     Ada Retur
                   </span>
                 ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
+                    {sale.transactionStatus}
+                  </span>
+                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
+                    {sale.paymentStatus}
+                  </span>
+                </div>
               </div>
 
               <div className="text-left sm:text-right">
@@ -166,6 +228,18 @@ export default async function InvoicePage({
               <p className="mt-1 font-semibold capitalize">
                 {paymentMethod?.name ?? sale.paymentMethod}
               </p>
+            </div>
+
+            <div>
+              <p className="text-zinc-500">Payment Status</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
+                  {sale.paymentStatus}
+                </span>
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
+                  {sale.transactionStatus}
+                </span>
+              </div>
             </div>
 
             <div>
@@ -190,13 +264,82 @@ export default async function InvoicePage({
             </div>
           </div>
 
+          {sale.transactionStatus === "CANCELLED" ? (
+            <section className="border-b border-zinc-200 py-5">
+              <h2 className="text-base font-bold text-rose-700">
+                Transaksi Dibatalkan
+              </h2>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2">
+                  <p className="text-rose-500">Alasan</p>
+                  <p className="mt-1 font-semibold text-rose-800">
+                    {sale.cancelReason ?? "-"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-zinc-100 px-3 py-2">
+                  <p className="text-zinc-500">Dibatalkan Pada</p>
+                  <p className="mt-1 font-semibold">
+                    {sale.cancelledAt ? formatDate(sale.cancelledAt) : "-"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-zinc-100 px-3 py-2 sm:col-span-2">
+                  <p className="text-zinc-500">Dibatalkan Oleh</p>
+                  <p className="mt-1 font-semibold">
+                    {sale.cancelledBy?.name ?? "-"}
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {sale.paymentProofUrl ? (
+            <section className="border-b border-zinc-200 py-5">
+              <h2 className="text-base font-bold">Bukti Pembayaran QRIS</h2>
+              <div className="mt-3 grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={sale.paymentProofUrl}
+                  alt="Bukti pembayaran QRIS"
+                  className="max-h-64 w-full rounded-xl border border-zinc-200 bg-white object-contain p-2"
+                />
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3 rounded-xl border border-zinc-100 px-3 py-2">
+                    <span className="text-zinc-500">Proof URL</span>
+                    <span className="max-w-[220px] truncate text-right font-semibold">
+                      {sale.paymentProofUrl}
+                    </span>
+                  </div>
+                  {canViewProofAudit ? (
+                    <>
+                      <div className="flex justify-between gap-3 rounded-xl border border-zinc-100 px-3 py-2">
+                        <span className="text-zinc-500">Uploaded At</span>
+                        <span className="text-right font-semibold">
+                          {sale.paymentProofUploadedAt
+                            ? formatDate(sale.paymentProofUploadedAt)
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3 rounded-xl border border-zinc-100 px-3 py-2">
+                        <span className="text-zinc-500">Uploaded By</span>
+                        <span className="text-right font-semibold">
+                          {sale.paymentProofUploadedBy?.name ?? "-"}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-b border-zinc-200 text-sm">
+            <table className="w-full min-w-[680px] border-b border-zinc-200 text-sm">
               <thead>
                 <tr className="text-left text-zinc-500">
                   <th className="py-3 pr-3 font-medium">Item</th>
                   <th className="px-3 py-3 text-right font-medium">Qty</th>
                   <th className="px-3 py-3 text-right font-medium">Harga</th>
+                  <th className="px-3 py-3 text-right font-medium">Diskon</th>
                   <th className="py-3 pl-3 text-right font-medium">
                     Subtotal
                   </th>
@@ -215,6 +358,29 @@ export default async function InvoicePage({
                     <td className="px-3 py-3 text-right">
                       {rupiah(item.price)}
                     </td>
+                    <td className="px-3 py-3 text-right">
+                      {moneyNumber(item.discountAmount) > 0 ? (
+                        <div>
+                          <p className="font-semibold text-rose-700">
+                            -{rupiah(moneyNumber(item.discountAmount))}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {item.discountType === "PERCENT"
+                              ? `${moneyNumber(item.discountValue)}%`
+                              : item.discountType === "FIXED"
+                                ? "Nominal"
+                                : ""}
+                          </p>
+                          {item.discountReason ? (
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {item.discountReason}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td className="py-3 pl-3 text-right font-semibold">
                       {rupiah(item.subtotal)}
                     </td>
@@ -231,7 +397,15 @@ export default async function InvoicePage({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-zinc-500">Subtotal</span>
-              <span className="font-semibold">{rupiah(sale.subtotal)}</span>
+              <span className="font-semibold">
+                {rupiah(subtotalBeforeDiscount)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">Diskon Item</span>
+              <span className="font-semibold text-rose-700">
+                -{rupiah(totalItemDiscount)}
+              </span>
             </div>
             {sale.returns.length > 0 ? (
               <div className="flex items-center justify-between">

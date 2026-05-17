@@ -81,6 +81,8 @@ type TransactionRow = {
   customerName: string;
   paymentMethod: string;
   paymentLabel: string;
+  transactionStatus: string;
+  paymentStatus: string;
   subtotal: number;
   formattedSubtotal: string;
   itemCount: number;
@@ -107,6 +109,17 @@ type PurchaseRow = {
   date: string;
   supplier: string;
   total: string;
+};
+
+type ProfitProductRow = {
+  productId: number;
+  name: string;
+  sku: string;
+  qty: number;
+  revenue: string;
+  cogs: string;
+  profit: string;
+  margin: string;
 };
 
 type MonthlySummaryItem = {
@@ -148,6 +161,20 @@ export type OwnerReportViewData = {
   };
   lowStock: LowStockRow[];
   recentPurchases: PurchaseRow[];
+  profitSummary: {
+    hasUnitCostSnapshot: boolean;
+    grossRevenue: string;
+    returnRevenue: string;
+    netRevenue: string;
+    salesCogs: string;
+    returnCogs: string;
+    netCogs: string;
+    grossProfit: string;
+    netProfit: string;
+    margin: string;
+    returnCostWarning: string | null;
+    topProducts: ProfitProductRow[];
+  };
   monthlySummary: {
     title: string;
     items: MonthlySummaryItem[];
@@ -255,6 +282,15 @@ function paymentBadgeClass(method: string) {
   if (key.includes("qris")) return "bg-blue-50 text-blue-700";
   if (key.includes("transfer")) return "bg-violet-50 text-violet-700";
   if (key.includes("card") || key.includes("kartu")) return "bg-orange-50 text-orange-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+function statusBadgeClass(status: string) {
+  if (status === "SUCCESS" || status === "PAID") return "bg-emerald-50 text-emerald-700";
+  if (status === "PENDING" || status === "WAITING_PROOF") return "bg-amber-50 text-amber-700";
+  if (status === "CANCELLED" || status === "FAILED") return "bg-rose-50 text-rose-700";
+  if (status === "UNPAID") return "bg-slate-100 text-slate-700";
+
   return "bg-slate-100 text-slate-700";
 }
 
@@ -800,6 +836,9 @@ function RecentTransactions({
             <span className={cx("mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", paymentBadgeClass(sale.paymentMethod))}>
               {sale.paymentLabel}
             </span>
+            <span className={cx("ml-2 mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", statusBadgeClass(sale.paymentStatus))}>
+              {sale.paymentStatus}
+            </span>
           </button>
         ))}
       </div>
@@ -867,19 +906,25 @@ function RecentTransactions({
                 <span className={cx("inline-flex max-w-full whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-extrabold", paymentBadgeClass(sale.paymentMethod))}>
                   {sale.paymentLabel}
                 </span>
+                <span className={cx("mt-1 inline-flex max-w-full whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-extrabold", statusBadgeClass(sale.paymentStatus))}>
+                  {sale.paymentStatus}
+                </span>
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-right font-extrabold tabular-nums text-slate-950">{sale.formattedSubtotal}</td>
               <td className="px-4 py-3">
                 <span
                   className={cx(
                     "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-extrabold",
-                    sale.returnCount > 0
-                      ? "bg-rose-50 text-rose-700"
-                      : "bg-emerald-50 text-emerald-700",
+                    statusBadgeClass(sale.transactionStatus),
                   )}
                 >
-                  {sale.returnCount > 0 ? "Ada retur" : "Selesai"}
+                  {sale.transactionStatus}
                 </span>
+                {sale.returnCount > 0 ? (
+                  <span className="mt-1 inline-flex whitespace-nowrap rounded-full bg-rose-50 px-2.5 py-1 text-xs font-extrabold text-rose-700">
+                    Ada retur
+                  </span>
+                ) : null}
               </td>
             </tr>
           ))}
@@ -917,6 +962,93 @@ function PurchasesList({ rows }: { rows: PurchaseRow[] }) {
           <strong className="text-right tabular-nums text-slate-950">{purchase.total}</strong>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummary"] }) {
+  if (!summary.hasUnitCostSnapshot) {
+    return (
+      <EmptyState label="Data snapshot HPP belum tersedia. Laba dan margin akan muncul untuk transaksi baru setelah checkout menyimpan HPP." />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {summary.returnCostWarning ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          {summary.returnCostWarning}
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {[
+          { label: "Omzet Bersih", value: summary.netRevenue, helper: "Setelah retur customer" },
+          { label: "HPP Bersih", value: summary.netCogs, helper: "Snapshot HPP item terjual" },
+          { label: "Laba Kotor", value: summary.netProfit, helper: `Margin ${summary.margin}` },
+        ].map((item) => (
+          <div key={item.label} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+            <p className="text-xs font-bold text-slate-500">{item.label}</p>
+            <p className="mt-2 text-lg font-extrabold text-slate-950">{item.value}</p>
+            <p className="mt-2 text-xs font-semibold text-emerald-700">{item.helper}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-slate-100 p-3 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="font-semibold text-slate-500">Omzet kotor</span>
+            <strong className="tabular-nums text-slate-950">{summary.grossRevenue}</strong>
+          </div>
+          <div className="mt-2 flex justify-between gap-3">
+            <span className="font-semibold text-slate-500">Retur customer</span>
+            <strong className="tabular-nums text-rose-700">{summary.returnRevenue}</strong>
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-100 p-3 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="font-semibold text-slate-500">HPP penjualan</span>
+            <strong className="tabular-nums text-slate-950">{summary.salesCogs}</strong>
+          </div>
+          <div className="mt-2 flex justify-between gap-3">
+            <span className="font-semibold text-slate-500">HPP retur</span>
+            <strong className="tabular-nums text-rose-700">{summary.returnCogs}</strong>
+          </div>
+        </div>
+      </div>
+
+      {summary.topProducts.length ? (
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-3">Produk</th>
+                <th className="px-3 py-3 text-right">Qty Net</th>
+                <th className="px-3 py-3 text-right">Omzet</th>
+                <th className="px-3 py-3 text-right">HPP</th>
+                <th className="px-3 py-3 text-right">Laba</th>
+                <th className="px-3 py-3 text-right">Margin</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {summary.topProducts.map((item) => (
+                <tr key={item.productId}>
+                  <td className="px-3 py-3">
+                    <p className="font-extrabold text-slate-950">{item.name}</p>
+                    <p className="text-xs text-slate-500">{item.sku}</p>
+                  </td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700">{item.qty}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-950">{item.revenue}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-950">{item.cogs}</td>
+                  <td className="px-3 py-3 text-right font-extrabold tabular-nums text-emerald-700">{item.profit}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700">{item.margin}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1516,7 +1648,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
             <PurchasesList rows={data.recentPurchases} />
           </ReportSectionCard>
           <ReportSectionCard id="laba-margin" title="Laba & Margin">
-            <EmptyState label="Data HPP/modal belum tersedia, jadi laba dan margin tidak ditampilkan." />
+            <ProfitSummary summary={data.profitSummary} />
           </ReportSectionCard>
         </div>
 
@@ -1729,8 +1861,10 @@ function TransactionDetailContent({
     ["Customer", transaction.customerName],
     ["Item", `${transaction.itemCount} item`],
     ["Pembayaran", transaction.paymentLabel],
+    ["Payment Status", transaction.paymentStatus],
+    ["Transaction Status", transaction.transactionStatus],
     ["Total", transaction.formattedSubtotal],
-    ["Status", transaction.returnCount > 0 ? "Ada retur" : "Selesai"],
+    ["Retur", transaction.returnCount > 0 ? "Ada retur" : "-"],
   ];
 
   return (

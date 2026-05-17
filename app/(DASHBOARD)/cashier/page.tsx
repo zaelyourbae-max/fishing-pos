@@ -32,6 +32,22 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
+function statusBadgeClass(status: string) {
+  if (status === "SUCCESS" || status === "PAID") {
+    return "bg-emerald-500/10 text-emerald-300";
+  }
+
+  if (status === "PENDING" || status === "WAITING_PROOF") {
+    return "bg-amber-500/10 text-amber-300";
+  }
+
+  if (status === "CANCELLED" || status === "FAILED") {
+    return "bg-rose-500/10 text-rose-300";
+  }
+
+  return "bg-slate-800 text-slate-300";
+}
+
 export default async function CashierPage() {
   const session = await requireCashierPage();
   const todayStart = startOfToday();
@@ -58,6 +74,8 @@ export default async function CashierPage() {
           id: true,
           invoiceNumber: true,
           subtotal: true,
+          transactionStatus: true,
+          paymentStatus: true,
           createdAt: true,
           customer: {
             select: {
@@ -167,6 +185,14 @@ export default async function CashierPage() {
                   <p className="mt-1 text-sm text-slate-400">
                     {sale.customer?.name ?? "Walk-in"} - {sale._count.items} item
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
+                      {sale.transactionStatus}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
+                      {sale.paymentStatus}
+                    </span>
+                  </div>
                   <p className="mt-1 text-xs text-slate-500">
                     {formatDateTime(sale.createdAt)}
                   </p>

@@ -50,7 +50,7 @@ export async function PATCH(
     if (!name || price === null || stock === null || costPrice === null || minStock === null) {
       return NextResponse.json(
         {
-          message: "Nama, harga, stok, harga beli, dan min stok harus valid.",
+          message: "Nama, harga, stok, harga modal/HPP, dan min stok harus valid.",
         },
         {
           status: 422,

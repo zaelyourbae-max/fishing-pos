@@ -14,7 +14,8 @@ import {
 import ProductEditButton from "@/components/products/product-edit-button";
 import ProductStatusActionButton from "@/components/products/product-status-action-button";
 import LiveSearchInput from "@/components/search/live-search-input";
-import { requireOwnerPage } from "@/lib/page-guards";
+import { canManageProducts, canViewCostPrice } from "@/lib/auth-session";
+import { requireProtectedPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 
 type ProductsPageProps = {
@@ -30,6 +31,17 @@ const PAGE_SIZE = 8;
 
 function rupiah(amount: number) {
   return `Rp ${amount.toLocaleString("id-ID")}`;
+}
+
+function marginLabel(price: number, costPrice: number) {
+  if (costPrice <= 0) {
+    return "-";
+  }
+
+  const margin = price - costPrice;
+  const percentage = price > 0 ? Math.round((margin / price) * 100) : 0;
+
+  return `${rupiah(margin)} (${percentage}%)`;
 }
 
 function statusHref(
@@ -131,11 +143,13 @@ const statusFilters = [
 export default async function ProductsPage({
   searchParams,
 }: ProductsPageProps) {
-  await requireOwnerPage();
+  const session = await requireProtectedPage();
+  const canManage = canManageProducts(session.role);
+  const canViewCost = canViewCostPrice(session.role);
 
   const params = (await searchParams) ?? {};
   const status =
-    params.status === "inactive" || params.status === "all"
+    canManage && (params.status === "inactive" || params.status === "all")
       ? params.status
       : "active";
   const q = String(params.q ?? "").trim();
@@ -193,6 +207,7 @@ export default async function ProductsPage({
         select: {
           stock: true,
           price: true,
+          costPrice: true,
         },
       }),
       prisma.product.findMany({
@@ -218,6 +233,11 @@ export default async function ProductsPage({
     (acc, item) => acc + item.price * item.stock,
     0,
   );
+  const totalCostInventory = summaryProducts.reduce(
+    (acc, item) => acc + item.costPrice * item.stock,
+    0,
+  );
+  const hasCostPrice = summaryProducts.some((item) => item.costPrice > 0);
   const pageCount = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
   const safePage = Math.min(currentPage, pageCount);
 
@@ -231,25 +251,27 @@ export default async function ProductsPage({
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/products/import"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-300 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100"
-          >
-            <Upload size={18} />
-            Import Excel
-          </Link>
-          <Link
-            href="/products/create"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 text-sm font-bold text-white shadow-lg shadow-teal-900/10 transition hover:bg-teal-700"
-          >
-            <Plus size={18} />
-            Tambah Produk
-          </Link>
-        </div>
+        {canManage ? (
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/products/import"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-300 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100"
+            >
+              <Upload size={18} />
+              Import Excel
+            </Link>
+            <Link
+              href="/products/create"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 text-sm font-bold text-white shadow-lg shadow-teal-900/10 transition hover:bg-teal-700"
+            >
+              <Plus size={18} />
+              Tambah Produk
+            </Link>
+          </div>
+        ) : null}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className={`grid gap-4 ${canViewCost ? "lg:grid-cols-4" : "lg:grid-cols-2"}`}>
         <Link
           href="/products?status=all"
           className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70"
@@ -290,25 +312,46 @@ export default async function ProductsPage({
           </span>
         </Link>
 
-        <Link
-          href="/reports"
-          className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70"
-        >
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
-            <DollarSign className="h-8 w-8" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">
-              Nilai Inventory
+        {canViewCost ? (
+          <Link
+            href="/reports"
+            className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70"
+          >
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+              <DollarSign className="h-8 w-8" />
             </span>
-            <span className="mt-1 block text-2xl font-bold text-slate-950 dark:text-white">
-              {rupiah(totalInventory)}
+            <span>
+              <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">
+                Nilai Jual Stok
+              </span>
+              <span className="mt-1 block text-2xl font-bold text-slate-950 dark:text-white">
+                {rupiah(totalInventory)}
+              </span>
+              <span className="mt-1 block text-sm text-slate-500 dark:text-slate-400">
+                Harga jual x stok
+              </span>
             </span>
-            <span className="mt-1 block text-sm text-slate-500 dark:text-slate-400">
-              Total nilai
+          </Link>
+        ) : null}
+
+        {canViewCost ? (
+          <div className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+              <DollarSign className="h-8 w-8" />
             </span>
-          </span>
-        </Link>
+            <span>
+              <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">
+                Nilai Modal Stok
+              </span>
+              <span className="mt-1 block text-2xl font-bold text-slate-950 dark:text-white">
+                {rupiah(totalCostInventory)}
+              </span>
+              <span className="mt-1 block text-sm text-slate-500 dark:text-slate-400">
+                {hasCostPrice ? "HPP x stok" : "HPP belum tersedia"}
+              </span>
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
@@ -322,24 +365,26 @@ export default async function ProductsPage({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {statusFilters.map((filter) => (
-              <Link
-                key={filter.value}
-                href={statusHref(filter.value, {
-                  q,
-                  category: selectedCategory,
-                })}
-                className={
-                  status === filter.value
-                    ? "rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white hover:bg-teal-700"
-                    : "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 hover:border-teal-300 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
-                }
-              >
-                {filter.label}
-              </Link>
-            ))}
-          </div>
+          {canManage ? (
+            <div className="flex flex-wrap gap-2">
+              {statusFilters.map((filter) => (
+                <Link
+                  key={filter.value}
+                  href={statusHref(filter.value, {
+                    q,
+                    category: selectedCategory,
+                  })}
+                  className={
+                    status === filter.value
+                      ? "rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white hover:bg-teal-700"
+                      : "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 hover:border-teal-300 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                  }
+                >
+                  {filter.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <form className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-[1fr_270px_auto] dark:border-slate-800">
@@ -372,21 +417,29 @@ export default async function ProductsPage({
         </form>
 
         <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full min-w-[920px] text-left">
+          <table className={`w-full text-left ${canViewCost ? "min-w-[1180px]" : "min-w-[920px]"}`}>
             <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
               <tr>
                 <th className="px-5 py-4">Nama Produk</th>
                 <th className="px-5 py-4">SKU / Kategori</th>
-                <th className="px-5 py-4">Harga</th>
+                <th className="px-5 py-4">Harga Jual</th>
+                {canViewCost ? (
+                  <>
+                    <th className="px-5 py-4">Harga Modal / HPP</th>
+                    <th className="px-5 py-4">Margin Est.</th>
+                  </>
+                ) : null}
                 <th className="px-5 py-4">Stok</th>
                 <th className="px-5 py-4">Status</th>
-                <th className="px-5 py-4 text-right">Aksi</th>
+                {canManage ? (
+                  <th className="px-5 py-4 text-right">Aksi</th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {products.length === 0 ? (
                 <tr>
-                  <td className="px-5 py-10 text-center text-sm text-slate-500" colSpan={6}>
+                  <td className="px-5 py-10 text-center text-sm text-slate-500" colSpan={(canManage ? 6 : 5) + (canViewCost ? 2 : 0)}>
                     Tidak ada produk pada filter ini.
                   </td>
                 </tr>
@@ -412,6 +465,24 @@ export default async function ProductsPage({
                   <td className="px-5 py-4 font-semibold tabular-nums text-slate-950 dark:text-white">
                     {rupiah(product.price)}
                   </td>
+                  {canViewCost ? (
+                    <>
+                      <td className="px-5 py-4 font-semibold tabular-nums text-slate-950 dark:text-white">
+                        {product.costPrice > 0 ? rupiah(product.costPrice) : "-"}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className={
+                            product.costPrice > 0 && product.price - product.costPrice >= 0
+                              ? "rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold tabular-nums text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
+                              : "rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                          }
+                        >
+                          {marginLabel(product.price, product.costPrice)}
+                        </span>
+                      </td>
+                    </>
+                  ) : null}
                   <td className="px-5 py-4">
                     <span className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1 text-sm font-bold tabular-nums text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200">
                       {product.stock}
@@ -428,33 +499,35 @@ export default async function ProductsPage({
                       {product.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="flex justify-end gap-3">
-                      <ProductStatusActionButton
-                        productId={product.id}
-                        productName={product.name}
-                        isActive={product.isActive}
-                        compact
-                      />
-                      <ProductEditButton
-                        product={{
-                          id: product.id,
-                          sku: product.sku,
-                          barcode: product.barcode,
-                          name: product.name,
-                          price: product.price,
-                          costPrice: product.costPrice,
-                          stock: product.stock,
-                          minStock: product.minStock,
-                          unit: product.unit,
-                          category: product.category,
-                          description: product.description,
-                          imageUrl: product.imageUrl,
-                        }}
-                        categories={categoryOptions}
-                      />
-                    </div>
-                  </td>
+                  {canManage ? (
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-3">
+                        <ProductStatusActionButton
+                          productId={product.id}
+                          productName={product.name}
+                          isActive={product.isActive}
+                          compact
+                        />
+                        <ProductEditButton
+                          product={{
+                            id: product.id,
+                            sku: product.sku,
+                            barcode: product.barcode,
+                            name: product.name,
+                            price: product.price,
+                            costPrice: product.costPrice,
+                            stock: product.stock,
+                            minStock: product.minStock,
+                            unit: product.unit,
+                            category: product.category,
+                            description: product.description,
+                            imageUrl: product.imageUrl,
+                          }}
+                          categories={categoryOptions}
+                        />
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -495,34 +568,46 @@ export default async function ProductsPage({
                     <span className="text-sm font-bold tabular-nums text-slate-950 dark:text-white">
                       {rupiah(product.price)}
                     </span>
+                    {canViewCost ? (
+                      <>
+                        <span className="text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300">
+                          HPP {product.costPrice > 0 ? rupiah(product.costPrice) : "-"}
+                        </span>
+                        <span className="text-xs font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                          Margin {marginLabel(product.price, product.costPrice)}
+                        </span>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>
-              <div className="mt-4 flex gap-3">
-                <ProductStatusActionButton
-                  productId={product.id}
-                  productName={product.name}
-                  isActive={product.isActive}
-                  compact
-                />
-                <ProductEditButton
-                  product={{
-                    id: product.id,
-                    sku: product.sku,
-                    barcode: product.barcode,
-                    name: product.name,
-                    price: product.price,
-                    costPrice: product.costPrice,
-                    stock: product.stock,
-                    minStock: product.minStock,
-                    unit: product.unit,
-                    category: product.category,
-                    description: product.description,
-                    imageUrl: product.imageUrl,
-                  }}
-                  categories={categoryOptions}
-                />
-              </div>
+              {canManage ? (
+                <div className="mt-4 flex gap-3">
+                  <ProductStatusActionButton
+                    productId={product.id}
+                    productName={product.name}
+                    isActive={product.isActive}
+                    compact
+                  />
+                  <ProductEditButton
+                    product={{
+                      id: product.id,
+                      sku: product.sku,
+                      barcode: product.barcode,
+                      name: product.name,
+                      price: product.price,
+                      costPrice: product.costPrice,
+                      stock: product.stock,
+                      minStock: product.minStock,
+                      unit: product.unit,
+                      category: product.category,
+                      description: product.description,
+                      imageUrl: product.imageUrl,
+                    }}
+                    categories={categoryOptions}
+                  />
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

@@ -1,7 +1,7 @@
 import OwnerReportView, {
   type OwnerReportViewData,
 } from "@/components/reports/owner-report-view";
-import { requireOwnerPage } from "@/lib/page-guards";
+import { requireReportsPage } from "@/lib/page-guards";
 import {
   LOW_STOCK_LIMIT,
   getOwnerReportSummary,
@@ -81,6 +81,10 @@ function formatMonthYear(date: Date) {
     month: "long",
     year: "numeric",
   }).format(date);
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
 }
 
 function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
@@ -187,7 +191,7 @@ function buildTrend(
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  await requireOwnerPage();
+  await requireReportsPage();
 
   const params = (await searchParams) ?? {};
   const rangeParams = resolveRange(params);
@@ -315,6 +319,24 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           { label: "Net pembelian", value: rupiah(report.inventoryReturns.netPurchaseMonth) },
         ],
       },
+      ...(report.profit.hasUnitCostSnapshot
+        ? [
+            {
+              id: "profit",
+              title: "Laba Kotor",
+              value: rupiah(report.profit.netProfit),
+              helper: `Margin ${formatPercent(report.profit.marginPercent)}`,
+              tone: "emerald" as const,
+              icon: "profit" as const,
+              rows: [
+                { label: "Omzet bersih", value: rupiah(report.profit.netRevenue), tone: "good" as const },
+                { label: "HPP bersih", value: rupiah(report.profit.netCogs) },
+                { label: "Laba kotor", value: rupiah(report.profit.netProfit), tone: "good" as const },
+                { label: "Margin", value: formatPercent(report.profit.marginPercent) },
+              ],
+            },
+          ]
+        : []),
     ],
     payments: report.month.paymentSummary.map((item, index) => ({
       method: item.paymentMethod,
@@ -386,6 +408,31 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       supplier: purchase.supplier.name,
       total: rupiah(purchase.total ?? 0),
     })),
+    profitSummary: {
+      hasUnitCostSnapshot: report.profit.hasUnitCostSnapshot,
+      grossRevenue: rupiah(report.profit.grossRevenue),
+      returnRevenue: rupiah(report.profit.returnRevenue),
+      netRevenue: rupiah(report.profit.netRevenue),
+      salesCogs: rupiah(report.profit.salesCogs),
+      returnCogs: rupiah(report.profit.returnCogs),
+      netCogs: rupiah(report.profit.netCogs),
+      grossProfit: rupiah(report.profit.grossProfit),
+      netProfit: rupiah(report.profit.netProfit),
+      margin: formatPercent(report.profit.marginPercent),
+      returnCostWarning: report.profit.hasIncompleteReturnCost
+        ? `${report.profit.incompleteReturnCostCount} item retur belum memiliki snapshot HPP. HPP retur lama tidak mengurangi HPP sampai data dilengkapi.`
+        : null,
+      topProducts: report.profit.topProducts.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        sku: item.sku,
+        qty: item.qty,
+        revenue: rupiah(item.revenue),
+        cogs: rupiah(item.cogs),
+        profit: rupiah(item.profit),
+        margin: formatPercent(item.marginPercent),
+      })),
+    },
     monthlySummary: {
       title: `Ringkasan Bulanan (${formatMonthYear(rangeParams.from)})`,
       items: [
@@ -406,6 +453,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       customerName: sale.customer?.name ?? "Walk-in",
       paymentMethod: sale.paymentMethod,
       paymentLabel: sale.paymentLabel,
+      transactionStatus: sale.transactionStatus,
+      paymentStatus: sale.paymentStatus,
       subtotal: sale.subtotal,
       formattedSubtotal: rupiah(sale.subtotal),
       itemCount: sale._count.items,

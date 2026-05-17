@@ -1,9 +1,10 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
-  const auth = requireCashier(req);
+  const auth = requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
 
   const sales = await prisma.sale.findMany({
     where: {
-      ...(auth.session.role === "cashier" ? { cashierId: auth.session.sub } : {}),
+      ...FINAL_SALE_STATUS_WHERE,
       OR: [
         {
           invoiceNumber: {
@@ -126,6 +127,8 @@ export async function GET(req: Request) {
       item_count: sale.items.length,
       items: sale.items.map((item) => {
         const returned = returnedQty.get(item.id) ?? 0;
+        const effectiveUnitPrice =
+          item.qty > 0 ? Math.round(item.subtotal / item.qty) : item.price;
 
         return {
           id: item.id,
@@ -135,7 +138,8 @@ export async function GET(req: Request) {
           qty_sold: item.qty,
           qty_returned: returned,
           max_return_qty: Math.max(item.qty - returned, 0),
-          price: item.price,
+          price: effectiveUnitPrice,
+          original_price: item.price,
           subtotal: item.subtotal,
           current_stock: item.product.stock,
         };

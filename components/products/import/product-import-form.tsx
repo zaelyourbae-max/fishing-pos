@@ -242,8 +242,8 @@ export default function ProductImportForm() {
                   <th className="p-4 text-left">Nama</th>
                   <th className="p-4 text-left">Kategori</th>
                   <th className="p-4 text-left">Supplier</th>
-                  <th className="p-4 text-right">Beli</th>
-                  <th className="p-4 text-right">Jual</th>
+                  <th className="p-4 text-right">Modal/HPP</th>
+                  <th className="p-4 text-right">Harga Jual</th>
                   <th className="p-4 text-right">Stok</th>
                   <th className="p-4 text-left">Catatan Validasi</th>
                 </tr>

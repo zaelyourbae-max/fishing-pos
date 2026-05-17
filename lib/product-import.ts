@@ -117,9 +117,9 @@ export function normalizeImportRow(
   }
 
   if (costPrice === null || !Number.isFinite(costPrice)) {
-    errors.push("Harga beli harus angka");
+    errors.push("Harga modal/HPP harus angka");
   } else if (costPrice < 0) {
-    errors.push("Harga beli harus >= 0");
+    errors.push("Harga modal/HPP harus >= 0");
   }
 
   if (!Number.isInteger(stock)) {

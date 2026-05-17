@@ -26,6 +26,7 @@ import { requireOwnerPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { LOW_STOCK_LIMIT, rupiah } from "@/lib/reports";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { getSettings } from "@/lib/settings";
 
 type DashboardPageProps = {
@@ -365,12 +366,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       gte: dayStart,
       lte: dayEnd,
     },
+    ...FINAL_SALE_STATUS_WHERE,
   };
   const saleMonthWhere = {
     createdAt: {
       gte: monthStart,
       lte: dayEnd,
     },
+    ...FINAL_SALE_STATUS_WHERE,
   };
   const [
     salesToday,
@@ -410,6 +413,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           gte: priorDayStart,
           lte: priorDayEnd,
         },
+        ...FINAL_SALE_STATUS_WHERE,
       },
       _sum: {
         subtotal: true,
@@ -433,6 +437,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           gte: previousMonthFrom,
           lte: previousMonthTo,
         },
+        ...FINAL_SALE_STATUS_WHERE,
       },
       _sum: {
         subtotal: true,
@@ -444,6 +449,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     prisma.saleReturn.aggregate({
       where: {
         returnType: "CUSTOMER_RETURN",
+        sale: FINAL_SALE_STATUS_WHERE,
         createdAt: {
           gte: dayStart,
           lte: dayEnd,
@@ -459,6 +465,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     prisma.saleReturn.aggregate({
       where: {
         returnType: "CUSTOMER_RETURN",
+        sale: FINAL_SALE_STATUS_WHERE,
         createdAt: {
           gte: monthStart,
           lte: dayEnd,
@@ -474,6 +481,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     prisma.saleReturn.aggregate({
       where: {
         returnType: "CUSTOMER_RETURN",
+        sale: FINAL_SALE_STATUS_WHERE,
         createdAt: {
           gte: previousMonthFrom,
           lte: previousMonthTo,
@@ -562,6 +570,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         invoiceNumber: true,
         subtotal: true,
         paymentMethod: true,
+        transactionStatus: true,
+        paymentStatus: true,
         createdAt: true,
         cashier: {
           select: {
@@ -628,6 +638,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       by: ["reason"],
       where: {
         returnType: "CUSTOMER_RETURN",
+        sale: FINAL_SALE_STATUS_WHERE,
         createdAt: {
           gte: monthStart,
           lte: dayEnd,
@@ -657,6 +668,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         invoiceNumber: true,
         subtotal: true,
         paymentMethod: true,
+        transactionStatus: true,
+        paymentStatus: true,
         createdAt: true,
         cashier: {
           select: {
@@ -679,6 +692,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     prisma.saleReturn.findMany({
       where: {
         returnType: "CUSTOMER_RETURN",
+        sale: FINAL_SALE_STATUS_WHERE,
         createdAt: {
           gte: dayStart,
           lte: dayEnd,
@@ -1098,6 +1112,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     itemCount: sale._count.items,
     returnCount: sale._count.returns,
     paymentMethod: sale.paymentMethod,
+    transactionStatus: sale.transactionStatus,
+    paymentStatus: sale.paymentStatus,
     items: sale.items.map((item) => ({
       name: item.product.name,
       sku: item.product.sku ?? "-",

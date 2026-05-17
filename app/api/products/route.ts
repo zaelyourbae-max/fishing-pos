@@ -1,4 +1,8 @@
-import { requireCashier, requireOwner } from "@/lib/auth-session";
+import {
+  canViewCostPrice,
+  requireCashier,
+  requireOwner,
+} from "@/lib/auth-session";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -103,6 +107,8 @@ export async function GET(req: Request) {
     prisma.product.count({ where }),
   ]);
 
+  const canViewCost = canViewCostPrice(auth.session.role);
+
   return NextResponse.json({
     data: products.map((product) => ({
       id: product.id,
@@ -113,7 +119,7 @@ export async function GET(req: Request) {
       image_url: product.imageUrl,
       imageUrl: product.imageUrl,
       unit: product.unit,
-      cost_price: product.costPrice,
+      ...(canViewCost ? { cost_price: product.costPrice } : {}),
       selling_price: product.price,
       current_stock: product.stock,
       min_stock: product.minStock,

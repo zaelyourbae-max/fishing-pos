@@ -84,8 +84,8 @@ export default function PaymentConfirmationModal({
                 </div>
               )}
               <p className="mx-auto mt-4 max-w-lg text-sm text-slate-600 dark:text-slate-300">
-                Minta customer scan QRIS, lalu klik Pembayaran Diterima setelah
-                pembayaran dikonfirmasi manual.
+                Minta customer scan QRIS. Transaksi akan tersimpan sebagai
+                pending sampai bukti pembayaran diupload.
               </p>
             </div>
           ) : null}
@@ -154,6 +154,8 @@ export default function PaymentConfirmationModal({
               ? "Memproses..."
               : isCash
                 ? "Selesaikan Transaksi"
+                : isQris
+                  ? "Buat Transaksi Pending"
                 : "Pembayaran Diterima"}
           </button>
         </div>
