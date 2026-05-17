@@ -72,6 +72,22 @@ type DiscountDraft = {
   reason: string;
 };
 
+type LoyaltyBenefitType = "NONE" | "FIXED" | "PERCENT";
+
+type LoyaltyProgress = {
+  valid_transactions: number;
+  next_milestone: number;
+  remaining_to_next: number;
+  eligible_milestone: number | null;
+  reserved_milestones: number[];
+};
+
+type LoyaltyDraft = {
+  type: LoyaltyBenefitType;
+  value: string;
+  note: string;
+};
+
 type UserPayload = {
   name: string;
   email: string;
@@ -88,6 +104,8 @@ type CustomerLookup = {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  loyaltyPoints?: number;
+  loyalty_progress?: LoyaltyProgress | null;
 };
 
 type CheckoutSuccess = {
@@ -177,6 +195,25 @@ function discountAmountFor(
   }
 
   return Math.round(value);
+}
+
+function loyaltyDiscountAmountFor(
+  type: LoyaltyBenefitType,
+  value: number,
+  subtotalBeforeLoyalty: number,
+) {
+  if (type === "NONE" || subtotalBeforeLoyalty <= 0) {
+    return 0;
+  }
+
+  if (type === "PERCENT") {
+    return Math.min(
+      subtotalBeforeLoyalty,
+      Math.round((subtotalBeforeLoyalty * value) / 100),
+    );
+  }
+
+  return Math.min(subtotalBeforeLoyalty, Math.round(value));
 }
 
 function cartLineDiscountAmount(item: CartItem) {
@@ -378,6 +415,14 @@ export default function PosApp({
     reason: "",
   });
   const [discountModalError, setDiscountModalError] = useState("");
+  const [loyaltyModalOpen, setLoyaltyModalOpen] = useState(false);
+  const [loyaltyModalError, setLoyaltyModalError] = useState("");
+  const [loyaltyConfirmedKey, setLoyaltyConfirmedKey] = useState("");
+  const [loyaltyDraft, setLoyaltyDraft] = useState<LoyaltyDraft>({
+    type: "NONE",
+    value: "0",
+    note: "",
+  });
 
   const request = useCallback(
     async (url: string, init: RequestInit = {}) => {
@@ -516,6 +561,30 @@ export default function PosApp({
   const totalItemDiscount = useMemo(() => {
     return cart.reduce((acc, item) => acc + cartLineDiscountAmount(item), 0);
   }, [cart]);
+  const loyaltyContextKey = `${foundCustomer?.id ?? "none"}:${subtotal}`;
+  const loyaltyConfirmed = loyaltyConfirmedKey === loyaltyContextKey;
+  const loyaltyProgress = foundCustomer?.loyalty_progress ?? null;
+  const reservedMilestones = loyaltyProgress?.reserved_milestones ?? [];
+  const reservedLoyaltyMilestone =
+    loyaltyProgress?.eligible_milestone &&
+    reservedMilestones.includes(loyaltyProgress.eligible_milestone)
+      ? loyaltyProgress.eligible_milestone
+      : null;
+  const eligibleLoyaltyMilestone =
+    loyaltyProgress?.eligible_milestone &&
+    !reservedLoyaltyMilestone
+      ? loyaltyProgress.eligible_milestone
+      : null;
+  const loyaltyDraftValue = Number(loyaltyDraft.value || 0);
+  const loyaltyDiscountAmount =
+    eligibleLoyaltyMilestone && loyaltyConfirmed
+      ? loyaltyDiscountAmountFor(
+          loyaltyDraft.type,
+          Number.isFinite(loyaltyDraftValue) ? Math.max(loyaltyDraftValue, 0) : 0,
+          subtotal,
+        )
+      : 0;
+  const grandTotal = Math.max(subtotal - loyaltyDiscountAmount, 0);
   const selectedPaymentMethod = paymentMethods.find(
     (method) => method.code === paymentMethod,
   );
@@ -547,6 +616,7 @@ export default function PosApp({
       return categoryMatched && keywordMatched;
     });
   }, [products, search, selectedCategory]);
+
   const visibleProducts = useMemo(
     () => filteredProducts.slice(0, visibleCount),
     [filteredProducts, visibleCount],
@@ -737,6 +807,52 @@ export default function PosApp({
     return "";
   }
 
+  function validateLoyaltyDraft() {
+    if (!eligibleLoyaltyMilestone) {
+      return "";
+    }
+
+    const value = Number(loyaltyDraft.value || 0);
+
+    if (!loyaltyDraft.note.trim()) {
+      return loyaltyDraft.type === "NONE"
+        ? "Alasan tidak memberi benefit loyalty wajib diisi."
+        : "Catatan benefit loyalty wajib diisi.";
+    }
+
+    if (loyaltyDraft.type === "NONE") {
+      return "";
+    }
+
+    if (!Number.isFinite(value) || value <= 0) {
+      return "Nilai benefit loyalty wajib lebih dari 0.";
+    }
+
+    if (loyaltyDraft.type === "PERCENT" && value > 100) {
+      return "Diskon persen loyalty maksimal 100%.";
+    }
+
+    if (loyaltyDraft.type === "FIXED" && value > subtotal) {
+      return "Diskon loyalty tidak boleh melebihi subtotal sebelum loyalty.";
+    }
+
+    return "";
+  }
+
+  function saveLoyaltyModal() {
+    const error = validateLoyaltyDraft();
+
+    if (error) {
+      setLoyaltyModalError(error);
+      return;
+    }
+
+    setLoyaltyConfirmedKey(loyaltyContextKey);
+    setLoyaltyModalError("");
+    setLoyaltyModalOpen(false);
+    setPaymentModalOpen(true);
+  }
+
   function increaseQty(id: number) {
     setCart((prev) =>
       prev.map((item) =>
@@ -766,7 +882,7 @@ export default function PosApp({
   }
 
   function checkoutPaidAmount() {
-    return paidAmount ? Number(paidAmount) : subtotal;
+    return paidAmount ? Number(paidAmount) : grandTotal;
   }
 
   function paymentSettingsReady() {
@@ -801,19 +917,38 @@ export default function PosApp({
       return;
     }
 
-    const paid = checkoutPaidAmount();
-
-    if (!Number.isFinite(paid) || paid < subtotal) {
-      setErrorMessage("Pembayaran kurang");
+    if (!paymentSettingsReady()) {
       return;
     }
 
-    if (!paymentSettingsReady()) {
+    if (reservedLoyaltyMilestone) {
+      setErrorMessage(
+        `Milestone loyalty ${reservedLoyaltyMilestone} sedang reserved di transaksi pending customer ini.`,
+      );
       return;
     }
 
     setErrorMessage("");
     setSuccessMessage("");
+
+    if (eligibleLoyaltyMilestone && !loyaltyConfirmed) {
+      setLoyaltyDraft({
+        type: "NONE",
+        value: "0",
+        note: "",
+      });
+      setLoyaltyModalError("");
+      setLoyaltyModalOpen(true);
+      return;
+    }
+
+    const paid = checkoutPaidAmount();
+
+    if (!Number.isFinite(paid) || paid < grandTotal) {
+      setErrorMessage("Pembayaran kurang");
+      return;
+    }
+
     setPaymentModalOpen(true);
   }
 
@@ -830,6 +965,19 @@ export default function PosApp({
       return;
     }
 
+    const loyaltyError = validateLoyaltyDraft();
+
+    if (loyaltyError) {
+      setErrorMessage(loyaltyError);
+      setLoyaltyModalOpen(true);
+      return;
+    }
+
+    if (!Number.isFinite(paid) || paid < grandTotal) {
+      setErrorMessage("Pembayaran kurang");
+      return;
+    }
+
     setLoadingCheckout(true);
     setErrorMessage("");
     setSuccessMessage("");
@@ -840,6 +988,14 @@ export default function PosApp({
         body: JSON.stringify({
           paid_amount: paid,
           payment_method: paymentMethod,
+          loyalty: eligibleLoyaltyMilestone
+            ? {
+                benefit_type: loyaltyDraft.type,
+                benefit_value:
+                  loyaltyDraft.type === "NONE" ? 0 : Number(loyaltyDraft.value || 0),
+                benefit_note: loyaltyDraft.note,
+              }
+            : undefined,
           customer: customerPhone.trim()
             ? {
                 name: customerName,
@@ -881,6 +1037,12 @@ export default function PosApp({
       setProofMessage("");
       setCart([]);
       setPaidAmount("");
+      setLoyaltyConfirmedKey("");
+      setLoyaltyDraft({
+        type: "NONE",
+        value: "0",
+        note: "",
+      });
       setPaymentModalOpen(false);
       setPaymentMethod(
         paymentMethods.find((method) => method.code === "CASH")?.code ??
@@ -1007,7 +1169,7 @@ export default function PosApp({
         open={paymentModalOpen}
         paymentMethod={selectedPaymentMethod}
         paymentSettings={paymentSettings}
-        total={subtotal}
+        total={grandTotal}
         paidAmount={checkoutPaidAmount()}
         loading={loadingCheckout}
         onConfirm={finalizeCheckout}
@@ -1651,6 +1813,33 @@ export default function PosApp({
                       {foundCustomer.customerCode} - {foundCustomer.name}
                     </p>
                   ) : null}
+                  {foundCustomer?.loyalty_progress ? (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+                      <p className="font-semibold">Progress loyalty</p>
+                      <p className="mt-1">
+                        {foundCustomer.loyalty_progress.valid_transactions}/
+                        {foundCustomer.loyalty_progress.next_milestone} transaksi
+                        valid menuju benefit.
+                      </p>
+                      {foundCustomer.loyalty_progress.eligible_milestone ? (
+                        foundCustomer.loyalty_progress.reserved_milestones.includes(
+                          foundCustomer.loyalty_progress.eligible_milestone,
+                        ) ? (
+                          <p className="mt-1 font-semibold">
+                            Milestone {foundCustomer.loyalty_progress.eligible_milestone} sedang reserved di transaksi pending.
+                          </p>
+                        ) : (
+                          <p className="mt-1 font-semibold">
+                            Transaksi ini mencapai milestone {foundCustomer.loyalty_progress.eligible_milestone}.
+                          </p>
+                        )
+                      ) : (
+                        <p className="mt-1">
+                          Sisa {foundCustomer.loyalty_progress.remaining_to_next} transaksi.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -1793,6 +1982,40 @@ export default function PosApp({
                   </div>
                 </div>
               ) : null}
+              {eligibleLoyaltyMilestone && loyaltyConfirmed ? (
+                <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-500/20 dark:bg-amber-500/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-amber-800 dark:text-amber-100">
+                      Milestone loyalty
+                    </span>
+                    <span className="font-semibold tabular-nums text-amber-900 dark:text-amber-100">
+                      #{eligibleLoyaltyMilestone}
+                    </span>
+                  </div>
+                  {loyaltyDiscountAmount > 0 ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-rose-700 dark:text-rose-200">
+                        Diskon loyalty
+                      </span>
+                      <span className="font-semibold tabular-nums text-rose-700 dark:text-rose-200">
+                        -{rupiah(loyaltyDiscountAmount)}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-amber-800 dark:text-amber-100">
+                      Benefit dilewati: {loyaltyDraft.note}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between gap-3 border-t border-amber-200 pt-2 dark:border-amber-500/20">
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      Grand total
+                    </span>
+                    <span className="font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                      {rupiah(grandTotal)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -1841,7 +2064,7 @@ export default function PosApp({
                   type="number"
                   value={paidAmount}
                   onChange={(e) => setPaidAmount(e.target.value)}
-                  placeholder={String(subtotal)}
+                  placeholder={String(grandTotal)}
                   className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
               </div>
@@ -1859,6 +2082,167 @@ export default function PosApp({
           </section>
         </aside>
       </div>
+      <Dialog
+        open={loyaltyModalOpen}
+        onOpenChange={(open) => {
+          setLoyaltyModalOpen(open);
+          if (!open) {
+            setLoyaltyModalError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Benefit Loyalty</DialogTitle>
+            <DialogDescription>
+              {foundCustomer?.name ?? "Customer"} mencapai transaksi ke-
+              {eligibleLoyaltyMilestone ?? "-"}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+              <p className="font-semibold">{foundCustomer?.customerCode}</p>
+              <p className="mt-1">
+                Transaksi valid sebelumnya:{" "}
+                {loyaltyProgress?.valid_transactions ?? 0}
+              </p>
+              <p className="mt-1">
+                Milestone saat ini: {eligibleLoyaltyMilestone ?? "-"}
+              </p>
+            </div>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Benefit
+              </span>
+              <select
+                value={loyaltyDraft.type}
+                onChange={(event) => {
+                  const nextType = event.target.value as LoyaltyBenefitType;
+                  setLoyaltyDraft((current) => ({
+                    ...current,
+                    type: nextType,
+                    value: nextType === "NONE" ? "0" : current.value,
+                  }));
+                  setLoyaltyModalError("");
+                }}
+                className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value="NONE">Tidak memberi benefit</option>
+                <option value="FIXED">Diskon Rupiah</option>
+                <option value="PERCENT">Diskon Persen</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Nilai Benefit
+              </span>
+              <input
+                type="number"
+                min="0"
+                max={loyaltyDraft.type === "PERCENT" ? 100 : undefined}
+                disabled={loyaltyDraft.type === "NONE"}
+                value={loyaltyDraft.value}
+                onChange={(event) => {
+                  setLoyaltyDraft((current) => ({
+                    ...current,
+                    value: event.target.value,
+                  }));
+                  setLoyaltyModalError("");
+                }}
+                placeholder={loyaltyDraft.type === "PERCENT" ? "0 - 100" : "0"}
+                className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-900"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Catatan / Alasan S&K
+              </span>
+              <textarea
+                value={loyaltyDraft.note}
+                onChange={(event) => {
+                  setLoyaltyDraft((current) => ({
+                    ...current,
+                    note: event.target.value,
+                  }));
+                  setLoyaltyModalError("");
+                }}
+                rows={3}
+                placeholder={
+                  loyaltyDraft.type === "NONE"
+                    ? "Wajib diisi jika benefit dilewati"
+                    : "Wajib diisi sesuai S&K benefit"
+                }
+                className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              />
+            </label>
+
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/70">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-slate-500 dark:text-slate-400">
+                  Subtotal sebelum loyalty
+                </span>
+                <span className="font-semibold tabular-nums">
+                  {rupiah(subtotal)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-rose-700 dark:text-rose-200">
+                  Diskon loyalty
+                </span>
+                <span className="font-semibold tabular-nums text-rose-700 dark:text-rose-200">
+                  -{rupiah(
+                    loyaltyDiscountAmountFor(
+                      loyaltyDraft.type,
+                      Number.isFinite(loyaltyDraftValue)
+                        ? Math.max(loyaltyDraftValue, 0)
+                        : 0,
+                      subtotal,
+                    ),
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2 dark:border-slate-800">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">
+                  Grand total
+                </span>
+                <span className="font-bold tabular-nums">
+                  {rupiah(
+                    Math.max(
+                      subtotal -
+                        loyaltyDiscountAmountFor(
+                          loyaltyDraft.type,
+                          Number.isFinite(loyaltyDraftValue)
+                            ? Math.max(loyaltyDraftValue, 0)
+                            : 0,
+                          subtotal,
+                        ),
+                      0,
+                    ),
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {loyaltyModalError ? (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                {loyaltyModalError}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={saveLoyaltyModal}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+            >
+              Simpan Benefit Loyalty
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={discountModalItem !== null}
         onOpenChange={(open) => {

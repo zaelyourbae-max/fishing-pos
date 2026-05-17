@@ -61,6 +61,13 @@ model Sale {
     invoiceNumber  String          @unique
     subtotal       Int
     paidAmount     Int
+    subtotalBeforeLoyalty Int      @default(0) @map("subtotal_before_loyalty")
+    loyaltyApplied Boolean         @default(false) @map("loyalty_applied")
+    loyaltyMilestone Int?          @map("loyalty_milestone")
+    loyaltyBenefitType String      @default("NONE") @map("loyalty_benefit_type")
+    loyaltyBenefitValue Int        @default(0) @map("loyalty_benefit_value")
+    loyaltyDiscountAmount Int      @default(0) @map("loyalty_discount_amount")
+    loyaltyBenefitNote String?     @map("loyalty_benefit_note")
     paymentMethod  String          @default("CASH") @map("payment_method")
     transactionStatus TransactionStatus @default(SUCCESS) @map("transaction_status")
     paymentStatus     PaymentStatus     @default(PAID) @map("payment_status")
@@ -85,6 +92,7 @@ model Sale {
     @@index([cashierId, createdAt])
     @@index([customerId, createdAt])
     @@index([transactionStatus, paymentStatus, createdAt])
+    @@index([customerId, loyaltyMilestone, loyaltyApplied])
     @@index([paymentProofUploadedById, paymentProofUploadedAt])
     @@index([cancelledById, cancelledAt])
     @@map("sales")

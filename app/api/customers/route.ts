@@ -1,8 +1,46 @@
 import { canAccessCustomers, isOwnerRole, requireCashier } from "@/lib/auth-session";
+import { loyaltyProgressFromValidCount } from "@/lib/loyalty";
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
+import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+
+async function getCustomerLoyaltyProgress(customerId: number) {
+  const [validTransactions, reservedSales] = await Promise.all([
+    prisma.sale.count({
+      where: {
+        customerId,
+        ...FINAL_SALE_STATUS_WHERE,
+      },
+    }),
+    prisma.sale.findMany({
+      where: {
+        customerId,
+        transactionStatus: "PENDING",
+        paymentStatus: "WAITING_PROOF",
+        loyaltyApplied: true,
+        loyaltyMilestone: {
+          not: null,
+        },
+      },
+      select: {
+        loyaltyMilestone: true,
+      },
+    }),
+  ]);
+  const progress = loyaltyProgressFromValidCount(validTransactions);
+
+  return {
+    valid_transactions: progress.validTransactions,
+    next_milestone: progress.nextMilestone,
+    remaining_to_next: progress.remainingToNext,
+    eligible_milestone: progress.eligibleMilestone,
+    reserved_milestones: reservedSales
+      .map((sale) => sale.loyaltyMilestone)
+      .filter((milestone): milestone is number => milestone !== null),
+  };
+}
 
 export async function GET(req: Request) {
   const auth = requireCashier(req);
@@ -43,11 +81,20 @@ export async function GET(req: Request) {
         phone: true,
         address: true,
         notes: true,
+        loyaltyPoints: true,
       },
     });
+    const loyaltyProgress = customer
+      ? await getCustomerLoyaltyProgress(customer.id)
+      : null;
 
     return NextResponse.json({
-      data: customer,
+      data: customer
+        ? {
+            ...customer,
+            loyalty_progress: loyaltyProgress,
+          }
+        : null,
       normalized_phone: phone,
       found: Boolean(customer),
     });

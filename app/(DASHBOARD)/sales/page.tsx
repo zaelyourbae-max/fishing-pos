@@ -218,6 +218,9 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           paymentStatus: true,
           cancelReason: true,
           cancelledAt: true,
+          loyaltyApplied: true,
+          loyaltyMilestone: true,
+          loyaltyDiscountAmount: true,
           cashier: {
             select: {
               name: true,
@@ -506,6 +509,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                             Diskon {rupiah(discountTotal)}
                           </span>
                         ) : null}
+                        {sale.loyaltyApplied ? (
+                          <span className="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+                            Loyalty
+                            {sale.loyaltyMilestone
+                              ? ` ke-${sale.loyaltyMilestone}`
+                              : ""}
+                          </span>
+                        ) : null}
                         {sale.transactionStatus === "CANCELLED" ? (
                           <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
                             Dibatalkan
@@ -651,6 +662,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     {discountTotal > 0 ? (
                       <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
                         Diskon {rupiah(discountTotal)}
+                      </span>
+                    ) : null}
+                    {sale.loyaltyApplied ? (
+                      <span className="ml-2 rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+                        Loyalty
+                        {sale.loyaltyMilestone
+                          ? ` ke-${sale.loyaltyMilestone}`
+                          : ""}
                       </span>
                     ) : null}
                     {sale.transactionStatus === "CANCELLED" ? (

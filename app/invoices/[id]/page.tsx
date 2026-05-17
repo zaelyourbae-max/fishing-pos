@@ -155,6 +155,10 @@ export default async function InvoicePage({
 
     return total + (storedSubtotal > 0 ? storedSubtotal : item.price * item.qty);
   }, 0);
+  const subtotalBeforeLoyalty =
+    sale.subtotalBeforeLoyalty > 0
+      ? sale.subtotalBeforeLoyalty
+      : Math.max(subtotalBeforeDiscount - totalItemDiscount, 0);
   const changeAmount = Math.max(sale.paidAmount - sale.subtotal, 0);
   const totalReturn = sale.returns.reduce(
     (total, saleReturn) => total + (saleReturn.totalRefund ?? 0),
@@ -402,11 +406,38 @@ export default async function InvoicePage({
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-zinc-500">Diskon Item</span>
+              <span className="text-zinc-500">Total Diskon Grosir</span>
               <span className="font-semibold text-rose-700">
                 -{rupiah(totalItemDiscount)}
               </span>
             </div>
+            {sale.loyaltyApplied ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500">Subtotal Sebelum Loyalty</span>
+                  <span className="font-semibold">
+                    {rupiah(subtotalBeforeLoyalty)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500">
+                    Diskon Loyalty
+                    {sale.loyaltyMilestone
+                      ? ` (ke-${sale.loyaltyMilestone})`
+                      : ""}
+                  </span>
+                  <span className="font-semibold text-rose-700">
+                    -{rupiah(sale.loyaltyDiscountAmount)}
+                  </span>
+                </div>
+                {sale.loyaltyBenefitNote ? (
+                  <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <span className="font-semibold">Catatan Loyalty: </span>
+                    {sale.loyaltyBenefitNote}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             {sale.returns.length > 0 ? (
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500">Total Retur</span>
@@ -416,7 +447,7 @@ export default async function InvoicePage({
               </div>
             ) : null}
             <div className="flex items-center justify-between border-t border-zinc-200 pt-3 text-base">
-              <span className="font-bold">Total</span>
+              <span className="font-bold">Grand Total</span>
               <span className="font-bold">{rupiah(sale.subtotal)}</span>
             </div>
             <div className="flex items-center justify-between">

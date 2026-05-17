@@ -15,6 +15,7 @@ import { isOwnerRole } from "@/lib/permissions";
 import { requireCustomersPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
+import { loyaltyProgressFromValidCount } from "@/lib/loyalty";
 
 type CustomerDetailPageProps = {
   params: Promise<{
@@ -101,6 +102,10 @@ export default async function CustomerDetailPage({
             subtotal: true,
             paidAmount: true,
             paymentMethod: true,
+            loyaltyApplied: true,
+            loyaltyMilestone: true,
+            loyaltyDiscountAmount: true,
+            loyaltyBenefitNote: true,
             cashier: {
               select: {
                 name: true,
@@ -130,6 +135,8 @@ export default async function CustomerDetailPage({
   const transactionCount = summary._count._all;
   const averageTransaction =
     transactionCount > 0 ? Math.round(totalSpent / transactionCount) : 0;
+  const loyaltyProgress = loyaltyProgressFromValidCount(transactionCount);
+  const loyaltyBenefitSales = sales.filter((sale) => sale.loyaltyApplied);
 
   return (
     <div className="space-y-7">
@@ -183,6 +190,9 @@ export default async function CustomerDetailPage({
           </p>
           <p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
             {customer.loyaltyPoints}
+          </p>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            Future use. Eligibility memakai transaksi valid.
           </p>
         </div>
 
@@ -252,6 +262,41 @@ export default async function CustomerDetailPage({
                   {rupiah(averageTransaction)}
                 </p>
               </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-100">
+                  Progress Loyalty
+                </p>
+                <p className="mt-1 text-2xl font-bold text-amber-950 dark:text-amber-50">
+                  {transactionCount}/{loyaltyProgress.nextMilestone}
+                </p>
+                <p className="mt-1 text-sm text-amber-800 dark:text-amber-100">
+                  Sisa {loyaltyProgress.remainingToNext} transaksi valid.
+                </p>
+              </div>
+              {loyaltyBenefitSales.length > 0 ? (
+                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm dark:border-teal-500/20 dark:bg-teal-500/10">
+                  <p className="text-sm font-semibold text-teal-800 dark:text-teal-100">
+                    Histori Benefit Loyalty
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm">
+                    {loyaltyBenefitSales.slice(0, 5).map((sale) => (
+                      <Link
+                        key={sale.id}
+                        href={`/invoices/${sale.id}`}
+                        className="block rounded-xl bg-white/70 px-3 py-2 font-semibold text-teal-800 hover:bg-white dark:bg-slate-950/40 dark:text-teal-100"
+                      >
+                        {sale.invoiceNumber}
+                        {sale.loyaltyMilestone
+                          ? ` - ke-${sale.loyaltyMilestone}`
+                          : ""}
+                        {sale.loyaltyDiscountAmount > 0
+                          ? ` - ${rupiah(sale.loyaltyDiscountAmount)}`
+                          : ""}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-400">
@@ -313,6 +358,14 @@ export default async function CustomerDetailPage({
                               Ada retur
                             </p>
                           ) : null}
+                          {sale.loyaltyApplied ? (
+                            <p className="mt-1 text-xs font-semibold text-teal-700 dark:text-teal-300">
+                              Loyalty
+                              {sale.loyaltyMilestone
+                                ? ` ke-${sale.loyaltyMilestone}`
+                                : ""}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
                           {formatDateTime(sale.createdAt)}
@@ -353,6 +406,14 @@ export default async function CustomerDetailPage({
                         <p className="mt-1 text-xs text-slate-500">
                           {sale.paymentMethod} - {sale._count.items} item
                         </p>
+                        {sale.loyaltyApplied ? (
+                          <p className="mt-1 text-xs font-semibold text-teal-700 dark:text-teal-300">
+                            Loyalty
+                            {sale.loyaltyMilestone
+                              ? ` ke-${sale.loyaltyMilestone}`
+                              : ""}
+                          </p>
+                        ) : null}
                       </div>
                       <p className="shrink-0 font-bold tabular-nums text-slate-950 dark:text-white">
                         {rupiah(sale.subtotal)}

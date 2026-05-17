@@ -1,7 +1,12 @@
 import { requireCashier } from "@/lib/auth-session";
+import {
+  calculateLoyaltyDiscount,
+  loyaltyProgressFromValidCount,
+  normalizeLoyaltyBenefitType,
+} from "@/lib/loyalty";
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
-import { resolveSaleStatuses } from "@/lib/sale-status";
+import { FINAL_SALE_STATUS_WHERE, resolveSaleStatuses } from "@/lib/sale-status";
 import { Prisma, SaleItemDiscountType } from "@prisma/client";
 import { NextResponse } from "next/server";
 
@@ -19,6 +24,12 @@ type CustomerInput = {
   phone?: string;
   address?: string;
   notes?: string;
+};
+
+type LoyaltyInput = {
+  benefit_type?: string;
+  benefit_value?: number | string;
+  benefit_note?: string;
 };
 
 function saleNumber() {
@@ -82,6 +93,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const items = (body.items ?? []) as SaleItemInput[];
   const customer = (body.customer ?? {}) as CustomerInput;
+  const loyalty = (body.loyalty ?? {}) as LoyaltyInput;
   const customerIdInput = body.customer_id ? Number(body.customer_id) : null;
   const customerPhone = normalizeIndonesianPhone(customer.phone ?? "");
   const customerName = String(customer.name ?? "").trim();
@@ -90,6 +102,15 @@ export async function POST(req: Request) {
   const paidAmountInput = Number(body.paid_amount ?? 0);
   const paymentMethod =
     String(body.payment_method ?? "CASH").trim().toUpperCase() || "CASH";
+  const loyaltyBenefitType = normalizeLoyaltyBenefitType(
+    loyalty.benefit_type ?? body.loyalty_benefit_type,
+  );
+  const loyaltyBenefitValue = Number(
+    loyalty.benefit_value ?? body.loyalty_benefit_value ?? 0,
+  );
+  const loyaltyBenefitNote = String(
+    loyalty.benefit_note ?? body.loyalty_benefit_note ?? "",
+  ).trim();
 
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
@@ -125,6 +146,17 @@ export async function POST(req: Request) {
         },
       );
     }
+  }
+
+  if (!loyaltyBenefitType || !Number.isFinite(loyaltyBenefitValue)) {
+    return NextResponse.json(
+      {
+        message: "Benefit loyalty tidak valid.",
+      },
+      {
+        status: 422,
+      },
+    );
   }
 
   if (!Number.isFinite(paidAmountInput) || paidAmountInput < 0) {
@@ -302,12 +334,102 @@ export async function POST(req: Request) {
             subtotal: subtotalAfterDiscount,
           };
         });
-        const subtotal = preparedItems.reduce(
+        const subtotalBeforeLoyalty = preparedItems.reduce(
           (total, item) => total + item.subtotal,
           0,
         );
         const totalQty = preparedItems.reduce(
           (total, item) => total + item.quantity,
+          0,
+        );
+        const loyaltySnapshot = {
+          applied: false,
+          milestone: null as number | null,
+          benefitType: "NONE",
+          benefitValue: 0,
+          discountAmount: 0,
+          note: null as string | null,
+        };
+
+        if (!saleCustomerId) {
+          if (loyaltyBenefitType !== "NONE" || loyaltyBenefitValue > 0) {
+            throw new Error("LOYALTY_CUSTOMER_REQUIRED");
+          }
+        } else {
+          const validTransactions = await tx.sale.count({
+            where: {
+              customerId: saleCustomerId,
+              ...FINAL_SALE_STATUS_WHERE,
+            },
+          });
+          const progress = loyaltyProgressFromValidCount(validTransactions);
+          const eligibleMilestone = progress.eligibleMilestone;
+
+          if (!eligibleMilestone) {
+            if (loyaltyBenefitType !== "NONE" || loyaltyBenefitValue > 0) {
+              throw new Error("LOYALTY_NOT_ELIGIBLE");
+            }
+          } else {
+            const reservedMilestone = await tx.sale.findFirst({
+              where: {
+                customerId: saleCustomerId,
+                transactionStatus: "PENDING",
+                paymentStatus: "WAITING_PROOF",
+                loyaltyApplied: true,
+                loyaltyMilestone: eligibleMilestone,
+              },
+              select: {
+                id: true,
+              },
+            });
+
+            if (reservedMilestone) {
+              throw new Error("LOYALTY_MILESTONE_RESERVED");
+            } else {
+              if (!loyaltyBenefitNote) {
+                throw new Error("LOYALTY_NOTE_REQUIRED");
+              }
+
+              if (
+                (loyaltyBenefitType === "FIXED" ||
+                  loyaltyBenefitType === "PERCENT") &&
+                loyaltyBenefitValue <= 0
+              ) {
+                throw new Error("LOYALTY_VALUE_REQUIRED");
+              }
+
+              if (loyaltyBenefitValue < 0) {
+                throw new Error("LOYALTY_VALUE_INVALID");
+              }
+
+              if (loyaltyBenefitType === "PERCENT" && loyaltyBenefitValue > 100) {
+                throw new Error("LOYALTY_PERCENT_INVALID");
+              }
+
+              if (
+                loyaltyBenefitType === "FIXED" &&
+                loyaltyBenefitValue > subtotalBeforeLoyalty
+              ) {
+                throw new Error("LOYALTY_FIXED_TOO_HIGH");
+              }
+
+              loyaltySnapshot.applied = true;
+              loyaltySnapshot.milestone = eligibleMilestone;
+              loyaltySnapshot.benefitType = loyaltyBenefitType;
+              loyaltySnapshot.benefitValue =
+                loyaltyBenefitType === "NONE" ? 0 : Math.round(loyaltyBenefitValue);
+              loyaltySnapshot.note = loyaltyBenefitNote;
+              loyaltySnapshot.discountAmount = calculateLoyaltyDiscount({
+                type: loyaltyBenefitType,
+                value: loyaltyBenefitValue,
+                subtotalBeforeLoyalty,
+              });
+            }
+          }
+        }
+
+        const subtotal = Math.max(
+          subtotalBeforeLoyalty - loyaltySnapshot.discountAmount,
           0,
         );
         const paidAmount =
@@ -324,6 +446,13 @@ export async function POST(req: Request) {
             invoiceNumber,
             subtotal,
             paidAmount,
+            subtotalBeforeLoyalty,
+            loyaltyApplied: loyaltySnapshot.applied,
+            loyaltyMilestone: loyaltySnapshot.milestone,
+            loyaltyBenefitType: loyaltySnapshot.benefitType,
+            loyaltyBenefitValue: loyaltySnapshot.benefitValue,
+            loyaltyDiscountAmount: loyaltySnapshot.discountAmount,
+            loyaltyBenefitNote: loyaltySnapshot.note,
             paymentMethod,
             transactionStatus: saleStatuses.transactionStatus,
             paymentStatus: saleStatuses.paymentStatus,
@@ -426,11 +555,22 @@ export async function POST(req: Request) {
           payment_status: createdSale.paymentStatus,
           payment_proof_url: createdSale.paymentProofUrl,
           payment_method: createdSale.paymentMethod,
-          subtotal,
+          subtotal: subtotalBeforeLoyalty,
+          subtotal_before_loyalty: subtotalBeforeLoyalty,
           discount_amount: preparedItems.reduce(
             (total, item) => total + item.discountAmount,
             0,
           ),
+          total_item_discount_amount: preparedItems.reduce(
+            (total, item) => total + item.discountAmount,
+            0,
+          ),
+          loyalty_applied: loyaltySnapshot.applied,
+          loyalty_milestone: loyaltySnapshot.milestone,
+          loyalty_benefit_type: loyaltySnapshot.benefitType,
+          loyalty_benefit_value: loyaltySnapshot.benefitValue,
+          loyalty_discount_amount: loyaltySnapshot.discountAmount,
+          loyalty_benefit_note: loyaltySnapshot.note,
           tax_amount: 0,
           grand_total: subtotal,
           paid_amount: paidAmount,
@@ -549,6 +689,36 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           message: "Alasan diskon wajib diisi jika diskon lebih dari 0.",
+        },
+        {
+          status: 422,
+        },
+      );
+    }
+
+    const loyaltyErrors: Record<string, string> = {
+      LOYALTY_CUSTOMER_REQUIRED:
+        "Benefit loyalty hanya bisa digunakan untuk customer terdaftar.",
+      LOYALTY_NOT_ELIGIBLE:
+        "Customer belum eligible untuk benefit loyalty.",
+      LOYALTY_MILESTONE_RESERVED:
+        "Milestone loyalty customer sedang reserved di transaksi pending.",
+      LOYALTY_NOTE_REQUIRED:
+        "Catatan atau alasan loyalty wajib diisi.",
+      LOYALTY_VALUE_REQUIRED:
+        "Nilai benefit loyalty wajib lebih dari 0.",
+      LOYALTY_VALUE_INVALID:
+        "Nilai benefit loyalty tidak boleh negatif.",
+      LOYALTY_PERCENT_INVALID:
+        "Persen benefit loyalty maksimal 100%.",
+      LOYALTY_FIXED_TOO_HIGH:
+        "Diskon loyalty nominal tidak boleh melebihi subtotal sebelum loyalty.",
+    };
+
+    if (loyaltyErrors[message]) {
+      return NextResponse.json(
+        {
+          message: loyaltyErrors[message],
         },
         {
           status: 422,
