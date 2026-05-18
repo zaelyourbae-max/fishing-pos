@@ -249,6 +249,18 @@ function formatRupiah(value: number) {
   return `Rp ${value.toLocaleString("id-ID")}`;
 }
 
+function formatSignedRupiah(value: number) {
+  if (value > 0) {
+    return `+${formatRupiah(value)}`;
+  }
+
+  if (value < 0) {
+    return `-${formatRupiah(Math.abs(value))}`;
+  }
+
+  return formatRupiah(0);
+}
+
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("id-ID", {
     hour: "2-digit",
@@ -390,7 +402,7 @@ function ClosingDialog({
   const isClosed = closingStatus === "CLOSED";
   const [step, setStep] = useState(isClosed ? 4 : 1);
   const [actualCash, setActualCash] = useState(
-    isClosed && existingClosing ? String(existingClosing.actualCash) : String(cashValue),
+    isClosed && existingClosing ? String(existingClosing.actualCash) : "",
   );
   const [notes, setNotes] = useState(isClosed ? (existingClosing?.notes ?? "") : "");
   const [saving, setSaving] = useState(false);
@@ -398,9 +410,13 @@ function ClosingDialog({
   const [reopenReason, setReopenReason] = useState("");
   const [error, setError] = useState("");
   const [savedClosing, setSavedClosing] = useState<ClosingRecord | null>(null);
-  const actualValue = Number(actualCash || 0);
-  const difference = actualValue - cashValue;
-  const differenceLabel = formatRupiah(difference);
+  const actualCashInput = actualCash.trim();
+  const actualCashFilled = actualCashInput !== "";
+  const actualValue = Number(actualCashInput);
+  const actualCashValid =
+    actualCashFilled && /^\d+$/.test(actualCashInput) && Number.isFinite(actualValue);
+  const difference = actualCashValid ? actualValue - cashValue : 0;
+  const differenceLabel = formatSignedRupiah(difference);
 
   const paymentMap = useMemo(() => {
     const map = new Map(payments.map((payment) => [payment.method.toUpperCase(), payment.total]));
@@ -413,6 +429,12 @@ function ClosingDialog({
   }, [cashAmount, payments]);
 
   async function saveClosing() {
+    if (!actualCashValid) {
+      setError("Cash aktual wajib diisi dengan angka valid.");
+      setStep(2);
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -593,26 +615,40 @@ function ClosingDialog({
                       Cash aktual
                     </span>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={actualCash}
-                      onChange={(event) => setActualCash(event.target.value)}
+                      onChange={(event) => {
+                        setActualCash(event.target.value.replace(/[^\d]/g, ""));
+                        setError("");
+                      }}
                       className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-lg font-bold outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
                     />
                   </label>
-                  <div
-                    className={`rounded-2xl p-4 text-sm font-bold ${
-                      difference === 0
-                        ? "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200"
-                        : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200"
-                    }`}
-                  >
-                    Selisih: {differenceLabel}
-                    {difference !== 0 ? (
-                      <p className="mt-1 text-xs font-medium">
-                        Ada selisih cash. Catat penyebabnya jika diperlukan.
-                      </p>
-                    ) : null}
-                  </div>
+                  {!actualCashFilled ? (
+                    <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                      Masukkan cash aktual untuk menghitung selisih.
+                    </p>
+                  ) : actualCashValid ? (
+                    <div
+                      className={`rounded-2xl p-4 text-sm font-bold ${
+                        difference === 0
+                          ? "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200"
+                          : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200"
+                      }`}
+                    >
+                      Selisih: {differenceLabel}
+                      {difference !== 0 ? (
+                        <p className="mt-1 text-xs font-medium">
+                          Ada selisih cash. Catat penyebabnya jika diperlukan.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                      Cash aktual wajib berupa angka valid.
+                    </p>
+                  )}
                 </div>
               ) : null}
 
@@ -682,8 +718,15 @@ function ClosingDialog({
             </button>
             <button
               type="button"
-              onClick={() => setStep(Math.min(step + 1, 4))}
-              disabled={step === 4}
+              onClick={() => {
+                if (step === 2 && !actualCashValid) {
+                  setError("Cash aktual wajib diisi dengan angka valid.");
+                  return;
+                }
+
+                setStep(Math.min(step + 1, 4));
+              }}
+              disabled={step === 4 || (step === 2 && !actualCashValid)}
               className="h-11 rounded-xl bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-blue-600"
             >
               Lanjut
