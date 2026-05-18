@@ -622,7 +622,7 @@ function ClosingDialog({
                         setActualCash(event.target.value.replace(/[^\d]/g, ""));
                         setError("");
                       }}
-                      className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-lg font-bold outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                      className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-lg font-bold text-slate-950 caret-blue-600 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
                     />
                   </label>
                   {!actualCashFilled ? (
