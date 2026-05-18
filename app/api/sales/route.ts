@@ -1,5 +1,10 @@
 import { requireCashier } from "@/lib/auth-session";
 import {
+  closingDateFromInput,
+  dateInputValue,
+  isClosingLockedForDate,
+} from "@/lib/daily-closing";
+import {
   calculateLoyaltyDiscount,
   LOYALTY_MIN_PURCHASE_AMOUNT,
   loyaltyProgressFromValidCount,
@@ -208,6 +213,15 @@ export async function POST(req: Request) {
 
         if (!activePaymentMethod) {
           throw new Error("PAYMENT_METHOD_NOT_FOUND");
+        }
+
+        const checkoutDate = closingDateFromInput(dateInputValue(new Date()));
+
+        if (
+          checkoutDate &&
+          (await isClosingLockedForDate(tx, checkoutDate))
+        ) {
+          throw new Error("DAILY_CLOSING_LOCKED");
         }
 
         let saleCustomerId = customerIdInput;
@@ -669,6 +683,18 @@ export async function POST(req: Request) {
         },
         {
           status: 422,
+        },
+      );
+    }
+
+    if (message === "DAILY_CLOSING_LOCKED") {
+      return NextResponse.json(
+        {
+          message:
+            "Transaksi tidak bisa dibuat karena toko sudah closing. Silakan reopen closing terlebih dahulu.",
+        },
+        {
+          status: 423,
         },
       );
     }

@@ -38,18 +38,34 @@ type DashboardStatusChipsProps = {
   lowStockCount: number;
 };
 
+type ClosingStatus = "OPEN" | "CLOSED" | "REOPENED";
+
 type ClosingRecord = {
+  id: string;
   date: string;
+  status: ClosingStatus;
   expectedCash: number;
-  expectedCashLabel: string;
   actualCash: number;
-  actualCashLabel: string;
   difference: number;
-  differenceLabel: string;
   notes: string;
-  closedBy: string;
-  closedAt: string;
-  closedAtLabel: string;
+  grossOmzet: number;
+  netOmzet: number;
+  transactionCount: number;
+  paymentSummary: PaymentClosingRow[];
+  returnValue: number;
+  closedBy: string | null;
+  closedAt: string | null;
+  reopenedBy: string | null;
+  reopenedAt: string | null;
+  reopenReason: string | null;
+  logs: {
+    id: string;
+    action: string;
+    reason: string | null;
+    note: string | null;
+    createdAt: string;
+    userName: string | null;
+  }[];
 };
 
 export default function DashboardTopActions({
@@ -66,7 +82,8 @@ export default function DashboardTopActions({
 }: DashboardTopActionsProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [closingOpen, setClosingOpen] = useState(false);
-  const { closing } = useClosingRecord(selectedDateInput);
+  const { closing, status, refresh } = useClosingRecord(selectedDateInput);
+  const isClosed = status === "CLOSED";
 
   return (
     <>
@@ -146,12 +163,12 @@ export default function DashboardTopActions({
           type="button"
           onClick={() => setClosingOpen(true)}
           className={`inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 active:scale-95 ${
-            closing ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700"
+            isClosed ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700"
           }`}
-          title={closing ? "Lihat closing hari ini" : "Mulai closing hari ini"}
+          title={isClosed ? "Lihat closing hari ini" : "Mulai closing hari ini"}
         >
-          {closing ? <CheckCircle2 className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
-          {closing ? "Lihat Closing" : "Closing Hari Ini"}
+          {isClosed ? <CheckCircle2 className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
+          {isClosed ? "Lihat Closing" : "Closing Hari Ini"}
         </button>
       </div>
 
@@ -167,6 +184,8 @@ export default function DashboardTopActions({
           payments={payments}
           closedBy={closedBy}
           existingClosing={closing}
+          closingStatus={status}
+          onChanged={refresh}
           onClose={() => setClosingOpen(false)}
         />
       ) : null}
@@ -181,7 +200,7 @@ export function DashboardStatusChips({
   role,
   lowStockCount,
 }: DashboardStatusChipsProps) {
-  const { closing } = useClosingRecord(selectedDateInput);
+  const { closing, status } = useClosingRecord(selectedDateInput);
   const roleLabel =
     role === "cashier"
       ? `Kasir: ${userName}`
@@ -198,12 +217,22 @@ export function DashboardStatusChips({
       </span>
       <span
         className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
-          closing ? "border-teal-200 bg-white text-teal-700" : "border-slate-200 bg-white text-amber-700"
+          status === "CLOSED"
+            ? "border-teal-200 bg-white text-teal-700"
+            : status === "REOPENED"
+              ? "border-blue-200 bg-white text-blue-700"
+              : "border-slate-200 bg-white text-amber-700"
         }`}
       >
-        {closing ? "✓ Sudah Closing" : "Belum Closing"}
+        {status === "CLOSED"
+          ? "✓ Sudah Closing"
+          : status === "REOPENED"
+            ? "Reopened"
+            : "Belum Closing"}
         <span className="font-medium text-slate-500">
-          {closing ? `${selectedDateLabel} • ${closing.closedAtLabel}` : selectedDateLabel}
+          {status === "CLOSED" && closing?.closedAt
+            ? `${selectedDateLabel} • ${formatTime(closing.closedAt)}`
+            : selectedDateLabel}
         </span>
       </span>
       <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-rose-200">
@@ -214,10 +243,6 @@ export function DashboardStatusChips({
       </span>
     </div>
   );
-}
-
-function closingKey(date: string) {
-  return `fishing-pos-closing-${date}`;
 }
 
 function formatRupiah(value: number) {
@@ -231,41 +256,115 @@ function formatTime(value: string) {
   }).format(new Date(value));
 }
 
-function readClosing(date: string) {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(closingKey(date));
-
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as ClosingRecord;
-  } catch {
-    return null;
-  }
-}
-
 function useClosingRecord(date: string) {
   const [closing, setClosing] = useState<ClosingRecord | null>(null);
+  const [status, setStatus] = useState<ClosingStatus>("OPEN");
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    const sync = () => setClosing(readClosing(date));
+    let cancelled = false;
+
+    async function sync() {
+      try {
+        const response = await fetch(`/api/closings?date=${date}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("CLOSING_FETCH_FAILED");
+        }
+
+        const payload = await response.json();
+        const data = payload.data ?? {};
+
+        if (cancelled) {
+          return;
+        }
+
+        setStatus((data.status ?? "OPEN") as ClosingStatus);
+        setClosing(data.closing ? normalizeClosing(data.closing) : null);
+      } catch {
+        if (!cancelled) {
+          setStatus("OPEN");
+          setClosing(null);
+        }
+      }
+    }
 
     sync();
-    window.addEventListener("storage", sync);
-    window.addEventListener("dashboard-closing-updated", sync);
 
     return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("dashboard-closing-updated", sync);
+      cancelled = true;
     };
-  }, [date]);
+  }, [date, version]);
 
-  return { closing };
+  return {
+    closing,
+    status,
+    refresh: () => setVersion((current) => current + 1),
+  };
+}
+
+function objectValue(value: unknown, key: string) {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+}
+
+function stringValue(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function numberValue(value: unknown) {
+  return Number(value ?? 0);
+}
+
+function normalizeClosing(raw: unknown): ClosingRecord {
+  const closedBy = objectValue(raw, "closed_by");
+  const reopenedBy = objectValue(raw, "reopened_by");
+  const paymentSummary = objectValue(raw, "payment_summary");
+  const logs = objectValue(raw, "logs");
+
+  return {
+    id: String(objectValue(raw, "id") ?? ""),
+    date: String(
+      objectValue(raw, "closing_date") ?? objectValue(raw, "date") ?? "",
+    ),
+    status: String(objectValue(raw, "status") ?? "OPEN") as ClosingStatus,
+    expectedCash: numberValue(objectValue(raw, "expected_cash")),
+    actualCash: numberValue(objectValue(raw, "actual_cash")),
+    difference: numberValue(objectValue(raw, "difference")),
+    notes: stringValue(objectValue(raw, "notes")),
+    grossOmzet: numberValue(objectValue(raw, "gross_omzet")),
+    netOmzet: numberValue(objectValue(raw, "net_omzet")),
+    transactionCount: numberValue(objectValue(raw, "transaction_count")),
+    paymentSummary: Array.isArray(paymentSummary)
+      ? paymentSummary.map((item) => ({
+          method: String(objectValue(item, "method") ?? "-"),
+          total: formatRupiah(numberValue(objectValue(item, "total"))),
+        }))
+      : [],
+    returnValue: numberValue(objectValue(raw, "return_value")),
+    closedBy: stringValue(objectValue(closedBy, "name")) || null,
+    closedAt: stringValue(objectValue(raw, "closed_at")) || null,
+    reopenedBy: stringValue(objectValue(reopenedBy, "name")) || null,
+    reopenedAt: stringValue(objectValue(raw, "reopened_at")) || null,
+    reopenReason: stringValue(objectValue(raw, "reopen_reason")) || null,
+    logs: Array.isArray(logs)
+      ? logs.map((log) => {
+          const user = objectValue(log, "user");
+
+          return {
+            id: String(objectValue(log, "id") ?? ""),
+            action: String(objectValue(log, "action") ?? ""),
+            reason: stringValue(objectValue(log, "reason")) || null,
+            note: stringValue(objectValue(log, "note")) || null,
+            createdAt: String(objectValue(log, "created_at") ?? ""),
+            userName: stringValue(objectValue(user, "name")) || null,
+          };
+        })
+      : [],
+  };
 }
 
 function ClosingDialog({
@@ -279,17 +378,26 @@ function ClosingDialog({
   payments,
   closedBy,
   existingClosing,
+  closingStatus,
+  onChanged,
   onClose,
 }: Omit<DashboardTopActionsProps, "notificationCount"> & {
   existingClosing: ClosingRecord | null;
+  closingStatus: ClosingStatus;
+  onChanged: () => void;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState(existingClosing ? 4 : 1);
+  const isClosed = closingStatus === "CLOSED";
+  const [step, setStep] = useState(isClosed ? 4 : 1);
   const [actualCash, setActualCash] = useState(
-    existingClosing ? String(existingClosing.actualCash) : String(cashValue),
+    isClosed && existingClosing ? String(existingClosing.actualCash) : String(cashValue),
   );
-  const [notes, setNotes] = useState(existingClosing?.notes ?? "");
+  const [notes, setNotes] = useState(isClosed ? (existingClosing?.notes ?? "") : "");
   const [saving, setSaving] = useState(false);
+  const [reopening, setReopening] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [error, setError] = useState("");
+  const [savedClosing, setSavedClosing] = useState<ClosingRecord | null>(null);
   const actualValue = Number(actualCash || 0);
   const difference = actualValue - cashValue;
   const differenceLabel = formatRupiah(difference);
@@ -304,32 +412,77 @@ function ClosingDialog({
     };
   }, [cashAmount, payments]);
 
-  function saveClosing() {
+  async function saveClosing() {
     setSaving(true);
-    window.setTimeout(() => {
-      const closedAt = new Date().toISOString();
-      const record: ClosingRecord = {
-        date: selectedDateInput,
-        expectedCash: cashValue,
-        expectedCashLabel: cashAmount,
-        actualCash: actualValue,
-        actualCashLabel: formatRupiah(actualValue),
-        difference,
-        differenceLabel,
-        notes,
-        closedBy,
-        closedAt,
-        closedAtLabel: formatTime(closedAt),
-      };
+    setError("");
 
-      window.localStorage.setItem(closingKey(selectedDateInput), JSON.stringify(record));
-      window.dispatchEvent(new Event("dashboard-closing-updated"));
+    try {
+      const response = await fetch("/api/closings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: selectedDateInput,
+          actual_cash: actualValue,
+          notes,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Closing gagal.");
+      }
+
+      setSavedClosing(normalizeClosing(payload.data));
+      onChanged();
       setSaving(false);
       setStep(4);
-    }, 500);
+    } catch (saveError) {
+      setSaving(false);
+      setError(saveError instanceof Error ? saveError.message : "Closing gagal.");
+    }
   }
 
-  const summaryRecord = existingClosing ?? readClosing(selectedDateInput);
+  async function reopenClosing() {
+    if (!existingClosing) {
+      return;
+    }
+
+    if (reopenReason.trim().length < 5) {
+      setError("Alasan reopen wajib diisi minimal 5 karakter.");
+      return;
+    }
+
+    setReopening(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/closings/${existingClosing.id}/reopen`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reopen_reason: reopenReason,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Reopen gagal.");
+      }
+
+      onChanged();
+      setReopening(false);
+      onClose();
+    } catch (reopenError) {
+      setReopening(false);
+      setError(reopenError instanceof Error ? reopenError.message : "Reopen gagal.");
+    }
+  }
+
+  const summaryRecord = savedClosing ?? (isClosed ? existingClosing : null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-6">
@@ -357,11 +510,16 @@ function ClosingDialog({
               <button
                 key={label}
                 type="button"
-                onClick={() => setStep(index + 1)}
+                onClick={() => {
+                  if (!summaryRecord) {
+                    setStep(index + 1);
+                  }
+                }}
+                disabled={Boolean(summaryRecord)}
                 className={`rounded-xl px-2 py-2 transition active:scale-95 ${
                   step === index + 1
                     ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-900 dark:text-slate-300"
+                    : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:text-slate-300"
                 }`}
               >
                 {index + 1}. {label}
@@ -371,13 +529,46 @@ function ClosingDialog({
         </div>
 
         <div className="overflow-y-auto p-5">
+          {error ? (
+            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+              {error}
+            </div>
+          ) : null}
+
           {summaryRecord && step === 4 ? (
             <div className="space-y-4">
               <div className="rounded-2xl bg-teal-50 p-4 text-teal-800 dark:bg-teal-500/10 dark:text-teal-200">
-                <p className="font-bold">Closing berhasil disimpan.</p>
-                <p className="mt-1 text-sm">Status dashboard sudah berubah menjadi Sudah Closing.</p>
+                <p className="font-bold">Status dashboard: Sudah Closing.</p>
+                <p className="mt-1 text-sm">
+                  Transaksi POS akan ditolak sampai closing dibuka kembali.
+                </p>
               </div>
               <ClosingSummary record={summaryRecord} />
+              {summaryRecord.status === "CLOSED" ? (
+                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-500/30 dark:bg-orange-500/10">
+                  <p className="text-sm font-bold text-orange-900 dark:text-orange-100">
+                    Buka kembali toko
+                  </p>
+                  <p className="mt-1 text-xs text-orange-800 dark:text-orange-100">
+                    Reopen wajib memakai alasan dan akan dicatat untuk audit.
+                  </p>
+                  <textarea
+                    value={reopenReason}
+                    onChange={(event) => setReopenReason(event.target.value)}
+                    rows={3}
+                    placeholder="Alasan buka kembali"
+                    className="mt-3 w-full resize-none rounded-xl border border-orange-200 bg-white p-3 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-orange-500/30 dark:bg-slate-950 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={reopenClosing}
+                    disabled={reopening}
+                    className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-orange-600 px-4 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {reopening ? "Membuka kembali..." : "Buka Kembali / Reopen"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -445,16 +636,23 @@ function ClosingDialog({
                   <ClosingSummary
                     record={{
                       date: selectedDateInput,
+                      id: "preview",
+                      status: "OPEN",
                       expectedCash: cashValue,
-                      expectedCashLabel: cashAmount,
                       actualCash: actualValue,
-                      actualCashLabel: formatRupiah(actualValue),
                       difference,
-                      differenceLabel,
                       notes,
+                      grossOmzet: 0,
+                      netOmzet: 0,
+                      transactionCount,
+                      paymentSummary: payments,
+                      returnValue: 0,
                       closedBy,
-                      closedAt: new Date().toISOString(),
-                      closedAtLabel: "Setelah disimpan",
+                      closedAt: null,
+                      reopenedBy: null,
+                      reopenedAt: null,
+                      reopenReason: null,
+                      logs: [],
                     }}
                   />
                   <button
@@ -524,11 +722,12 @@ function ClosingSummary({ record }: { record: ClosingRecord }) {
   return (
     <div className="space-y-3">
       {[
-        ["Expected cash", record.expectedCashLabel],
-        ["Actual cash", record.actualCashLabel],
-        ["Selisih", record.differenceLabel],
-        ["Closed by", record.closedBy],
-        ["Waktu closing", record.closedAtLabel],
+        ["Status", record.status],
+        ["Expected cash", formatRupiah(record.expectedCash)],
+        ["Actual cash", formatRupiah(record.actualCash)],
+        ["Selisih", formatRupiah(record.difference)],
+        ["Closed by", record.closedBy ?? "-"],
+        ["Waktu closing", record.closedAt ? formatTime(record.closedAt) : "-"],
       ].map(([label, value]) => (
         <div
           key={label}
@@ -542,6 +741,41 @@ function ClosingSummary({ record }: { record: ClosingRecord }) {
         <div className="rounded-xl border border-slate-100 p-4 dark:border-slate-800">
           <p className="text-xs font-bold text-slate-500">Catatan closing</p>
           <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">{record.notes}</p>
+        </div>
+      ) : null}
+      {record.reopenedAt ? (
+        <div className="rounded-xl border border-orange-100 p-4 dark:border-orange-500/20">
+          <p className="text-xs font-bold text-orange-700 dark:text-orange-200">
+            Reopen terakhir
+          </p>
+          <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">
+            {formatTime(record.reopenedAt)} oleh {record.reopenedBy ?? "-"}
+          </p>
+          {record.reopenReason ? (
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              {record.reopenReason}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {record.logs.length > 0 ? (
+        <div className="rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+          <p className="text-xs font-bold text-slate-500">Audit closing</p>
+          <div className="mt-3 space-y-2">
+            {record.logs.slice(0, 5).map((log) => (
+              <div
+                key={log.id}
+                className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <span className="font-bold">{log.action}</span>
+                {" - "}
+                {log.userName ?? "-"} {log.createdAt ? `(${formatTime(log.createdAt)})` : ""}
+                {log.reason || log.note ? (
+                  <p className="mt-1">{log.reason ?? log.note}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

@@ -57,66 +57,66 @@ model Product {
 }
 
 model Sale {
-  id             String          @id @default(cuid())
-    invoiceNumber  String          @unique
-    subtotal       Int
-    paidAmount     Int
-    subtotalBeforeLoyalty Int      @default(0) @map("subtotal_before_loyalty")
-    loyaltyApplied Boolean         @default(false) @map("loyalty_applied")
-    loyaltyMilestone Int?          @map("loyalty_milestone")
-    loyaltyBenefitType String      @default("NONE") @map("loyalty_benefit_type")
-    loyaltyBenefitValue Int        @default(0) @map("loyalty_benefit_value")
-    loyaltyDiscountAmount Int      @default(0) @map("loyalty_discount_amount")
-    loyaltyBenefitNote String?     @map("loyalty_benefit_note")
-    paymentMethod  String          @default("CASH") @map("payment_method")
-    transactionStatus TransactionStatus @default(SUCCESS) @map("transaction_status")
-    paymentStatus     PaymentStatus     @default(PAID) @map("payment_status")
-    paymentProofUrl    String?          @map("payment_proof_url")
-    paymentProofUploadedAt DateTime?    @map("payment_proof_uploaded_at")
-    paymentProofUploadedById Int?       @map("payment_proof_uploaded_by_id")
-    cancelReason   String?          @map("cancel_reason")
-    cancelledAt    DateTime?        @map("cancelled_at")
-    cancelledById  Int?             @map("cancelled_by_id")
-    createdAt      DateTime        @default(now())
-    cashierId      Int
-    customerId     Int?            @map("customer_id")
-    cashier        User            @relation(fields: [cashierId], references: [id])
-    customer       Customer?       @relation(fields: [customerId], references: [id])
-    paymentProofUploadedBy User?   @relation("SalePaymentProofUploadedBy", fields: [paymentProofUploadedById], references: [id])
-    cancelledBy    User?           @relation("SaleCancelledBy", fields: [cancelledById], references: [id])
-    items          SaleItem[]
-  returns        SaleReturn[]
-  messageLogs    MessageLog[]
-  stockMovements StockMovement[]
+  id                       String            @id @default(cuid())
+  invoiceNumber            String            @unique
+  subtotal                 Int
+  paidAmount               Int
+  subtotalBeforeLoyalty    Int               @default(0) @map("subtotal_before_loyalty")
+  loyaltyApplied           Boolean           @default(false) @map("loyalty_applied")
+  loyaltyMilestone         Int?              @map("loyalty_milestone")
+  loyaltyBenefitType       String            @default("NONE") @map("loyalty_benefit_type")
+  loyaltyBenefitValue      Int               @default(0) @map("loyalty_benefit_value")
+  loyaltyDiscountAmount    Int               @default(0) @map("loyalty_discount_amount")
+  loyaltyBenefitNote       String?           @map("loyalty_benefit_note")
+  paymentMethod            String            @default("CASH") @map("payment_method")
+  transactionStatus        TransactionStatus @default(SUCCESS) @map("transaction_status")
+  paymentStatus            PaymentStatus     @default(PAID) @map("payment_status")
+  paymentProofUrl          String?           @map("payment_proof_url")
+  paymentProofUploadedAt   DateTime?         @map("payment_proof_uploaded_at")
+  paymentProofUploadedById Int?              @map("payment_proof_uploaded_by_id")
+  cancelReason             String?           @map("cancel_reason")
+  cancelledAt              DateTime?         @map("cancelled_at")
+  cancelledById            Int?              @map("cancelled_by_id")
+  createdAt                DateTime          @default(now())
+  cashierId                Int
+  customerId               Int?              @map("customer_id")
+  cashier                  User              @relation(fields: [cashierId], references: [id])
+  customer                 Customer?         @relation(fields: [customerId], references: [id])
+  paymentProofUploadedBy   User?             @relation("SalePaymentProofUploadedBy", fields: [paymentProofUploadedById], references: [id])
+  cancelledBy              User?             @relation("SaleCancelledBy", fields: [cancelledById], references: [id])
+  items                    SaleItem[]
+  returns                  SaleReturn[]
+  messageLogs              MessageLog[]
+  stockMovements           StockMovement[]
 
-    @@index([cashierId, createdAt])
-    @@index([customerId, createdAt])
-    @@index([transactionStatus, paymentStatus, createdAt])
-    @@index([customerId, loyaltyMilestone, loyaltyApplied])
-    @@index([paymentProofUploadedById, paymentProofUploadedAt])
-    @@index([cancelledById, cancelledAt])
-    @@map("sales")
-  }
+  @@index([cashierId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([transactionStatus, paymentStatus, createdAt])
+  @@index([customerId, loyaltyMilestone, loyaltyApplied])
+  @@index([paymentProofUploadedById, paymentProofUploadedAt])
+  @@index([cancelledById, cancelledAt])
+  @@map("sales")
+}
 
 model SaleItem {
-  id             String           @id @default(cuid())
-  saleId         String
-  sale           Sale             @relation(fields: [saleId], references: [id])
-  productId      Int
-  product        Product          @relation(fields: [productId], references: [id])
-  qty            Int
-  price          Int
-  unitCost       Int              @default(0) @map("unit_cost")
-  subtotal       Int
-  originalPrice  Decimal          @default(0) @map("original_price") @db.Decimal(12, 2)
-  discountType   SaleItemDiscountType @default(NONE) @map("discount_type")
-  discountValue  Decimal          @default(0) @map("discount_value") @db.Decimal(12, 2)
-  discountAmount Decimal          @default(0) @map("discount_amount") @db.Decimal(12, 2)
-  discountReason String?          @map("discount_reason")
-  subtotalBeforeDiscount Decimal  @default(0) @map("subtotal_before_discount") @db.Decimal(12, 2)
-  subtotalAfterDiscount  Decimal  @default(0) @map("subtotal_after_discount") @db.Decimal(12, 2)
-  returnItems    SaleReturnItem[]
-  stockMovements StockMovement[]
+  id                     String               @id @default(cuid())
+  saleId                 String
+  sale                   Sale                 @relation(fields: [saleId], references: [id])
+  productId              Int
+  product                Product              @relation(fields: [productId], references: [id])
+  qty                    Int
+  price                  Int
+  unitCost               Int                  @default(0) @map("unit_cost")
+  subtotal               Int
+  originalPrice          Decimal              @default(0) @map("original_price") @db.Decimal(12, 2)
+  discountType           SaleItemDiscountType @default(NONE) @map("discount_type")
+  discountValue          Decimal              @default(0) @map("discount_value") @db.Decimal(12, 2)
+  discountAmount         Decimal              @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  discountReason         String?              @map("discount_reason")
+  subtotalBeforeDiscount Decimal              @default(0) @map("subtotal_before_discount") @db.Decimal(12, 2)
+  subtotalAfterDiscount  Decimal              @default(0) @map("subtotal_after_discount") @db.Decimal(12, 2)
+  returnItems            SaleReturnItem[]
+  stockMovements         StockMovement[]
 
   @@index([saleId])
   @@index([productId])
@@ -210,6 +210,53 @@ model PaymentSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("payment_settings")
+}
+
+model DailyClosing {
+  id               String            @id @default(cuid())
+  closingDate      DateTime          @unique @map("closing_date") @db.Date
+  status           String            @default("OPEN")
+  expectedCash     Int               @default(0) @map("expected_cash")
+  actualCash       Int               @default(0) @map("actual_cash")
+  difference       Int               @default(0)
+  grossOmzet       Int               @default(0) @map("gross_omzet")
+  netOmzet         Int               @default(0) @map("net_omzet")
+  transactionCount Int               @default(0) @map("transaction_count")
+  paymentSummary   Json?             @map("payment_summary")
+  returnValue      Int               @default(0) @map("return_value")
+  notes            String?
+  closedAt         DateTime?         @map("closed_at")
+  closedById       Int?              @map("closed_by_id")
+  reopenedAt       DateTime?         @map("reopened_at")
+  reopenedById     Int?              @map("reopened_by_id")
+  reopenReason     String?           @map("reopen_reason")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  closedBy         User?             @relation("DailyClosingClosedBy", fields: [closedById], references: [id])
+  reopenedBy       User?             @relation("DailyClosingReopenedBy", fields: [reopenedById], references: [id])
+  logs             DailyClosingLog[]
+
+  @@index([closingDate, status])
+  @@index([closedById, closedAt])
+  @@index([reopenedById, reopenedAt])
+  @@map("daily_closings")
+}
+
+model DailyClosingLog {
+  id             String       @id @default(cuid())
+  dailyClosingId String       @map("daily_closing_id")
+  action         String
+  reason         String?
+  note           String?
+  userId         Int?         @map("user_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  dailyClosing   DailyClosing @relation(fields: [dailyClosingId], references: [id])
+  user           User?        @relation("DailyClosingLogUser", fields: [userId], references: [id])
+
+  @@index([dailyClosingId, createdAt])
+  @@index([action, createdAt])
+  @@index([userId, createdAt])
+  @@map("daily_closing_logs")
 }
 
 model Customer {
@@ -385,27 +432,30 @@ model Role {
 }
 
 model User {
-  id              Int              @id @default(autoincrement())
-  roleId          Int              @map("role_id")
-  name            String
-  email           String           @unique
-  emailVerifiedAt DateTime?        @map("email_verified_at")
-  password        String
-  phone           String?
-  isActive        Boolean          @default(true) @map("is_active")
-  rememberToken   String?          @map("remember_token")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  deletedAt       DateTime?        @map("deleted_at")
-  role            Role             @relation(fields: [roleId], references: [id])
-    sales           Sale[]
-    uploadedSalePaymentProofs Sale[] @relation("SalePaymentProofUploadedBy")
-    cancelledSales  Sale[] @relation("SaleCancelledBy")
-    saleReturns     SaleReturn[]     @relation("SaleReturnCreatedBy")
-  messageLogs     MessageLog[]     @relation("MessageLogCreatedBy")
-  purchases       Purchase[]       @relation("PurchaseCreatedBy")
-  supplierReturns SupplierReturn[] @relation("SupplierReturnCreatedBy")
-  stockMovements  StockMovement[]  @relation("StockMovementCreatedBy")
+  id                        Int               @id @default(autoincrement())
+  roleId                    Int               @map("role_id")
+  name                      String
+  email                     String            @unique
+  emailVerifiedAt           DateTime?         @map("email_verified_at")
+  password                  String
+  phone                     String?
+  isActive                  Boolean           @default(true) @map("is_active")
+  rememberToken             String?           @map("remember_token")
+  createdAt                 DateTime          @default(now()) @map("created_at")
+  updatedAt                 DateTime          @updatedAt @map("updated_at")
+  deletedAt                 DateTime?         @map("deleted_at")
+  role                      Role              @relation(fields: [roleId], references: [id])
+  sales                     Sale[]
+  uploadedSalePaymentProofs Sale[]            @relation("SalePaymentProofUploadedBy")
+  cancelledSales            Sale[]            @relation("SaleCancelledBy")
+  saleReturns               SaleReturn[]      @relation("SaleReturnCreatedBy")
+  closedDailyClosings       DailyClosing[]    @relation("DailyClosingClosedBy")
+  reopenedDailyClosings     DailyClosing[]    @relation("DailyClosingReopenedBy")
+  dailyClosingLogs          DailyClosingLog[] @relation("DailyClosingLogUser")
+  messageLogs               MessageLog[]      @relation("MessageLogCreatedBy")
+  purchases                 Purchase[]        @relation("PurchaseCreatedBy")
+  supplierReturns           SupplierReturn[]  @relation("SupplierReturnCreatedBy")
+  stockMovements            StockMovement[]   @relation("StockMovementCreatedBy")
 
   @@map("users")
 }
