@@ -8,6 +8,7 @@ import {
   FileText,
   LayoutDashboard,
   Menu,
+  MoreHorizontal,
   Package,
   PackagePlus,
   RotateCcw,
@@ -39,6 +40,17 @@ type MenuItem = {
   href: string;
   icon: LucideIcon;
 };
+
+function primaryMobileMenus(role: RoleSlug): MenuItem[] {
+  return [
+    role === "cashier"
+      ? { name: "Dashboard", href: "/cashier", icon: LayoutDashboard }
+      : { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "POS", href: "/pos", icon: ShoppingCart },
+    { name: "Penjualan", href: "/sales", icon: FileText },
+    { name: "Customer", href: "/customers", icon: Users },
+  ];
+}
 
 function buildMenus(role: RoleSlug): MenuItem[] {
   const menus: MenuItem[] = [
@@ -139,8 +151,16 @@ function MenuList({
 
 export default function Sidebar({ role }: SidebarProps) {
   const menus = buildMenus(role);
+  const mobileMenus = primaryMobileMenus(role);
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const primaryHrefs = new Set(mobileMenus.map((menu) => menu.href));
+  const moreActive = menus.some(
+    (menu) =>
+      !primaryHrefs.has(menu.href) &&
+      (pathname === menu.href ||
+        (menu.href !== "/" && pathname.startsWith(`${menu.href}/`))),
+  );
 
   return (
     <>
@@ -214,6 +234,45 @@ export default function Sidebar({ role }: SidebarProps) {
 
         <LogoutButton />
       </aside>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-slate-600 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-300 lg:hidden">
+        {mobileMenus.map((menu) => {
+          const Icon = menu.icon;
+          const active =
+            pathname === menu.href ||
+            (menu.href !== "/" && pathname.startsWith(`${menu.href}/`));
+
+          return (
+            <Link
+              key={menu.name}
+              href={menu.href}
+              className={
+                active
+                  ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-teal-700 dark:text-teal-300"
+                  : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl transition hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+              }
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[11px] font-bold leading-none">
+                {menu.name}
+              </span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className={
+            moreActive
+              ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-teal-700 dark:text-teal-300"
+              : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl transition hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+          }
+          aria-label="Buka menu lainnya"
+        >
+          <MoreHorizontal className="h-5 w-5" />
+          <span className="text-[11px] font-bold leading-none">Lainnya</span>
+        </button>
+      </nav>
     </>
   );
 }

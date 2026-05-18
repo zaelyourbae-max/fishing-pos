@@ -14,6 +14,9 @@ import {
 import DashboardTopActions, {
   DashboardStatusChips,
 } from "@/components/dashboard/dashboard-top-actions";
+import DeadStockCard, {
+  type DeadStockCardItem,
+} from "@/components/dashboard/dead-stock-card";
 import KpiActionCard, {
   type KpiDetail,
   type KpiIconName,
@@ -22,6 +25,7 @@ import OperationalAlerts, {
   type OperationalAlert,
 } from "@/components/dashboard/operational-alerts";
 import TransactionPaymentPanel from "@/components/dashboard/transaction-payment-panel";
+import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireOwnerPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { LOW_STOCK_LIMIT, rupiah } from "@/lib/reports";
@@ -395,6 +399,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     todaySalesQuick,
     todayReturnsQuick,
     activeProductSamples,
+    deadStock,
     settings,
     currentUser,
   ] = await Promise.all([
@@ -738,6 +743,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         stock: true,
         category: true,
       },
+    }),
+    getDeadStockProducts({
+      limit: 5,
     }),
     getSettings(),
     prisma.user.findUnique({
@@ -1133,6 +1141,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       href: `/sales?from=${dateInputValue(monthStart)}&to=${selectedDateInput}&payment=${item.paymentMethod}`,
     };
   });
+  const deadStockItems: DeadStockCardItem[] = deadStock.items.map((product) => {
+    const query = product.sku ?? product.name;
+
+    return {
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      stock: product.stock,
+      lastSoldAt: product.lastSoldAt?.toISOString() ?? null,
+      daysSinceLastSold: product.daysSinceLastSold,
+      reason: product.reason,
+      detailHref: `/products?q=${encodeURIComponent(query)}`,
+    };
+  });
   const operationalAlerts: OperationalAlert[] = [
     ...(lowStockProducts.length > 0
       ? [
@@ -1144,6 +1166,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             severity: "critical" as const,
             href: "/products",
             action: "Lihat stok rendah",
+          },
+        ]
+      : []),
+    ...(deadStock.total > 0
+      ? [
+          {
+            id: "dead-stock",
+            title: `${deadStock.total} produk dead stock`,
+            helper: `Tidak terjual >= ${deadStock.thresholdDays} hari`,
+            detail:
+              "Dead Stock berbeda dari stok rendah: barang masih punya stok, tetapi belum pernah terjual atau lama tidak terjual.",
+            severity: "warning" as const,
+            href: "/products",
+            action: "Lihat produk",
           },
         ]
       : []),
@@ -1277,9 +1313,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-        {dashboardKpiCards.map((card) => (
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
+        {dashboardKpiCards.map((card, index) => (
+          <div
+            key={card.title}
+            className={index === 3 ? "col-span-2 xl:col-span-1" : undefined}
+          >
           <KpiActionCard key={card.title} {...card} />
+          </div>
         ))}
       </div>
 
@@ -1293,7 +1334,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_0.8fr_1.35fr]">
+      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70">
           <SectionHeader title="Produk Terlaris Hari Ini" href={salesHref(selectedDateInput)} />
           <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800">
@@ -1303,7 +1344,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 label="Belum ada produk terjual hari ini."
               />
             ) : (
-              <div className="overflow-x-auto">
+              <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full min-w-[520px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                     <tr>
@@ -1352,10 +1393,48 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </table>
               </div>
             )}
+            {bestSellerGroups.length > 0 ? (
+              <div className="divide-y divide-slate-100 lg:hidden dark:divide-slate-800">
+                {bestSellerGroups.map((item, index) => {
+                  const product = productMap.get(item.productId);
+
+                  return (
+                    <Link
+                      key={item.productId}
+                      href={`/products?q=${encodeURIComponent(product?.sku ?? product?.name ?? "")}`}
+                      className="flex min-h-16 items-center justify-between gap-3 p-3 transition hover:bg-teal-50/40 dark:hover:bg-teal-500/10"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold text-slate-950 dark:text-white">
+                            {product?.name ?? "Produk tidak ditemukan"}
+                          </span>
+                          <span className="mt-1 block truncate text-xs text-slate-500">
+                            {product?.sku ?? "-"} - {item._sum.qty ?? 0} terjual
+                          </span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right text-sm font-bold tabular-nums text-slate-950 dark:text-white">
+                        {rupiah(item._sum.subtotal ?? 0)}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         </section>
 
         <OperationalAlerts alerts={operationalAlerts} />
+
+        <DeadStockCard
+          items={deadStockItems}
+          total={deadStock.total}
+          thresholdDays={deadStock.thresholdDays}
+        />
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70">
           <SectionHeader title={`Ringkasan Bulanan (${formatMonthYear(monthStart)})`} href="/reports" />

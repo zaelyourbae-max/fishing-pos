@@ -17,7 +17,7 @@ export default async function DashboardLayout({
     >
       <Sidebar role={session.role} />
 
-      <main className="w-full min-w-0 max-w-full flex-1 overflow-x-hidden px-4 py-4 sm:px-6 md:px-8 lg:px-10">
+      <main className="w-full min-w-0 max-w-full flex-1 overflow-x-hidden px-4 pb-24 pt-4 sm:px-6 md:px-8 lg:px-10 lg:pb-4">
         {children}
       </main>
     </div>

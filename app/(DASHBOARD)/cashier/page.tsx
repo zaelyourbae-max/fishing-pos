@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, Boxes, ReceiptText, ShoppingCart } from "lucide-react";
 
+import DeadStockCard, {
+  type DeadStockCardItem,
+} from "@/components/dashboard/dead-stock-card";
+import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireCashierPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 
@@ -52,7 +56,7 @@ export default async function CashierPage() {
   const session = await requireCashierPage();
   const todayStart = startOfToday();
 
-  const [todayTransactionCount, recentSales, lowStockProducts] =
+  const [todayTransactionCount, recentSales, lowStockProducts, deadStock] =
     await Promise.all([
       prisma.sale.count({
         where: {
@@ -108,7 +112,24 @@ export default async function CashierPage() {
           stock: true,
         },
       }),
+      getDeadStockProducts({
+        limit: 5,
+      }),
     ]);
+  const deadStockItems: DeadStockCardItem[] = deadStock.items.map((product) => {
+    const query = product.sku ?? product.name;
+
+    return {
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      stock: product.stock,
+      lastSoldAt: product.lastSoldAt?.toISOString() ?? null,
+      daysSinceLastSold: product.daysSinceLastSold,
+      reason: product.reason,
+      detailHref: `/products?q=${encodeURIComponent(query)}`,
+    };
+  });
 
   return (
     <div className="space-y-8">
@@ -117,10 +138,10 @@ export default async function CashierPage() {
         <p className="mt-2 text-slate-300">Ringkasan kerja kasir login.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Link
           href="/pos"
-          className="rounded-2xl border border-teal-300 bg-teal-600 p-5 text-white transition-colors duration-150 hover:bg-teal-700"
+          className="col-span-2 rounded-2xl border border-teal-300 bg-teal-600 p-5 text-white transition-colors duration-150 hover:bg-teal-700 xl:col-span-1"
         >
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -153,6 +174,18 @@ export default async function CashierPage() {
               </h2>
             </div>
             <Boxes className="text-teal-500" size={28} />
+          </div>
+        </div>
+
+        <div className="surface-panel rounded-2xl p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-slate-400">Dead Stock</p>
+              <h2 className="metric-value mt-2 text-3xl text-white">
+                {deadStock.total}
+              </h2>
+            </div>
+            <Boxes className="text-amber-400" size={28} />
           </div>
         </div>
       </div>
@@ -231,6 +264,13 @@ export default async function CashierPage() {
           ))}
         </div>
       </section>
+
+      <DeadStockCard
+        items={deadStockItems}
+        total={deadStock.total}
+        thresholdDays={deadStock.thresholdDays}
+        dark
+      />
     </div>
   );
 }
