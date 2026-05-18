@@ -32,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { LOYALTY_MIN_PURCHASE_AMOUNT } from "@/lib/loyalty";
 
 type Product = {
   id: number;
@@ -575,14 +576,27 @@ export default function PosApp({
     !reservedLoyaltyMilestone
       ? loyaltyProgress.eligible_milestone
       : null;
+  const loyaltyMinimumMet = subtotal >= LOYALTY_MIN_PURCHASE_AMOUNT;
+  const loyaltyMinimumShortfall = Math.max(
+    LOYALTY_MIN_PURCHASE_AMOUNT - subtotal,
+    0,
+  );
+  const loyaltyMinimumNote = `Belum memenuhi minimal pembelian loyalty ${rupiah(LOYALTY_MIN_PURCHASE_AMOUNT)}.`;
+  const loyaltyMinimumStatus =
+    eligibleLoyaltyMilestone && !loyaltyMinimumMet
+      ? "belum_memenuhi"
+      : "memenuhi";
   const loyaltyDraftValue = Number(loyaltyDraft.value || 0);
+  const loyaltyPreviewDiscountAmount = loyaltyMinimumMet
+    ? loyaltyDiscountAmountFor(
+        loyaltyDraft.type,
+        Number.isFinite(loyaltyDraftValue) ? Math.max(loyaltyDraftValue, 0) : 0,
+        subtotal,
+      )
+    : 0;
   const loyaltyDiscountAmount =
-    eligibleLoyaltyMilestone && loyaltyConfirmed
-      ? loyaltyDiscountAmountFor(
-          loyaltyDraft.type,
-          Number.isFinite(loyaltyDraftValue) ? Math.max(loyaltyDraftValue, 0) : 0,
-          subtotal,
-        )
+    eligibleLoyaltyMilestone && loyaltyConfirmed && loyaltyMinimumMet
+      ? loyaltyPreviewDiscountAmount
       : 0;
   const grandTotal = Math.max(subtotal - loyaltyDiscountAmount, 0);
   const selectedPaymentMethod = paymentMethods.find(
@@ -824,6 +838,10 @@ export default function PosApp({
       return "";
     }
 
+    if (!loyaltyMinimumMet) {
+      return `Minimal pembelian loyalty ${rupiah(LOYALTY_MIN_PURCHASE_AMOUNT)} belum terpenuhi. Pilih Tidak memberi benefit dengan alasan.`;
+    }
+
     if (!Number.isFinite(value) || value <= 0) {
       return "Nilai benefit loyalty wajib lebih dari 0.";
     }
@@ -843,6 +861,14 @@ export default function PosApp({
     const error = validateLoyaltyDraft();
 
     if (error) {
+      if (eligibleLoyaltyMilestone && !loyaltyMinimumMet) {
+        setLoyaltyDraft((current) => ({
+          ...current,
+          type: "NONE",
+          value: "0",
+          note: current.note || loyaltyMinimumNote,
+        }));
+      }
       setLoyaltyModalError(error);
       return;
     }
@@ -935,7 +961,7 @@ export default function PosApp({
       setLoyaltyDraft({
         type: "NONE",
         value: "0",
-        note: "",
+        note: loyaltyMinimumMet ? "" : loyaltyMinimumNote,
       });
       setLoyaltyModalError("");
       setLoyaltyModalOpen(true);
@@ -968,6 +994,14 @@ export default function PosApp({
     const loyaltyError = validateLoyaltyDraft();
 
     if (loyaltyError) {
+      if (eligibleLoyaltyMilestone && !loyaltyMinimumMet) {
+        setLoyaltyDraft((current) => ({
+          ...current,
+          type: "NONE",
+          value: "0",
+          note: current.note || loyaltyMinimumNote,
+        }));
+      }
       setErrorMessage(loyaltyError);
       setLoyaltyModalOpen(true);
       return;
@@ -1821,6 +1855,10 @@ export default function PosApp({
                         {foundCustomer.loyalty_progress.next_milestone} transaksi
                         valid menuju benefit.
                       </p>
+                      <p className="mt-1 text-xs">
+                        S&K benefit: minimal pembelian{" "}
+                        {rupiah(LOYALTY_MIN_PURCHASE_AMOUNT)} setelah diskon item.
+                      </p>
                       {foundCustomer.loyalty_progress.eligible_milestone ? (
                         foundCustomer.loyalty_progress.reserved_milestones.includes(
                           foundCustomer.loyalty_progress.eligible_milestone,
@@ -1838,6 +1876,12 @@ export default function PosApp({
                           Sisa {foundCustomer.loyalty_progress.remaining_to_next} transaksi.
                         </p>
                       )}
+                      {eligibleLoyaltyMilestone && !loyaltyMinimumMet ? (
+                        <p className="mt-1 font-semibold text-amber-800 dark:text-amber-100">
+                          Subtotal saat ini belum memenuhi minimal pembelian.
+                          Kurang {rupiah(loyaltyMinimumShortfall)}.
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -2110,7 +2154,28 @@ export default function PosApp({
               <p className="mt-1">
                 Milestone saat ini: {eligibleLoyaltyMilestone ?? "-"}
               </p>
+              <p className="mt-1">
+                Minimal pembelian loyalty:{" "}
+                {rupiah(LOYALTY_MIN_PURCHASE_AMOUNT)}
+              </p>
+              <p className="mt-1">
+                Subtotal saat ini: {rupiah(subtotal)}
+              </p>
+              <p className="mt-1 font-semibold">
+                Status S&K:{" "}
+                {loyaltyMinimumStatus === "memenuhi"
+                  ? "memenuhi minimal pembelian"
+                  : `belum memenuhi, kurang ${rupiah(loyaltyMinimumShortfall)}`}
+              </p>
             </div>
+
+            {!loyaltyMinimumMet ? (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-100">
+                Milestone tercapai, tetapi benefit diskon belum bisa diberikan
+                karena subtotal setelah diskon item belum mencapai minimal pembelian.
+                Pilih Tidak memberi benefit dan isi alasan S&K.
+              </div>
+            ) : null}
 
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -2130,8 +2195,12 @@ export default function PosApp({
                 className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
               >
                 <option value="NONE">Tidak memberi benefit</option>
-                <option value="FIXED">Diskon Rupiah</option>
-                <option value="PERCENT">Diskon Persen</option>
+                <option value="FIXED" disabled={!loyaltyMinimumMet}>
+                  Diskon Rupiah
+                </option>
+                <option value="PERCENT" disabled={!loyaltyMinimumMet}>
+                  Diskon Persen
+                </option>
               </select>
             </label>
 
@@ -2143,7 +2212,7 @@ export default function PosApp({
                 type="number"
                 min="0"
                 max={loyaltyDraft.type === "PERCENT" ? 100 : undefined}
-                disabled={loyaltyDraft.type === "NONE"}
+                disabled={loyaltyDraft.type === "NONE" || !loyaltyMinimumMet}
                 value={loyaltyDraft.value}
                 onChange={(event) => {
                   setLoyaltyDraft((current) => ({
@@ -2195,13 +2264,7 @@ export default function PosApp({
                 </span>
                 <span className="font-semibold tabular-nums text-rose-700 dark:text-rose-200">
                   -{rupiah(
-                    loyaltyDiscountAmountFor(
-                      loyaltyDraft.type,
-                      Number.isFinite(loyaltyDraftValue)
-                        ? Math.max(loyaltyDraftValue, 0)
-                        : 0,
-                      subtotal,
-                    ),
+                    loyaltyPreviewDiscountAmount,
                   )}
                 </span>
               </div>
@@ -2211,17 +2274,7 @@ export default function PosApp({
                 </span>
                 <span className="font-bold tabular-nums">
                   {rupiah(
-                    Math.max(
-                      subtotal -
-                        loyaltyDiscountAmountFor(
-                          loyaltyDraft.type,
-                          Number.isFinite(loyaltyDraftValue)
-                            ? Math.max(loyaltyDraftValue, 0)
-                            : 0,
-                          subtotal,
-                        ),
-                      0,
-                    ),
+                    Math.max(subtotal - loyaltyPreviewDiscountAmount, 0),
                   )}
                 </span>
               </div>

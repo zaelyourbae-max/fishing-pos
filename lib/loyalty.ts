@@ -1,4 +1,5 @@
 export const LOYALTY_INTERVAL = 20;
+export const LOYALTY_MIN_PURCHASE_AMOUNT = 100_000;
 
 export type LoyaltyBenefitType = "NONE" | "FIXED" | "PERCENT";
 
@@ -52,4 +53,11 @@ export function calculateLoyaltyDiscount(input: {
   }
 
   return Math.min(subtotal, Math.round(value));
+}
+
+export function meetsLoyaltyMinimumPurchase(subtotalBeforeLoyalty: number) {
+  return (
+    Math.max(0, Math.round(subtotalBeforeLoyalty)) >=
+    LOYALTY_MIN_PURCHASE_AMOUNT
+  );
 }

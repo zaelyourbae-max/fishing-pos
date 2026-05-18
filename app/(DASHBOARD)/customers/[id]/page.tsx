@@ -15,7 +15,10 @@ import { isOwnerRole } from "@/lib/permissions";
 import { requireCustomersPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
-import { loyaltyProgressFromValidCount } from "@/lib/loyalty";
+import {
+  LOYALTY_MIN_PURCHASE_AMOUNT,
+  loyaltyProgressFromValidCount,
+} from "@/lib/loyalty";
 
 type CustomerDetailPageProps = {
   params: Promise<{
@@ -192,10 +195,10 @@ export default async function CustomerDetailPage({
             Loyalty Points
           </p>
           <p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
-            {customer.loyaltyPoints}
+            {transactionCount}
           </p>
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Future use. Eligibility memakai transaksi valid.
+            Berdasarkan transaksi valid SUCCESS + PAID.
           </p>
         </div>
 
@@ -283,6 +286,9 @@ export default async function CustomerDetailPage({
               </p>
               <p className="mt-1 text-xs text-amber-800 dark:text-amber-100">
                 Milestone berikutnya: transaksi ke-{loyaltyProgress.nextMilestone}.
+              </p>
+              <p className="mt-1 text-xs text-amber-800 dark:text-amber-100">
+                S&K benefit: minimal pembelian {rupiah(LOYALTY_MIN_PURCHASE_AMOUNT)}.
               </p>
             </div>
             {loyaltyBenefitSales.length > 0 ? (

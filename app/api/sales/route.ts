@@ -1,7 +1,9 @@
 import { requireCashier } from "@/lib/auth-session";
 import {
   calculateLoyaltyDiscount,
+  LOYALTY_MIN_PURCHASE_AMOUNT,
   loyaltyProgressFromValidCount,
+  meetsLoyaltyMinimumPurchase,
   normalizeLoyaltyBenefitType,
 } from "@/lib/loyalty";
 import { normalizeIndonesianPhone } from "@/lib/phone";
@@ -390,40 +392,59 @@ export async function POST(req: Request) {
                 throw new Error("LOYALTY_NOTE_REQUIRED");
               }
 
-              if (
-                (loyaltyBenefitType === "FIXED" ||
-                  loyaltyBenefitType === "PERCENT") &&
-                loyaltyBenefitValue <= 0
-              ) {
-                throw new Error("LOYALTY_VALUE_REQUIRED");
-              }
+              if (!meetsLoyaltyMinimumPurchase(subtotalBeforeLoyalty)) {
+                if (
+                  loyaltyBenefitType === "FIXED" ||
+                  loyaltyBenefitType === "PERCENT" ||
+                  loyaltyBenefitValue > 0
+                ) {
+                  throw new Error("LOYALTY_MIN_PURCHASE_NOT_MET");
+                }
 
-              if (loyaltyBenefitValue < 0) {
-                throw new Error("LOYALTY_VALUE_INVALID");
-              }
+                loyaltySnapshot.applied = true;
+                loyaltySnapshot.milestone = eligibleMilestone;
+                loyaltySnapshot.benefitType = "NONE";
+                loyaltySnapshot.benefitValue = 0;
+                loyaltySnapshot.note = loyaltyBenefitNote;
+                loyaltySnapshot.discountAmount = 0;
+              } else {
+                if (
+                  (loyaltyBenefitType === "FIXED" ||
+                    loyaltyBenefitType === "PERCENT") &&
+                  loyaltyBenefitValue <= 0
+                ) {
+                  throw new Error("LOYALTY_VALUE_REQUIRED");
+                }
 
-              if (loyaltyBenefitType === "PERCENT" && loyaltyBenefitValue > 100) {
-                throw new Error("LOYALTY_PERCENT_INVALID");
-              }
+                if (loyaltyBenefitValue < 0) {
+                  throw new Error("LOYALTY_VALUE_INVALID");
+                }
 
-              if (
-                loyaltyBenefitType === "FIXED" &&
-                loyaltyBenefitValue > subtotalBeforeLoyalty
-              ) {
-                throw new Error("LOYALTY_FIXED_TOO_HIGH");
-              }
+                if (loyaltyBenefitType === "PERCENT" && loyaltyBenefitValue > 100) {
+                  throw new Error("LOYALTY_PERCENT_INVALID");
+                }
 
-              loyaltySnapshot.applied = true;
-              loyaltySnapshot.milestone = eligibleMilestone;
-              loyaltySnapshot.benefitType = loyaltyBenefitType;
-              loyaltySnapshot.benefitValue =
-                loyaltyBenefitType === "NONE" ? 0 : Math.round(loyaltyBenefitValue);
-              loyaltySnapshot.note = loyaltyBenefitNote;
-              loyaltySnapshot.discountAmount = calculateLoyaltyDiscount({
-                type: loyaltyBenefitType,
-                value: loyaltyBenefitValue,
-                subtotalBeforeLoyalty,
-              });
+                if (
+                  loyaltyBenefitType === "FIXED" &&
+                  loyaltyBenefitValue > subtotalBeforeLoyalty
+                ) {
+                  throw new Error("LOYALTY_FIXED_TOO_HIGH");
+                }
+
+                loyaltySnapshot.applied = true;
+                loyaltySnapshot.milestone = eligibleMilestone;
+                loyaltySnapshot.benefitType = loyaltyBenefitType;
+                loyaltySnapshot.benefitValue =
+                  loyaltyBenefitType === "NONE"
+                    ? 0
+                    : Math.round(loyaltyBenefitValue);
+                loyaltySnapshot.note = loyaltyBenefitNote;
+                loyaltySnapshot.discountAmount = calculateLoyaltyDiscount({
+                  type: loyaltyBenefitType,
+                  value: loyaltyBenefitValue,
+                  subtotalBeforeLoyalty,
+                });
+              }
             }
           }
         }
@@ -713,6 +734,8 @@ export async function POST(req: Request) {
         "Persen benefit loyalty maksimal 100%.",
       LOYALTY_FIXED_TOO_HIGH:
         "Diskon loyalty nominal tidak boleh melebihi subtotal sebelum loyalty.",
+      LOYALTY_MIN_PURCHASE_NOT_MET:
+        `Minimal pembelian loyalty Rp ${LOYALTY_MIN_PURCHASE_AMOUNT.toLocaleString("id-ID")} belum terpenuhi. Pilih Tidak memberi benefit dengan alasan.`,
     };
 
     if (loyaltyErrors[message]) {
