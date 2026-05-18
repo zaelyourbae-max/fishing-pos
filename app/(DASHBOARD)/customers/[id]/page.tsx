@@ -41,7 +41,7 @@ export default async function CustomerDetailPage({
   params,
 }: CustomerDetailPageProps) {
   const session = await requireCustomersPage();
-  const canViewHistory = isOwnerRole(session.role);
+  const canViewBusinessSummary = isOwnerRole(session.role);
   const { id } = await params;
   const customerId = Number(id);
 
@@ -72,65 +72,68 @@ export default async function CustomerDetailPage({
     notFound();
   }
 
-  const [summary, sales] = canViewHistory
-    ? await Promise.all([
-        prisma.sale.aggregate({
-          where: {
-            customerId: customer.id,
-            ...FINAL_SALE_STATUS_WHERE,
-          },
-          _count: {
-            _all: true,
-          },
-          _sum: {
-            subtotal: true,
-          },
-        }),
-        prisma.sale.findMany({
-          where: {
-            customerId: customer.id,
-            ...FINAL_SALE_STATUS_WHERE,
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 25,
+  const [summary, sales] = await Promise.all([
+    prisma.sale.aggregate({
+      where: {
+        customerId: customer.id,
+        ...FINAL_SALE_STATUS_WHERE,
+      },
+      _count: {
+        _all: true,
+      },
+      _sum: {
+        subtotal: true,
+      },
+    }),
+    prisma.sale.findMany({
+      where: {
+        customerId: customer.id,
+        ...FINAL_SALE_STATUS_WHERE,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 25,
+      select: {
+        id: true,
+        invoiceNumber: true,
+        createdAt: true,
+        subtotal: true,
+        paymentMethod: true,
+        transactionStatus: true,
+        paymentStatus: true,
+        loyaltyApplied: true,
+        loyaltyMilestone: true,
+        loyaltyDiscountAmount: true,
+        loyaltyBenefitNote: true,
+        cashier: {
           select: {
-            id: true,
-            invoiceNumber: true,
-            createdAt: true,
-            subtotal: true,
-            paidAmount: true,
-            paymentMethod: true,
-            loyaltyApplied: true,
-            loyaltyMilestone: true,
-            loyaltyDiscountAmount: true,
-            loyaltyBenefitNote: true,
-            cashier: {
-              select: {
-                name: true,
-              },
-            },
-            _count: {
-              select: {
-                items: true,
-                returns: true,
-              },
-            },
-          },
-        }),
-      ])
-    : [
-        {
-          _count: {
-            _all: 0,
-          },
-          _sum: {
-            subtotal: 0,
+            name: true,
           },
         },
-        [],
-      ];
+        items: {
+          select: {
+            qty: true,
+            product: {
+              select: {
+                name: true,
+                sku: true,
+              },
+            },
+          },
+          orderBy: {
+            id: "asc",
+          },
+        },
+        _count: {
+          select: {
+            items: true,
+            returns: true,
+          },
+        },
+      },
+    }),
+  ]);
   const totalSpent = summary._sum.subtotal ?? 0;
   const transactionCount = summary._count._all;
   const averageTransaction =
@@ -236,74 +239,77 @@ export default async function CustomerDetailPage({
             </div>
           </div>
 
-          {canViewHistory ? (
-            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  Total Transaksi
-                </p>
-                <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
-                  {transactionCount}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  Total Belanja
-                </p>
-                <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
-                  {rupiah(totalSpent)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  Rata-rata Transaksi
-                </p>
-                <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
-                  {rupiah(averageTransaction)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-100">
-                  Progress Loyalty
-                </p>
-                <p className="mt-1 text-2xl font-bold text-amber-950 dark:text-amber-50">
-                  {transactionCount}/{loyaltyProgress.nextMilestone}
-                </p>
-                <p className="mt-1 text-sm text-amber-800 dark:text-amber-100">
-                  Sisa {loyaltyProgress.remainingToNext} transaksi valid.
-                </p>
-              </div>
-              {loyaltyBenefitSales.length > 0 ? (
-                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm dark:border-teal-500/20 dark:bg-teal-500/10">
-                  <p className="text-sm font-semibold text-teal-800 dark:text-teal-100">
-                    Histori Benefit Loyalty
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                Total Transaksi Valid
+              </p>
+              <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+                {transactionCount}
+              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Hanya SUCCESS + PAID.
+              </p>
+            </div>
+            {canViewBusinessSummary ? (
+              <>
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    Total Belanja
                   </p>
-                  <div className="mt-3 space-y-2 text-sm">
-                    {loyaltyBenefitSales.slice(0, 5).map((sale) => (
-                      <Link
-                        key={sale.id}
-                        href={`/invoices/${sale.id}`}
-                        className="block rounded-xl bg-white/70 px-3 py-2 font-semibold text-teal-800 hover:bg-white dark:bg-slate-950/40 dark:text-teal-100"
-                      >
-                        {sale.invoiceNumber}
-                        {sale.loyaltyMilestone
-                          ? ` - ke-${sale.loyaltyMilestone}`
-                          : ""}
-                        {sale.loyaltyDiscountAmount > 0
-                          ? ` - ${rupiah(sale.loyaltyDiscountAmount)}`
-                          : ""}
-                      </Link>
-                    ))}
-                  </div>
+                  <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+                    {rupiah(totalSpent)}
+                  </p>
                 </div>
-              ) : null}
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    Rata-rata Transaksi
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+                    {rupiah(averageTransaction)}
+                  </p>
+                </div>
+              </>
+            ) : null}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-100">
+                Progress Loyalty
+              </p>
+              <p className="mt-1 text-2xl font-bold text-amber-950 dark:text-amber-50">
+                {transactionCount}/{loyaltyProgress.nextMilestone}
+              </p>
+              <p className="mt-1 text-sm text-amber-800 dark:text-amber-100">
+                Sisa {loyaltyProgress.remainingToNext} transaksi valid.
+              </p>
+              <p className="mt-1 text-xs text-amber-800 dark:text-amber-100">
+                Milestone berikutnya: transaksi ke-{loyaltyProgress.nextMilestone}.
+              </p>
             </div>
-          ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-400">
-              Histori transaksi dan total belanja hanya tersedia untuk owner
-              dan developer.
+            {loyaltyBenefitSales.length > 0 ? (
+              <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm dark:border-teal-500/20 dark:bg-teal-500/10">
+                <p className="text-sm font-semibold text-teal-800 dark:text-teal-100">
+                  Histori Benefit Loyalty
+                </p>
+                <div className="mt-3 space-y-2 text-sm">
+                  {loyaltyBenefitSales.slice(0, 5).map((sale) => (
+                    <Link
+                      key={sale.id}
+                      href={`/invoices/${sale.id}`}
+                      className="block rounded-xl bg-white/70 px-3 py-2 font-semibold text-teal-800 hover:bg-white dark:bg-slate-950/40 dark:text-teal-100"
+                    >
+                      {sale.invoiceNumber}
+                      {sale.loyaltyMilestone
+                        ? ` - ke-${sale.loyaltyMilestone}`
+                        : ""}
+                      {sale.loyaltyDiscountAmount > 0
+                        ? ` - ${rupiah(sale.loyaltyDiscountAmount)}`
+                        : ""}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             </div>
-          )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
@@ -319,12 +325,7 @@ export default async function CustomerDetailPage({
             <History className="h-5 w-5 text-slate-400" />
           </div>
 
-          {!canViewHistory ? (
-            <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-              <ReceiptText className="mb-4 h-12 w-12 text-slate-400" />
-              Histori tidak ditampilkan untuk role kasir.
-            </div>
-          ) : sales.length === 0 ? (
+          {sales.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center text-sm text-slate-500 dark:text-slate-400">
               <ReceiptText className="mb-4 h-12 w-12 text-slate-400" />
               Belum ada transaksi untuk customer ini.
@@ -332,14 +333,15 @@ export default async function CustomerDetailPage({
           ) : (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[760px] text-left">
+                <table className="w-full min-w-[920px] text-left">
                   <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
                     <tr>
                       <th className="px-5 py-4">Invoice</th>
                       <th className="px-5 py-4">Tanggal</th>
                       <th className="px-5 py-4">Kasir</th>
+                      <th className="px-5 py-4">Item</th>
                       <th className="px-5 py-4">Payment</th>
-                      <th className="px-5 py-4 text-right">Item</th>
+                      <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4 text-right">Total</th>
                     </tr>
                   </thead>
@@ -353,7 +355,7 @@ export default async function CustomerDetailPage({
                           >
                             {sale.invoiceNumber}
                           </Link>
-                          {sale._count.returns > 0 ? (
+                          {canViewBusinessSummary && sale._count.returns > 0 ? (
                             <p className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-300">
                               Ada retur
                             </p>
@@ -374,10 +376,29 @@ export default async function CustomerDetailPage({
                           {sale.cashier.name}
                         </td>
                         <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
+                          <div className="max-w-xs space-y-1">
+                            {sale.items.slice(0, 3).map((item, index) => (
+                              <p
+                                key={`${sale.id}-${index}`}
+                                className="truncate"
+                              >
+                                {item.product.name} x{item.qty}
+                              </p>
+                            ))}
+                            {sale.items.length > 3 ? (
+                              <p className="text-xs font-semibold text-slate-500">
+                                +{sale.items.length - 3} item lain
+                              </p>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
                           {sale.paymentMethod}
                         </td>
-                        <td className="px-5 py-4 text-right font-bold tabular-nums text-slate-950 dark:text-white">
-                          {sale._count.items}
+                        <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">
+                            {sale.transactionStatus} / {sale.paymentStatus}
+                          </span>
                         </td>
                         <td className="px-5 py-4 text-right font-bold tabular-nums text-slate-950 dark:text-white">
                           {rupiah(sale.subtotal)}
@@ -404,8 +425,24 @@ export default async function CustomerDetailPage({
                           {formatDateTime(sale.createdAt)} - {sale.cashier.name}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {sale.paymentMethod} - {sale._count.items} item
+                          {sale.paymentMethod} - {sale.transactionStatus} /{" "}
+                          {sale.paymentStatus}
                         </p>
+                        <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                          {sale.items.slice(0, 3).map((item, index) => (
+                            <p
+                              key={`${sale.id}-${index}`}
+                              className="truncate"
+                            >
+                              {item.product.name} x{item.qty}
+                            </p>
+                          ))}
+                          {sale.items.length > 3 ? (
+                            <p className="font-semibold text-slate-500">
+                              +{sale.items.length - 3} item lain
+                            </p>
+                          ) : null}
+                        </div>
                         {sale.loyaltyApplied ? (
                           <p className="mt-1 text-xs font-semibold text-teal-700 dark:text-teal-300">
                             Loyalty
