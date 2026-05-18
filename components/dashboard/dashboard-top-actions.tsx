@@ -579,7 +579,7 @@ function ClosingDialog({
                     onChange={(event) => setReopenReason(event.target.value)}
                     rows={3}
                     placeholder="Alasan buka kembali"
-                    className="mt-3 w-full resize-none rounded-xl border border-orange-200 bg-white p-3 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-orange-500/30 dark:bg-slate-950 dark:text-white"
+                    className="mt-3 w-full resize-none rounded-xl border border-orange-200 bg-white p-3 text-sm text-slate-950 caret-orange-600 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-orange-500/30 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
                   />
                   <button
                     type="button"
