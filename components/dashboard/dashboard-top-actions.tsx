@@ -82,8 +82,24 @@ export default function DashboardTopActions({
 }: DashboardTopActionsProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [closingOpen, setClosingOpen] = useState(false);
-  const { closing, status, refresh } = useClosingRecord(selectedDateInput);
-  const isClosed = status === "CLOSED";
+  const todayInput = useMemo(() => dateInputValue(new Date()), []);
+  const selectedClosingRecord = useClosingRecord(selectedDateInput);
+  const todayClosingRecord = useClosingRecord(todayInput);
+  const isSelectedToday = selectedDateInput === todayInput;
+  const selectedStatus = selectedClosingRecord.status;
+  const isSelectedClosed = selectedStatus === "CLOSED";
+  const closingButtonLabel = isSelectedToday
+    ? isSelectedClosed
+      ? "Lihat Closing Hari Ini"
+      : "Closing Hari Ini"
+    : selectedClosingRecord.closing
+      ? "Lihat Closing Tanggal Ini"
+      : "Lihat Status Tanggal Ini";
+  const closingButtonTitle = isSelectedToday
+    ? isSelectedClosed
+      ? "Lihat closing hari ini"
+      : "Mulai closing hari ini"
+    : "Lihat closing untuk tanggal yang dipilih";
 
   return (
     <>
@@ -163,12 +179,20 @@ export default function DashboardTopActions({
           type="button"
           onClick={() => setClosingOpen(true)}
           className={`inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 active:scale-95 ${
-            isClosed ? "bg-teal-600 hover:bg-teal-700" : "bg-blue-600 hover:bg-blue-700"
+            isSelectedClosed
+              ? "bg-teal-600 hover:bg-teal-700"
+              : isSelectedToday
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-slate-700 hover:bg-slate-800"
           }`}
-          title={isClosed ? "Lihat closing hari ini" : "Mulai closing hari ini"}
+          title={closingButtonTitle}
         >
-          {isClosed ? <CheckCircle2 className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
-          {isClosed ? "Lihat Closing" : "Closing Hari Ini"}
+          {isSelectedClosed ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : (
+            <LockKeyhole className="h-4 w-4" />
+          )}
+          {closingButtonLabel}
         </button>
       </div>
 
@@ -183,9 +207,14 @@ export default function DashboardTopActions({
           transactionCount={transactionCount}
           payments={payments}
           closedBy={closedBy}
-          existingClosing={closing}
-          closingStatus={status}
-          onChanged={refresh}
+          existingClosing={selectedClosingRecord.closing}
+          closingStatus={selectedStatus}
+          operationalStatus={todayClosingRecord.status}
+          isOperationalDate={isSelectedToday}
+          onChanged={() => {
+            selectedClosingRecord.refresh();
+            todayClosingRecord.refresh();
+          }}
           onClose={() => setClosingOpen(false)}
         />
       ) : null}
@@ -200,7 +229,13 @@ export function DashboardStatusChips({
   role,
   lowStockCount,
 }: DashboardStatusChipsProps) {
-  const { closing, status } = useClosingRecord(selectedDateInput);
+  const todayInput = useMemo(() => dateInputValue(new Date()), []);
+  const selectedClosingRecord = useClosingRecord(selectedDateInput);
+  const todayClosingRecord = useClosingRecord(todayInput);
+  const isSelectedToday = selectedDateInput === todayInput;
+  const closing = selectedClosingRecord.closing;
+  const status = selectedClosingRecord.status;
+  const operationalStatus = isSelectedToday ? status : todayClosingRecord.status;
   const roleLabel =
     role === "cashier"
       ? `Kasir: ${userName}`
@@ -224,16 +259,35 @@ export function DashboardStatusChips({
               : "border-slate-200 bg-white text-amber-700"
         }`}
       >
+        Tanggal Dipilih: {closingStatusLabel(status)}
+        <span className="sr-only">
         {status === "CLOSED"
           ? "✓ Sudah Closing"
           : status === "REOPENED"
             ? "Reopened"
             : "Belum Closing"}
+        </span>
         <span className="font-medium text-slate-500">
           {status === "CLOSED" && closing?.closedAt
             ? `${selectedDateLabel} • ${formatTime(closing.closedAt)}`
             : selectedDateLabel}
         </span>
+      </span>
+      <span
+        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
+          operationalStatus === "CLOSED"
+            ? "border-teal-200 bg-white text-teal-700"
+            : operationalStatus === "REOPENED"
+              ? "border-blue-200 bg-white text-blue-700"
+              : "border-slate-200 bg-white text-amber-700"
+        }`}
+      >
+        Hari Ini / Operasional: {closingStatusLabel(operationalStatus)}
+        {!isSelectedToday ? (
+          <span className="font-medium text-slate-500">
+            berbeda dari tanggal dipilih
+          </span>
+        ) : null}
       </span>
       <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-rose-200">
         <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-50 px-1 dark:bg-rose-500/15">
@@ -247,6 +301,25 @@ export function DashboardStatusChips({
 
 function formatRupiah(value: number) {
   return `Rp ${value.toLocaleString("id-ID")}`;
+}
+
+function dateInputValue(date: Date) {
+  const local = new Date(date);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+
+  return local.toISOString().slice(0, 10);
+}
+
+function closingStatusLabel(status: ClosingStatus) {
+  if (status === "CLOSED") {
+    return "Sudah Closing";
+  }
+
+  if (status === "REOPENED") {
+    return "Reopened";
+  }
+
+  return "Belum Closing";
 }
 
 function formatSignedRupiah(value: number) {
@@ -391,22 +464,29 @@ function ClosingDialog({
   closedBy,
   existingClosing,
   closingStatus,
+  operationalStatus,
+  isOperationalDate,
   onChanged,
   onClose,
 }: Omit<DashboardTopActionsProps, "notificationCount"> & {
   existingClosing: ClosingRecord | null;
   closingStatus: ClosingStatus;
+  operationalStatus: ClosingStatus;
+  isOperationalDate: boolean;
   onChanged: () => void;
   onClose: () => void;
 }) {
   const isClosed = closingStatus === "CLOSED";
-  const [step, setStep] = useState(isClosed ? 4 : 1);
+  const [step, setStep] = useState(
+    isClosed || (!isOperationalDate && existingClosing) ? 4 : 1,
+  );
   const [actualCash, setActualCash] = useState(
     isClosed && existingClosing ? String(existingClosing.actualCash) : "",
   );
   const [notes, setNotes] = useState(isClosed ? (existingClosing?.notes ?? "") : "");
   const [saving, setSaving] = useState(false);
   const [reopening, setReopening] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
   const [error, setError] = useState("");
   const [savedClosing, setSavedClosing] = useState<ClosingRecord | null>(null);
@@ -417,6 +497,7 @@ function ClosingDialog({
     actualCashFilled && /^\d+$/.test(actualCashInput) && Number.isFinite(actualValue);
   const difference = actualCashValid ? actualValue - cashValue : 0;
   const differenceLabel = formatSignedRupiah(difference);
+  const canCreateClosing = isOperationalDate;
 
   const paymentMap = useMemo(() => {
     const map = new Map(payments.map((payment) => [payment.method.toUpperCase(), payment.total]));
@@ -504,7 +585,50 @@ function ClosingDialog({
     }
   }
 
-  const summaryRecord = savedClosing ?? (isClosed ? existingClosing : null);
+  async function downloadClosingPdf(record: ClosingRecord) {
+    setDownloadingPdf(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/closings/${record.id}/export/pdf`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.message ?? "Download PDF closing gagal.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `closing-${record.date}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(
+        downloadError instanceof Error
+          ? downloadError.message
+          : "Download PDF closing gagal.",
+      );
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
+  const summaryRecord =
+    savedClosing ??
+    (isClosed || (!isOperationalDate && existingClosing) ? existingClosing : null);
+  const dialogTitle = summaryRecord
+    ? isOperationalDate
+      ? "Summary Closing Hari Ini"
+      : "Summary Closing Tanggal Ini"
+    : isOperationalDate
+      ? "Closing Hari Ini"
+      : "Status Closing Tanggal Ini";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-6">
@@ -512,7 +636,7 @@ function ClosingDialog({
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800">
           <div>
             <h2 className="text-xl font-extrabold text-slate-950 dark:text-white">
-              {summaryRecord ? "Summary Closing" : "Closing Hari Ini"}
+              {dialogTitle}
             </h2>
             <p className="mt-1 text-sm text-slate-500">{selectedDateLabel}</p>
           </div>
@@ -533,11 +657,11 @@ function ClosingDialog({
                 key={label}
                 type="button"
                 onClick={() => {
-                  if (!summaryRecord) {
+                  if (!summaryRecord && canCreateClosing) {
                     setStep(index + 1);
                   }
                 }}
-                disabled={Boolean(summaryRecord)}
+                disabled={Boolean(summaryRecord) || !canCreateClosing}
                 className={`rounded-xl px-2 py-2 transition active:scale-95 ${
                   step === index + 1
                     ? "bg-blue-600 text-white"
@@ -560,19 +684,46 @@ function ClosingDialog({
           {summaryRecord && step === 4 ? (
             <div className="space-y-4">
               <div className="rounded-2xl bg-teal-50 p-4 text-teal-800 dark:bg-teal-500/10 dark:text-teal-200">
-                <p className="font-bold">Status dashboard: Sudah Closing.</p>
+                <p className="font-bold">
+                  Status tanggal ini: {closingStatusLabel(summaryRecord.status)}.
+                </p>
                 <p className="mt-1 text-sm">
-                  Transaksi POS akan ditolak sampai closing dibuka kembali.
+                  {isOperationalDate
+                    ? summaryRecord.status === "CLOSED"
+                      ? "Transaksi POS akan ditolak sampai closing dibuka kembali."
+                      : "Operasional hari ini sudah dibuka kembali dan bisa closing ulang."
+                    : `Anda sedang melihat closing tanggal ${selectedDateLabel}. Reopen tanggal ini tidak membuka atau menutup operasional hari ini.`}
                 </p>
               </div>
+              {!isOperationalDate ? (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                  Status operasional hari ini:{" "}
+                  <span className="font-bold">{closingStatusLabel(operationalStatus)}</span>.
+                </div>
+              ) : null}
               <ClosingSummary record={summaryRecord} />
+              <button
+                type="button"
+                onClick={() => downloadClosingPdf(summaryRecord)}
+                disabled={downloadingPdf}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-white px-4 text-sm font-bold text-teal-700 transition hover:bg-teal-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 dark:border-teal-500/30 dark:bg-slate-950 dark:text-teal-200 dark:hover:bg-teal-500/10"
+              >
+                {downloadingPdf ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {downloadingPdf ? "Mengunduh..." : "Download PDF Closing"}
+              </button>
               {summaryRecord.status === "CLOSED" ? (
                 <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-500/30 dark:bg-orange-500/10">
                   <p className="text-sm font-bold text-orange-900 dark:text-orange-100">
-                    Buka kembali toko
+                    {isOperationalDate ? "Buka kembali toko" : "Reopen Tanggal Ini"}
                   </p>
                   <p className="mt-1 text-xs text-orange-800 dark:text-orange-100">
-                    Reopen wajib memakai alasan dan akan dicatat untuk audit.
+                    {isOperationalDate
+                      ? "Reopen wajib memakai alasan dan akan dicatat untuk audit."
+                      : "Reopen ini hanya membuka ulang closing untuk tanggal yang dipilih."}
                   </p>
                   <textarea
                     value={reopenReason}
@@ -587,14 +738,36 @@ function ClosingDialog({
                     disabled={reopening}
                     className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-orange-600 px-4 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {reopening ? "Membuka kembali..." : "Buka Kembali / Reopen"}
+                    {reopening
+                      ? "Membuka kembali..."
+                      : isOperationalDate
+                        ? "Buka Kembali / Reopen"
+                        : "Reopen Tanggal Ini"}
                   </button>
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          {!summaryRecord || step !== 4 ? (
+          {!summaryRecord && !canCreateClosing ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                <p className="font-bold">
+                  Anda sedang melihat closing tanggal {selectedDateLabel}.
+                </p>
+                <p className="mt-1 text-sm">
+                  Closing baru hanya bisa dibuat untuk Hari Ini / Operasional
+                  Sekarang. Status operasional hari ini:{" "}
+                  <span className="font-bold">{closingStatusLabel(operationalStatus)}</span>.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+                Belum ada record closing untuk tanggal yang dipilih.
+              </div>
+            </div>
+          ) : null}
+
+          {(!summaryRecord || step !== 4) && canCreateClosing ? (
             <>
               {step === 1 ? (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -706,7 +879,7 @@ function ClosingDialog({
           ) : null}
         </div>
 
-        {!summaryRecord || step !== 4 ? (
+        {(!summaryRecord || step !== 4) && canCreateClosing ? (
           <div className="flex items-center justify-between gap-3 border-t border-slate-200 p-5 dark:border-slate-800">
             <button
               type="button"
