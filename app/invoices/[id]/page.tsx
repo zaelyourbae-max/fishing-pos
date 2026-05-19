@@ -1,7 +1,9 @@
 import AutoPrintInvoice from "@/components/invoice/auto-print-invoice";
+import PaymentProofImage from "@/components/invoices/payment-proof-image";
 import PrintInvoiceButton from "@/components/invoice/print-invoice-button";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import { requireProtectedPage } from "@/lib/page-guards";
+import { paymentProofEndpoint } from "@/lib/payment-proof-assets";
 import { isOwnerRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
@@ -172,6 +174,12 @@ export default async function InvoicePage({
       name: true,
     },
   });
+  const paymentProofImageSrc = sale.paymentProofUrl
+    ? paymentProofEndpoint(
+        sale.id,
+        `${sale.paymentProofUploadedAt?.getTime() ?? ""}:${sale.paymentProofUrl}`,
+      )
+    : "";
 
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950 print:bg-white print:px-0 print:py-0 sm:px-6">
@@ -300,12 +308,7 @@ export default async function InvoicePage({
             <section className="border-b border-zinc-200 py-5">
               <h2 className="text-base font-bold">Bukti Pembayaran QRIS</h2>
               <div className="mt-3 grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={sale.paymentProofUrl}
-                  alt="Bukti pembayaran QRIS"
-                  className="max-h-64 w-full rounded-xl border border-zinc-200 bg-white object-contain p-2"
-                />
+                <PaymentProofImage src={paymentProofImageSrc} />
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between gap-3 rounded-xl border border-zinc-100 px-3 py-2">
                     <span className="text-zinc-500">Proof URL</span>
@@ -313,6 +316,14 @@ export default async function InvoicePage({
                       {sale.paymentProofUrl}
                     </span>
                   </div>
+                  <a
+                    href={paymentProofImageSrc}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-zinc-200 px-3 py-2 text-sm font-bold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Buka bukti pembayaran
+                  </a>
                   {canViewProofAudit ? (
                     <>
                       <div className="flex justify-between gap-3 rounded-xl border border-zinc-100 px-3 py-2">

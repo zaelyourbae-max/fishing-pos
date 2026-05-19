@@ -1785,7 +1785,7 @@ export default function PosApp({
               <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/jpeg"
                   onChange={(event) =>
                     setProofFile(event.target.files?.[0] ?? null)
                   }

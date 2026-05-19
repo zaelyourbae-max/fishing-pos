@@ -86,7 +86,7 @@ export default function PaymentProofActionButton({
               </span>
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/png,image/jpeg"
                 onChange={(event) => {
                   setFile(event.target.files?.[0] ?? null);
                   setError("");

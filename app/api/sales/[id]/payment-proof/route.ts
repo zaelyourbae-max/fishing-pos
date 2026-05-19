@@ -1,22 +1,81 @@
 import { requireCashier } from "@/lib/auth-session";
+import {
+  dataUrlImageResponse,
+  getPaymentProofDataUrl,
+  paymentProofDataKey,
+  paymentProofEndpoint,
+} from "@/lib/payment-proof-assets";
 import { prisma } from "@/lib/prisma";
 import { PaymentStatus, Prisma, TransactionStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import { join } from "path";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const ALLOWED_TYPES = new Map([
-  ["image/jpeg", "jpg"],
-  ["image/png", "png"],
-  ["image/webp", "webp"],
-]);
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
 const MAX_SIZE = 3 * 1024 * 1024;
 
 function canAccessSale(role: string | null, userId: number) {
   return role === "cashier" ? { cashierId: userId } : {};
+}
+
+export async function GET(
+  req: Request,
+  context: {
+    params: Promise<{ id: string }>;
+  },
+) {
+  const auth = requireCashier(req);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const { id } = await context.params;
+  const sale = await prisma.sale.findFirst({
+    where: {
+      id,
+      ...canAccessSale(auth.session.role, auth.session.sub),
+    },
+    select: {
+      id: true,
+      paymentProofUrl: true,
+    },
+  });
+
+  if (!sale?.paymentProofUrl) {
+    return NextResponse.json(
+      { message: "Bukti pembayaran tidak tersedia." },
+      { status: 404 },
+    );
+  }
+
+  const storedProof = await getPaymentProofDataUrl(sale.id);
+  const storedResponse = dataUrlImageResponse(storedProof);
+
+  if (storedResponse) {
+    return storedResponse;
+  }
+
+  const proofUrl = sale.paymentProofUrl.trim();
+  const inlineResponse = dataUrlImageResponse(proofUrl);
+
+  if (inlineResponse) {
+    return inlineResponse;
+  }
+
+  if (proofUrl.startsWith("http://") || proofUrl.startsWith("https://")) {
+    return NextResponse.redirect(proofUrl);
+  }
+
+  if (proofUrl.startsWith("/")) {
+    return NextResponse.redirect(new URL(proofUrl, req.url));
+  }
+
+  return NextResponse.json(
+    { message: "Bukti pembayaran tidak tersedia atau gagal dimuat." },
+    { status: 404 },
+  );
 }
 
 export async function POST(
@@ -42,11 +101,9 @@ export async function POST(
     );
   }
 
-  const extension = ALLOWED_TYPES.get(file.type);
-
-  if (!extension) {
+  if (!ALLOWED_TYPES.has(file.type)) {
     return NextResponse.json(
-      { message: "Bukti pembayaran harus berupa JPG, PNG, atau WEBP." },
+      { message: "Bukti pembayaran harus berupa JPG, JPEG, atau PNG." },
       { status: 422 },
     );
   }
@@ -103,17 +160,26 @@ export async function POST(
     );
   }
 
-  const uploadDir = join(process.cwd(), "public", "uploads", "payment-proofs");
-  await mkdir(uploadDir, { recursive: true });
-
-  const filename = `qris-proof-${sale.id}-${randomUUID()}.${extension}`;
-  const diskPath = join(uploadDir, filename);
-  await writeFile(diskPath, Buffer.from(await file.arrayBuffer()));
-  const proofUrl = `/uploads/payment-proofs/${filename}`;
+  const imageBuffer = Buffer.from(await file.arrayBuffer());
+  const proofDataUrl = `data:${file.type};base64,${imageBuffer.toString("base64")}`;
+  const proofUrl = paymentProofEndpoint(sale.id, randomUUID());
 
   const updatedSale = await prisma.$transaction(
-    async (tx) =>
-      tx.sale.update({
+    async (tx) => {
+      await tx.paymentSetting.upsert({
+        where: {
+          key: paymentProofDataKey(sale.id),
+        },
+        update: {
+          value: proofDataUrl,
+        },
+        create: {
+          key: paymentProofDataKey(sale.id),
+          value: proofDataUrl,
+        },
+      });
+
+      return tx.sale.update({
         where: {
           id: sale.id,
         },
@@ -133,7 +199,8 @@ export async function POST(
           transactionStatus: true,
           paymentStatus: true,
         },
-      }),
+      });
+    },
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     },
