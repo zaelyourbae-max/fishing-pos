@@ -189,8 +189,8 @@ export default function Sidebar({ role }: SidebarProps) {
             onClick={() => setDrawerOpen(false)}
             aria-label="Tutup menu"
           />
-          <aside className="relative flex h-full w-[min(86vw,320px)] flex-col border-r border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-            <div className="mb-8 flex items-start justify-between gap-4">
+          <aside className="relative flex h-dvh w-[min(86vw,320px)] flex-col border-r border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+            <div className="mb-6 flex shrink-0 items-start justify-between gap-4">
               <div>
                 <Brand />
                 <div className="mt-4">
@@ -206,31 +206,31 @@ export default function Sidebar({ role }: SidebarProps) {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               <MenuList
                 menus={menus}
                 pathname={pathname}
                 onNavigate={() => setDrawerOpen(false)}
               />
             </div>
-            <div className="pt-4">
+            <div className="shrink-0 pt-4">
               <LogoutButton />
             </div>
           </aside>
         </div>
       ) : null}
 
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200 bg-white/95 p-5 text-slate-900 shadow-[10px_0_30px_rgba(15,23,42,0.03)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 lg:flex lg:flex-col">
-        <div className="mb-9">
+      <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r border-slate-200 bg-white/95 p-5 text-slate-900 shadow-[10px_0_30px_rgba(15,23,42,0.03)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 lg:flex">
+        <div className="mb-6 shrink-0">
           <Brand />
           <RoleBadge role={role} />
         </div>
 
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <MenuList menus={menus} pathname={pathname} />
         </div>
 
-        <div className="mt-6 space-y-3">
+        <div className="shrink-0 space-y-3 pt-4">
           <ThemeToggle />
           <LogoutButton />
         </div>
