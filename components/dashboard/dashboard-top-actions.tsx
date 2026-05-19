@@ -2,15 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  Banknote,
   Bell,
   Calendar,
+  CreditCard,
   Download,
+  FileText,
+  Info,
   LockKeyhole,
+  ReceiptText,
   RefreshCw,
+  RotateCcw,
   Save,
   CheckCircle2,
+  Wallet,
   X,
 } from "lucide-react";
+
+import { downloadOwnerReportPdf } from "@/components/reports/download-owner-report-pdf";
 
 type PaymentClosingRow = {
   method: string;
@@ -82,6 +92,7 @@ export default function DashboardTopActions({
 }: DashboardTopActionsProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [closingOpen, setClosingOpen] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const todayInput = useMemo(() => dateInputValue(new Date()), []);
   const selectedClosingRecord = useClosingRecord(selectedDateInput);
   const todayClosingRecord = useClosingRecord(todayInput);
@@ -100,16 +111,36 @@ export default function DashboardTopActions({
       ? "Lihat closing hari ini"
       : "Mulai closing hari ini"
     : "Lihat closing untuk tanggal yang dipilih";
+  const exportPdfHref = `/api/reports/export/pdf?date=${encodeURIComponent(
+    selectedDateInput,
+  )}`;
+
+  async function exportPdf() {
+    setExportingPdf(true);
+
+    try {
+      await downloadOwnerReportPdf(
+        exportPdfHref,
+        `owner-report-${selectedDateInput}.pdf`,
+      );
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "Export PDF gagal.",
+      );
+    } finally {
+      setExportingPdf(false);
+    }
+  }
 
   return (
     <>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
-        <div className="relative flex justify-end lg:order-last">
+      <div className="flex w-full flex-wrap items-center justify-end gap-3 xl:w-auto">
+        <div className="relative flex shrink-0 justify-end xl:order-last">
           <button
             type="button"
             onClick={() => setNotificationOpen((open) => !open)}
             aria-expanded={notificationOpen}
-            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-blue-500/10"
+            className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
             title="Buka notifikasi"
           >
             <Bell className="h-4 w-4" />
@@ -120,7 +151,7 @@ export default function DashboardTopActions({
             ) : null}
           </button>
           {notificationOpen ? (
-            <div className="absolute right-0 top-12 z-30 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="absolute right-0 top-12 z-30 w-72 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
               <p className="text-sm font-bold text-slate-950 dark:text-white">
                 Notifikasi Dashboard
               </p>
@@ -138,20 +169,20 @@ export default function DashboardTopActions({
           ) : null}
         </div>
 
-        <form className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-2 sm:w-auto">
-          <label className="relative min-w-0">
+        <form className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+          <label className="relative min-w-0 flex-1 sm:flex-none">
             <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               type="date"
               name="date"
               defaultValue={selectedDateInput}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-semibold text-slate-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:w-52 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:focus:ring-blue-500/10"
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:w-52 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:focus:ring-blue-500/10"
               title="Pilih tanggal dashboard"
             />
           </label>
           <button
             type="submit"
-            className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60"
+            className="inline-flex h-12 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           >
             Terapkan
           </button>
@@ -159,26 +190,32 @@ export default function DashboardTopActions({
 
         <a
           href={`/dashboard?date=${selectedDateInput}`}
-          className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60"
+          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           aria-label="Refresh dashboard"
           title="Refresh dashboard"
         >
           <RefreshCw className="h-4 w-4" />
         </a>
 
-        <a
-          href="/api/reports/export/pdf"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 active:scale-95 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-slate-900"
+        <button
+          type="button"
+          onClick={exportPdf}
+          disabled={exportingPdf}
+          className="inline-flex h-12 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
           title="Export PDF"
         >
-          <Download className="h-4 w-4" />
-          Export PDF
-        </a>
+          {exportingPdf ? (
+            <RefreshCw className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {exportingPdf ? "Mengunduh..." : "Export PDF"}
+        </button>
 
         <button
           type="button"
           onClick={() => setClosingOpen(true)}
-          className={`inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 active:scale-95 ${
+          className={`inline-flex h-12 min-w-[150px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:focus:ring-teal-500/10 ${
             isSelectedClosed
               ? "bg-teal-600 hover:bg-teal-700"
               : isSelectedToday
@@ -245,13 +282,13 @@ export function DashboardStatusChips({
 
   return (
     <div className="flex flex-wrap gap-2">
-      <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-teal-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-teal-200">
+      <span className="inline-flex min-h-9 items-center gap-2 rounded-2xl border border-teal-100 bg-white px-3 py-2 text-xs font-bold text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-slate-950/70 dark:text-teal-200">
         <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
         Login Aktif
         <span className="font-medium text-slate-500">{roleLabel}</span>
       </span>
       <span
-        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
+        className={`inline-flex min-h-9 items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
           status === "CLOSED"
             ? "border-teal-200 bg-white text-teal-700"
             : status === "REOPENED"
@@ -274,7 +311,7 @@ export function DashboardStatusChips({
         </span>
       </span>
       <span
-        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
+        className={`inline-flex min-h-9 items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
           operationalStatus === "CLOSED"
             ? "border-teal-200 bg-white text-teal-700"
             : operationalStatus === "REOPENED"
@@ -289,7 +326,7 @@ export function DashboardStatusChips({
           </span>
         ) : null}
       </span>
-      <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-rose-200">
+      <span className="inline-flex min-h-9 items-center gap-2 rounded-2xl border border-rose-100 bg-white px-3 py-2 text-xs font-bold text-rose-600 shadow-sm dark:border-rose-500/20 dark:bg-slate-950/70 dark:text-rose-200">
         <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-50 px-1 dark:bg-rose-500/15">
           {lowStockCount}
         </span>
@@ -629,42 +666,82 @@ function ClosingDialog({
     : isOperationalDate
       ? "Closing Hari Ini"
       : "Status Closing Tanggal Ini";
+  const closingSteps = ["Ringkasan", "Cash", "Catatan", "Simpan"];
+  const canNavigateStep = !summaryRecord && canCreateClosing;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-6">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:rounded-3xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800">
-          <div>
-            <h2 className="text-xl font-extrabold text-slate-950 dark:text-white">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-5">
+      <div className="flex h-[100dvh] w-full max-w-4xl flex-col overflow-hidden rounded-none border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.18)] dark:border-slate-800 dark:bg-slate-950 sm:h-auto sm:max-h-[92vh] sm:rounded-[28px]">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 dark:border-slate-800 sm:px-6 sm:py-5">
+          <div className="min-w-0">
+            <h2 className="text-lg font-extrabold leading-tight text-slate-950 dark:text-white sm:text-xl">
               {dialogTitle}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">{selectedDateLabel}</p>
+            <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">
+              {selectedDateLabel}
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 active:scale-95 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-slate-50 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:focus:ring-blue-500/10"
             aria-label="Tutup closing"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="border-b border-slate-200 px-5 py-3 dark:border-slate-800">
-          <div className="grid grid-cols-4 gap-2 text-xs font-bold">
-            {["Ringkasan", "Cash", "Catatan", "Simpan"].map((label, index) => (
+        <div className="shrink-0 border-b border-slate-200 px-4 py-4 dark:border-slate-800 sm:px-6">
+          <div className="grid grid-cols-4 gap-2 sm:hidden">
+            {closingSteps.map((label, index) => {
+              const active = step === index + 1;
+
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    if (canNavigateStep) {
+                      setStep(index + 1);
+                    }
+                  }}
+                  disabled={!canNavigateStep}
+                  className="min-w-0 rounded-2xl px-1 py-1.5 text-center transition duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span
+                    className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-xs font-extrabold transition duration-200 ${
+                      active
+                        ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-500/25"
+                        : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <span
+                    className={`mt-1 block truncate text-[10px] font-bold ${
+                      active ? "text-blue-700 dark:text-blue-300" : "text-slate-500"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden grid-cols-4 gap-2 text-xs font-bold sm:grid">
+            {closingSteps.map((label, index) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => {
-                  if (!summaryRecord && canCreateClosing) {
+                  if (canNavigateStep) {
                     setStep(index + 1);
                   }
                 }}
-                disabled={Boolean(summaryRecord) || !canCreateClosing}
-                className={`rounded-xl px-2 py-2 transition active:scale-95 ${
+                disabled={!canNavigateStep}
+                className={`inline-flex h-10 items-center justify-center rounded-2xl px-3 transition duration-200 active:scale-95 ${
                   step === index + 1
-                    ? "bg-blue-600 text-white"
+                    ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20"
                     : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:text-slate-300"
                 }`}
               >
@@ -674,7 +751,7 @@ function ClosingDialog({
           </div>
         </div>
 
-        <div className="overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           {error ? (
             <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
               {error}
@@ -770,47 +847,81 @@ function ClosingDialog({
           {(!summaryRecord || step !== 4) && canCreateClosing ? (
             <>
               {step === 1 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ClosingMetric label="Omzet hari ini" value={grossOmzet} />
-                  <ClosingMetric label="Total transaksi" value={String(transactionCount)} />
-                  <ClosingMetric label="Cash" value={paymentMap.cash} />
-                  <ClosingMetric label="QRIS" value={paymentMap.qris} />
-                  <ClosingMetric label="Transfer" value={paymentMap.transfer} />
-                  <ClosingMetric label="Retur" value={returnValue} tone="danger" />
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ClosingMetric label="Omzet hari ini" value={grossOmzet} />
+                    <ClosingMetric
+                      label="Total transaksi"
+                      value={String(transactionCount)}
+                    />
+                    <ClosingMetric
+                      label="Cash (Expected)"
+                      value={paymentMap.cash}
+                    />
+                    <ClosingMetric label="QRIS" value={paymentMap.qris} />
+                    <ClosingMetric label="Transfer" value={paymentMap.transfer} />
+                    <ClosingMetric
+                      label="Retur"
+                      value={returnValue}
+                      tone="danger"
+                    />
+                  </div>
+                  <div className="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      Pastikan seluruh data di atas sudah sesuai sebelum
+                      melanjutkan ke langkah berikutnya.
+                    </p>
+                  </div>
                 </div>
               ) : null}
 
               {step === 2 ? (
                 <div className="space-y-4">
-                  <ClosingMetric label="Expected cash drawer" value={cashAmount} />
+                  <ClosingMetric
+                    label="Cash seharusnya (Expected)"
+                    value={cashAmount}
+                  />
                   <label className="block">
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                       Cash aktual
                     </span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={actualCash}
-                      onChange={(event) => {
-                        setActualCash(event.target.value.replace(/[^\d]/g, ""));
-                        setError("");
-                      }}
-                      className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-lg font-bold text-slate-950 caret-blue-600 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
-                    />
+                    <div className="relative mt-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={actualCash}
+                        onChange={(event) => {
+                          setActualCash(event.target.value.replace(/[^\d]/g, ""));
+                          setError("");
+                        }}
+                        placeholder="Masukkan jumlah cash aktual"
+                        className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-14 text-lg font-bold text-slate-950 caret-blue-600 shadow-sm outline-none transition duration-200 placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-blue-500/10"
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                        Rp
+                      </span>
+                    </div>
                   </label>
                   {!actualCashFilled ? (
-                    <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                      Masukkan cash aktual untuk menghitung selisih.
-                    </p>
+                    <div className="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p>Masukkan cash aktual untuk menghitung selisih.</p>
+                    </div>
                   ) : actualCashValid ? (
                     <div
-                      className={`rounded-2xl p-4 text-sm font-bold ${
+                      className={`rounded-2xl border p-4 text-sm font-bold shadow-sm ${
                         difference === 0
-                          ? "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200"
-                          : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200"
+                          ? "border-teal-100 bg-teal-50 text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200"
+                          : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
                       }`}
                     >
-                      Selisih: {differenceLabel}
+                      <div className="flex items-center justify-between gap-4">
+                        <span>Selisih</span>
+                        <span className="whitespace-nowrap text-lg">
+                          {differenceLabel}
+                        </span>
+                      </div>
                       {difference !== 0 ? (
                         <p className="mt-1 text-xs font-medium">
                           Ada selisih cash. Catat penyebabnya jika diperlukan.
@@ -822,22 +933,40 @@ function ClosingDialog({
                       Cash aktual wajib berupa angka valid.
                     </p>
                   )}
+                  <div className="flex gap-3 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      Selisih akan dihitung otomatis setelah cash aktual diisi.
+                    </p>
+                  </div>
                 </div>
               ) : null}
 
               {step === 3 ? (
-                <label className="block">
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                    Catatan closing
-                  </span>
-                  <textarea
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    rows={6}
-                    placeholder="Catatan closing"
-                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white p-4 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                  />
-                </label>
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                      Catatan closing
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                        Opsional
+                      </span>
+                    </span>
+                    <textarea
+                      value={notes}
+                      onChange={(event) => setNotes(event.target.value)}
+                      rows={7}
+                      placeholder="Tuliskan catatan atau keterangan jika ada selisih, retur, atau hal lain yang perlu dicatat."
+                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-950 caret-blue-600 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-blue-500/10"
+                    />
+                  </label>
+                  <div className="flex gap-3 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      Catatan akan membantu Anda dan tim saat melakukan
+                      pengecekan data di kemudian hari.
+                    </p>
+                  </div>
+                </div>
               ) : null}
 
               {step === 4 ? (
@@ -864,11 +993,18 @@ function ClosingDialog({
                       logs: [],
                     }}
                   />
+                  <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      Setelah disimpan, data closing akan mengunci rekap hari ini
+                      dan tidak dapat diubah.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={saveClosing}
                     disabled={saving}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {saving ? "Menyimpan..." : "Simpan Closing"}
@@ -880,12 +1016,12 @@ function ClosingDialog({
         </div>
 
         {(!summaryRecord || step !== 4) && canCreateClosing ? (
-          <div className="flex items-center justify-between gap-3 border-t border-slate-200 p-5 dark:border-slate-800">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white/95 p-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:p-5">
             <button
               type="button"
               onClick={() => setStep(Math.max(step - 1, 1))}
               disabled={step === 1}
-              className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600 transition hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-800 dark:text-slate-300"
+              className="inline-flex h-11 min-w-28 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
             >
               Kembali
             </button>
@@ -900,7 +1036,7 @@ function ClosingDialog({
                 setStep(Math.min(step + 1, 4));
               }}
               disabled={step === 4 || (step === 2 && !actualCashValid)}
-              className="h-11 rounded-xl bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-blue-600"
+              className="inline-flex h-11 min-w-32 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white disabled:opacity-70 dark:bg-blue-600 dark:disabled:bg-slate-800"
             >
               Lanjut
             </button>
@@ -920,37 +1056,116 @@ function ClosingMetric({
   value: string;
   tone?: "default" | "danger";
 }) {
+  const isDanger = tone === "danger";
+
   return (
-    <div className="rounded-2xl border border-slate-100 p-4 dark:border-slate-800">
-      <p className="text-xs font-bold text-slate-500">{label}</p>
-      <p
-        className={`mt-2 text-xl font-extrabold ${
-          tone === "danger" ? "text-rose-600" : "text-slate-950 dark:text-white"
+    <div
+      className={`flex min-h-24 items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition duration-200 dark:bg-slate-950 ${
+        isDanger
+          ? "border-rose-100 dark:border-rose-500/20"
+          : "border-slate-100 dark:border-slate-800"
+      }`}
+    >
+      <span
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+          isDanger
+            ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-200"
+            : "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200"
         }`}
       >
-        {value}
-      </p>
+        {renderClosingMetricIcon(label)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-bold leading-snug text-slate-500">
+          {label}
+        </p>
+        <p
+          className={`mt-1 whitespace-nowrap text-xl font-extrabold leading-tight ${
+            isDanger ? "text-rose-600" : "text-slate-950 dark:text-white"
+          }`}
+        >
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
 
+function renderClosingMetricIcon(label: string) {
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("omzet")) {
+    return <Wallet className="h-5 w-5" />;
+  }
+
+  if (normalized.includes("transaksi")) {
+    return <ReceiptText className="h-5 w-5" />;
+  }
+
+  if (normalized.includes("cash")) {
+    return <Banknote className="h-5 w-5" />;
+  }
+
+  if (normalized.includes("qris")) {
+    return <CreditCard className="h-5 w-5" />;
+  }
+
+  if (normalized.includes("transfer")) {
+    return <FileText className="h-5 w-5" />;
+  }
+
+  if (normalized.includes("retur")) {
+    return <RotateCcw className="h-5 w-5" />;
+  }
+
+  return <FileText className="h-5 w-5" />;
+}
+
 function ClosingSummary({ record }: { record: ClosingRecord }) {
+  const isPreview = record.id === "preview";
+  const summaryRows: Array<[string, string]> = [
+    ...(isPreview
+      ? []
+      : ([
+          ["Omzet kotor", formatRupiah(record.grossOmzet)],
+          ["Omzet bersih", formatRupiah(record.netOmzet)],
+          ["Total transaksi", String(record.transactionCount)],
+          ["Nilai retur", formatRupiah(record.returnValue)],
+        ] as Array<[string, string]>)),
+    ["Expected cash", formatRupiah(record.expectedCash)],
+    ["Actual cash", formatRupiah(record.actualCash)],
+    ["Selisih", formatSignedRupiah(record.difference)],
+    ["Closed by", record.closedBy ?? "-"],
+    ["Waktu closing", record.closedAt ? formatTime(record.closedAt) : "-"],
+  ];
+
   return (
-    <div className="space-y-3">
-      {[
-        ["Status", record.status],
-        ["Expected cash", formatRupiah(record.expectedCash)],
-        ["Actual cash", formatRupiah(record.actualCash)],
-        ["Selisih", formatRupiah(record.difference)],
-        ["Closed by", record.closedBy ?? "-"],
-        ["Waktu closing", record.closedAt ? formatTime(record.closedAt) : "-"],
-      ].map(([label, value]) => (
+    <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900">
+        <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+          Status saat ini
+        </span>
+        <span
+          className={`inline-flex h-7 shrink-0 items-center rounded-full px-3 text-xs font-extrabold ${
+            record.status === "CLOSED"
+              ? "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200"
+              : record.status === "REOPENED"
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200"
+          }`}
+        >
+          {record.status}
+        </span>
+      </div>
+      {summaryRows.map(([label, value]) => (
         <div
           key={label}
-          className="flex justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 dark:border-slate-800"
+          className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 dark:border-slate-800"
         >
           <span className="text-sm text-slate-500">{label}</span>
-          <strong className="text-right text-sm text-slate-950 dark:text-white">{value}</strong>
+          <strong className="text-right text-sm text-slate-950 dark:text-white">
+            {value}
+          </strong>
         </div>
       ))}
       {record.notes ? (
