@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { QRIS_IMAGE_ENDPOINT } from "@/lib/qris-image";
 
 export const DEFAULT_PAYMENT_METHODS = [
   {
@@ -24,6 +25,8 @@ export const PAYMENT_SETTING_KEYS = [
   "bankAccountOwner",
   "qrisImageUrl",
 ] as const;
+
+const QRIS_IMAGE_DATA_KEY = "qrisImageDataUrl";
 
 export type PaymentSettingKey = (typeof PAYMENT_SETTING_KEYS)[number];
 
@@ -124,4 +127,82 @@ export async function updatePaymentSettings(
   );
 
   return getPaymentSettings();
+}
+
+export async function updateQrisImage(dataUrl: string, cacheKey: string) {
+  await prisma.$transaction([
+    prisma.paymentSetting.upsert({
+      where: {
+        key: "qrisImageUrl",
+      },
+      update: {
+        value: `${QRIS_IMAGE_ENDPOINT}?v=${encodeURIComponent(cacheKey)}`,
+      },
+      create: {
+        key: "qrisImageUrl",
+        value: `${QRIS_IMAGE_ENDPOINT}?v=${encodeURIComponent(cacheKey)}`,
+      },
+    }),
+    prisma.paymentSetting.upsert({
+      where: {
+        key: QRIS_IMAGE_DATA_KEY,
+      },
+      update: {
+        value: dataUrl,
+      },
+      create: {
+        key: QRIS_IMAGE_DATA_KEY,
+        value: dataUrl,
+      },
+    }),
+  ]);
+
+  return getPaymentSettings();
+}
+
+export async function clearQrisImage() {
+  await prisma.$transaction([
+    prisma.paymentSetting.upsert({
+      where: {
+        key: "qrisImageUrl",
+      },
+      update: {
+        value: "",
+      },
+      create: {
+        key: "qrisImageUrl",
+        value: "",
+      },
+    }),
+    prisma.paymentSetting.upsert({
+      where: {
+        key: QRIS_IMAGE_DATA_KEY,
+      },
+      update: {
+        value: "",
+      },
+      create: {
+        key: QRIS_IMAGE_DATA_KEY,
+        value: "",
+      },
+    }),
+  ]);
+
+  return getPaymentSettings();
+}
+
+export async function getQrisImageSource() {
+  const rows = await prisma.paymentSetting.findMany({
+    where: {
+      key: {
+        in: ["qrisImageUrl", QRIS_IMAGE_DATA_KEY],
+      },
+    },
+  });
+  const values = new Map(rows.map((row) => [row.key, row.value ?? ""]));
+
+  return {
+    qrisImageUrl: values.get("qrisImageUrl") ?? "",
+    qrisImageDataUrl: values.get(QRIS_IMAGE_DATA_KEY) ?? "",
+  };
 }

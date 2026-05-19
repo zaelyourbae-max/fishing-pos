@@ -1,5 +1,9 @@
 import { requireCashier, requireOwner } from "@/lib/auth-session";
-import { getPaymentSettings, updatePaymentSettings } from "@/lib/payments";
+import {
+  clearQrisImage,
+  getPaymentSettings,
+  updatePaymentSettings,
+} from "@/lib/payments";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -22,7 +26,7 @@ export async function PATCH(req: Request) {
   }
 
   const body = await req.json();
-  const settings = await updatePaymentSettings({
+  let settings = await updatePaymentSettings({
     bankName:
       body.bankName === undefined
         ? undefined
@@ -40,6 +44,13 @@ export async function PATCH(req: Request) {
         ? undefined
         : String(body.qrisImageUrl ?? "").trim(),
   });
+
+  if (
+    body.qrisImageUrl !== undefined &&
+    String(body.qrisImageUrl ?? "").trim() === ""
+  ) {
+    settings = await clearQrisImage();
+  }
 
   return NextResponse.json({
     data: settings,

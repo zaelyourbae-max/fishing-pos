@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import QrisImage from "@/components/payment/qris-image";
 import {
   Banknote,
   Code2,
@@ -483,24 +484,23 @@ export default function SettingsForm({
             <input
               ref={qrisInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp"
+              accept="image/png,image/jpeg"
               onChange={uploadQris}
               disabled={uploadLoading}
               className="hidden"
             />
 
             {paymentForm.qrisImageUrl ? (
-              <div
-                className="min-h-40 rounded-xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat p-2 dark:border-slate-800"
-                role="img"
-                aria-label="Preview QRIS"
-                style={{
-                  backgroundImage: `url("${paymentForm.qrisImageUrl}")`,
-                }}
+              <QrisImage
+                qrisImageUrl={paymentForm.qrisImageUrl}
+                alt="Preview QRIS"
+                className="flex min-h-40 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-950"
+                imageClassName="max-h-40 w-full rounded-lg object-contain"
+                fallbackClassName="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
               />
             ) : (
               <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
-                Belum ada QRIS
+                QRIS belum tersedia. Upload QRIS di Pengaturan.
               </div>
             )}
           </div>
@@ -516,7 +516,7 @@ export default function SettingsForm({
                 }))
               }
               className="min-h-9 min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none dark:text-slate-200"
-              placeholder="/uploads/qris/file.png"
+              placeholder="/api/payment-settings/qris-image"
             />
             <button
               type="button"

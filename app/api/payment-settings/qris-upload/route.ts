@@ -1,21 +1,12 @@
 import { requireOwner } from "@/lib/auth-session";
-import { updatePaymentSettings } from "@/lib/payments";
+import { updateQrisImage } from "@/lib/payments";
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import { join } from "path";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const ALLOWED_TYPES = ["image/png", "image/jpeg"];
 const MAX_SIZE = 2 * 1024 * 1024;
-
-function extensionFor(type: string) {
-  if (type === "image/png") return "png";
-  if (type === "image/jpeg") return "jpg";
-  if (type === "image/webp") return "webp";
-  return "bin";
-}
 
 export async function POST(req: Request) {
   const auth = requireOwner(req);
@@ -36,7 +27,7 @@ export async function POST(req: Request) {
 
   if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json(
-      { message: "File QRIS harus PNG, JPG, atau WEBP." },
+      { message: "File QRIS harus PNG, JPG, atau JPEG." },
       { status: 422 },
     );
   }
@@ -48,17 +39,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const uploadDir = join(process.cwd(), "public", "uploads", "qris");
-  await mkdir(uploadDir, { recursive: true });
-
-  const filename = `qris-${randomUUID()}.${extensionFor(file.type)}`;
-  const diskPath = join(uploadDir, filename);
-  await writeFile(diskPath, Buffer.from(await file.arrayBuffer()));
-
-  const imageUrl = `/uploads/qris/${filename}`;
-  const settings = await updatePaymentSettings({
-    qrisImageUrl: imageUrl,
-  });
+  const imageBuffer = Buffer.from(await file.arrayBuffer());
+  const dataUrl = `data:${file.type};base64,${imageBuffer.toString("base64")}`;
+  const settings = await updateQrisImage(dataUrl, randomUUID());
 
   return NextResponse.json({
     data: {
