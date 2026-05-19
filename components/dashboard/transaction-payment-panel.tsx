@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowUpRight, FileText, Wallet, X } from "lucide-react";
+import {
+  operatorLabel,
+  transactionIdentityLabel,
+} from "@/lib/transaction-identity";
 
 type SaleRow = {
   id: string;
@@ -10,6 +14,8 @@ type SaleRow = {
   subtotal: string;
   createdAt: string;
   cashierName: string;
+  cashierRoleName?: string | null;
+  cashierRoleSlug?: string | null;
   customerName: string;
   itemCount: number;
   returnCount: number;
@@ -211,7 +217,16 @@ export default function TransactionPaymentPanel({
                     ) : null}
                   </span>
                   <span className="mt-1 block truncate text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {sale.cashierName} - {sale.customerName}
+                    {transactionIdentityLabel({
+                      operator: {
+                        name: sale.cashierName,
+                        role: {
+                          name: sale.cashierRoleName,
+                          slug: sale.cashierRoleSlug,
+                        },
+                      },
+                      customer: { name: sale.customerName },
+                    })}
                   </span>
                   <span className="mt-1 block truncate text-xs text-slate-500">
                     {sale.createdAt} - {sale.itemCount} item
@@ -322,7 +337,16 @@ export default function TransactionPaymentPanel({
             <div className="space-y-3 p-5">
               {[
                 ["Customer", selectedSale.customerName],
-                ["Kasir", selectedSale.cashierName],
+                [
+                  "Operator",
+                  operatorLabel({
+                    name: selectedSale.cashierName,
+                    role: {
+                      name: selectedSale.cashierRoleName,
+                      slug: selectedSale.cashierRoleSlug,
+                    },
+                  }),
+                ],
                 ["Waktu", selectedSale.createdAt],
                 ["Payment", selectedSale.paymentMethod],
                 ["Transaction Status", selectedSale.transactionStatus],

@@ -89,6 +89,12 @@ export async function getOwnerReportTransactions(
         cashier: {
           select: {
             name: true,
+            role: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
         customer: {
@@ -146,6 +152,12 @@ export async function getOwnerReportReturns(take = 200, range?: OwnerReportRange
           cashier: {
             select: {
               name: true,
+              role: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
             },
           },
         },
@@ -396,6 +408,12 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
             cashier: {
               select: {
                 name: true,
+                role: {
+                  select: {
+                    name: true,
+                    slug: true,
+                  },
+                },
               },
             },
             customer: {

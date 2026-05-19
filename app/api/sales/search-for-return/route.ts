@@ -68,6 +68,12 @@ export async function GET(req: Request) {
       cashier: {
         select: {
           name: true,
+          role: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
         },
       },
       customer: {

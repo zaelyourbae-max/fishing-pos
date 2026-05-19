@@ -7,6 +7,7 @@ import { paymentProofEndpoint } from "@/lib/payment-proof-assets";
 import { isOwnerRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
+import { operatorLabel } from "@/lib/transaction-identity";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -71,6 +72,12 @@ export default async function InvoicePage({
         select: {
           name: true,
           email: true,
+          role: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
         },
       },
       customer: {
@@ -255,8 +262,10 @@ export default async function InvoicePage({
             </div>
 
             <div>
-              <p className="text-zinc-500">Kasir</p>
-              <p className="mt-1 font-semibold">{sale.cashier.name}</p>
+              <p className="text-zinc-500">Operator</p>
+              <p className="mt-1 font-semibold">
+                {operatorLabel(sale.cashier)}
+              </p>
               <p className="text-xs text-zinc-500">{sale.cashier.email}</p>
             </div>
 

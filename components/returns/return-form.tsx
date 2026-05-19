@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 
 import { RETURN_REASON_LABELS, RETURN_REASONS, rupiah } from "@/lib/returns";
+import { operatorLabel } from "@/lib/transaction-identity";
 
 type SaleSearchItem = {
   id: string;
@@ -15,6 +16,10 @@ type SaleSearchItem = {
   item_count?: number;
   cashier: {
     name: string;
+    role?: {
+      name?: string | null;
+      slug?: string | null;
+    } | null;
   };
   customer: {
     name: string;
@@ -335,10 +340,11 @@ export default function ReturnForm() {
                   <div>
                     <p className="font-semibold text-slate-900 dark:text-slate-100">{sale.invoice_number}</p>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      {formatDate(sale.created_at)} - {sale.customer?.name ?? "Walk-in"}
+                      {formatDate(sale.created_at)} • Customer{" "}
+                      {sale.customer?.name ?? "Walk-in"}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Kasir: {sale.cashier.name}
+                      Operator: {operatorLabel(sale.cashier)}
                     </p>
                   </div>
                   <p className="metric-value">{rupiah(sale.subtotal)}</p>

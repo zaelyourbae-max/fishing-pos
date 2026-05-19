@@ -60,6 +60,111 @@ function normalizeDiscountType(value: unknown) {
   return null;
 }
 
+async function resolveSaleCustomer(input: {
+  tx: Prisma.TransactionClient;
+  customerIdInput: number | null;
+  customerPhone: string;
+  customerName: string;
+  customerAddress: string;
+  customerNotes: string;
+}) {
+  const {
+    tx,
+    customerIdInput,
+    customerPhone,
+    customerName,
+    customerAddress,
+    customerNotes,
+  } = input;
+
+  if (customerPhone) {
+    const existingCustomer = await tx.customer.findUnique({
+      where: {
+        phone: customerPhone,
+      },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        notes: true,
+        isActive: true,
+        deletedAt: true,
+      },
+    });
+
+    if (existingCustomer) {
+      if (!existingCustomer.isActive || existingCustomer.deletedAt) {
+        throw new Error("CUSTOMER_NOT_FOUND");
+      }
+
+      const updateData: Prisma.CustomerUpdateInput = {};
+
+      if (customerName && customerName !== existingCustomer.name) {
+        updateData.name = customerName;
+      }
+
+      if (customerAddress && customerAddress !== (existingCustomer.address ?? "")) {
+        updateData.address = customerAddress;
+      }
+
+      if (customerNotes && customerNotes !== (existingCustomer.notes ?? "")) {
+        updateData.notes = customerNotes;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await tx.customer.update({
+          where: {
+            id: existingCustomer.id,
+          },
+          data: updateData,
+          select: {
+            id: true,
+          },
+        });
+      }
+
+      return existingCustomer.id;
+    }
+
+    const createdCustomer = await tx.customer.create({
+      data: {
+        customerCode: `CUST-${customerPhone}`,
+        name: customerName,
+        phone: customerPhone,
+        address: customerAddress || null,
+        notes: customerNotes || null,
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return createdCustomer.id;
+  }
+
+  if (!customerIdInput) {
+    return null;
+  }
+
+  const customerRecord = await tx.customer.findFirst({
+    where: {
+      id: customerIdInput,
+      isActive: true,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!customerRecord) {
+    throw new Error("CUSTOMER_NOT_FOUND");
+  }
+
+  return customerRecord.id;
+}
+
 function calculateDiscount(input: {
   type: SaleItemDiscountType;
   value: number;
@@ -290,59 +395,14 @@ export async function POST(req: Request) {
           throw new Error("DAILY_CLOSING_LOCKED");
         }
 
-        let saleCustomerId = customerIdInput;
-
-        if (customerPhone) {
-          const existingCustomer = await tx.customer.findUnique({
-            where: {
-              phone: customerPhone,
-            },
-            select: {
-              id: true,
-              isActive: true,
-              deletedAt: true,
-            },
-          });
-
-          if (existingCustomer) {
-            if (!existingCustomer.isActive || existingCustomer.deletedAt) {
-              throw new Error("CUSTOMER_NOT_FOUND");
-            }
-
-            saleCustomerId = existingCustomer.id;
-          } else {
-            const createdCustomer = await tx.customer.create({
-              data: {
-                customerCode: `CUST-${customerPhone}`,
-                name: customerName,
-                phone: customerPhone,
-                address: customerAddress || null,
-                notes: customerNotes || null,
-                isActive: true,
-              },
-              select: {
-                id: true,
-              },
-            });
-
-            saleCustomerId = createdCustomer.id;
-          }
-        } else if (saleCustomerId) {
-          const customerRecord = await tx.customer.findFirst({
-            where: {
-              id: saleCustomerId,
-              isActive: true,
-              deletedAt: null,
-            },
-            select: {
-              id: true,
-            },
-          });
-
-          if (!customerRecord) {
-            throw new Error("CUSTOMER_NOT_FOUND");
-          }
-        }
+        const saleCustomerId = await resolveSaleCustomer({
+          tx,
+          customerIdInput,
+          customerPhone,
+          customerName,
+          customerAddress,
+          customerNotes,
+        });
 
         const productIds = [...requiredQty.keys()];
         const products = await tx.product.findMany({

@@ -6,6 +6,7 @@ import {
   reportDateStamp,
 } from "@/lib/reports";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
+import { operatorLabel } from "@/lib/transaction-identity";
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 
@@ -232,7 +233,7 @@ export async function GET(req: Request) {
     { header: "Invoice", key: "invoice", width: 26 },
     { header: "Tanggal", key: "date", width: 24 },
     { header: "Customer", key: "customer", width: 24 },
-    { header: "Kasir", key: "cashier", width: 22 },
+    { header: "Operator", key: "cashier", width: 26 },
     { header: "Payment Method", key: "payment", width: 18 },
     { header: "Total", key: "total", width: 20 },
   ];
@@ -243,7 +244,7 @@ export async function GET(req: Request) {
         invoice: sale.invoiceNumber,
         date: sale.createdAt,
         customer: sale.customer?.name ?? "Walk-in",
-        cashier: sale.cashier.name,
+        cashier: operatorLabel(sale.cashier),
         payment: sale.paymentLabel,
         total: sale.subtotal,
       })),
@@ -307,7 +308,7 @@ export async function GET(req: Request) {
     { header: "Nilai Retur", key: "subtotal", width: 20 },
     { header: "Alasan", key: "reason", width: 22 },
     { header: "Catatan", key: "notes", width: 30 },
-    { header: "Kasir", key: "cashier", width: 22 },
+    { header: "Operator", key: "cashier", width: 26 },
   ];
   styleHeader(returnSheet.getRow(1));
   const returnRows = returns.flatMap((saleReturn) =>
@@ -319,7 +320,7 @@ export async function GET(req: Request) {
       subtotal: item.subtotal,
       reason: reasonLabel(saleReturn.reason),
       notes: saleReturn.notes ?? "-",
-      cashier: saleReturn.sale.cashier.name,
+      cashier: operatorLabel(saleReturn.sale.cashier),
     })),
   );
   if (returnRows.length > 0) {

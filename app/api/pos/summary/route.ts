@@ -1,6 +1,7 @@
 import { requireCashier } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
+import { operatorLabel } from "@/lib/transaction-identity";
 import { NextResponse } from "next/server";
 
 type DetailType =
@@ -187,6 +188,12 @@ export async function GET(req: Request) {
         cashier: {
           select: {
             name: true,
+            role: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
         customer: {
@@ -218,7 +225,7 @@ export async function GET(req: Request) {
           invoiceNumber: sale.invoiceNumber,
           createdAt: sale.createdAt,
           customer: sale.customer?.name ?? "Walk-in",
-          cashier: sale.cashier.name,
+          cashier: operatorLabel(sale.cashier),
           itemCount: sale._count.items,
           paymentMethod: sale.paymentMethod,
           transactionStatus: sale.transactionStatus,

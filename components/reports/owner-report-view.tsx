@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
 import { downloadOwnerReportPdf } from "@/components/reports/download-owner-report-pdf";
+import { operatorLabel, transactionIdentityLabel } from "@/lib/transaction-identity";
 
 type KpiTone = "emerald" | "rose" | "blue" | "violet" | "amber";
 
@@ -80,6 +81,8 @@ type TransactionRow = {
   createdAt: string;
   createdAtLabel: string;
   cashierName: string;
+  cashierRoleName?: string | null;
+  cashierRoleSlug?: string | null;
   customerName: string;
   paymentMethod: string;
   paymentLabel: string;
@@ -891,7 +894,16 @@ function RecentTransactions({
               <div className="min-w-0">
                 <p className="truncate text-sm font-extrabold text-slate-950">{sale.invoiceNumber}</p>
                 <p className="truncate text-xs font-semibold text-slate-500">
-                  {sale.createdAtLabel} - {sale.cashierName} - {sale.itemCount} item
+                  {sale.createdAtLabel} • {transactionIdentityLabel({
+                    operator: {
+                      name: sale.cashierName,
+                      role: {
+                        name: sale.cashierRoleName,
+                        slug: sale.cashierRoleSlug,
+                      },
+                    },
+                    customer: { name: sale.customerName },
+                  })} • {sale.itemCount} item
                 </p>
               </div>
               <strong className="shrink-0 text-right text-sm font-extrabold tabular-nums text-slate-950">
@@ -926,7 +938,7 @@ function RecentTransactions({
           <tr>
             <th className="px-4 py-3">No. Transaksi</th>
             <th className="px-4 py-3">Tanggal</th>
-            <th className="px-4 py-3">Kasir</th>
+            <th className="px-4 py-3">Operator</th>
             <th className="px-4 py-3 text-right">Item</th>
             <th className="px-4 py-3">Pembayaran</th>
             <th className="px-4 py-3 text-right">Total</th>
@@ -962,8 +974,20 @@ function RecentTransactions({
                 </span>
               </td>
               <td className="px-4 py-3">
-                <span className="block truncate font-semibold text-slate-700" title={sale.cashierName}>
-                  {sale.cashierName}
+                <span className="block truncate font-semibold text-slate-700" title={operatorLabel({
+                  name: sale.cashierName,
+                  role: {
+                    name: sale.cashierRoleName,
+                    slug: sale.cashierRoleSlug,
+                  },
+                })}>
+                  {operatorLabel({
+                    name: sale.cashierName,
+                    role: {
+                      name: sale.cashierRoleName,
+                      slug: sale.cashierRoleSlug,
+                    },
+                  })}
                 </span>
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-700">{sale.itemCount}</td>
@@ -1281,7 +1305,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
         onChange={(event) => setCashierFilter(event.target.value)}
         className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
       >
-        <option value="all">Semua Kasir</option>
+        <option value="all">Semua Operator</option>
         {data.cashiers.map((cashier) => (
           <option key={cashier} value={cashier}>{cashier}</option>
         ))}
@@ -2127,7 +2151,13 @@ function TransactionDetailContent({
   const rows = [
     ["Invoice", transaction.invoiceNumber],
     ["Tanggal", transaction.createdAtLabel],
-    ["Kasir", transaction.cashierName],
+    ["Operator", operatorLabel({
+      name: transaction.cashierName,
+      role: {
+        name: transaction.cashierRoleName,
+        slug: transaction.cashierRoleSlug,
+      },
+    })],
     ["Customer", transaction.customerName],
     ["Item", `${transaction.itemCount} item`],
     ["Pembayaran", transaction.paymentLabel],

@@ -6,6 +6,7 @@ import {
   reportDateStamp,
   rupiah,
 } from "@/lib/reports";
+import { operatorLabel } from "@/lib/transaction-identity";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -520,7 +521,7 @@ export async function GET(req: Request) {
       { label: "Invoice", x: 52, width: 88 },
       { label: "Tanggal", x: 142, width: 92 },
       { label: "Customer", x: 238, width: 84 },
-      { label: "Kasir", x: 325, width: 72 },
+      { label: "Operator", x: 325, width: 72 },
       { label: "Payment", x: 400, width: 58 },
       { label: "Total", x: 463, width: 78 },
     ]),
@@ -537,7 +538,7 @@ export async function GET(req: Request) {
         sale.invoiceNumber,
         formatDateTime(sale.createdAt),
         sale.customer?.name ?? "Walk-in",
-        sale.cashier.name,
+        operatorLabel(sale.cashier),
         sale.paymentLabel,
         rupiah(sale.subtotal),
       ]),
@@ -545,7 +546,7 @@ export async function GET(req: Request) {
         { label: "Invoice", x: 52, max: 14 },
         { label: "Tanggal", x: 142, max: 18 },
         { label: "Customer", x: 238, max: 14 },
-        { label: "Kasir", x: 325, max: 12 },
+        { label: "Operator", x: 325, max: 12 },
         { label: "Payment", x: 400, max: 10 },
         { label: "Total", x: 540, max: 16, right: true },
       ],

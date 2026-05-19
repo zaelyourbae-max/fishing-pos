@@ -1612,11 +1612,12 @@ export default function PosApp({
                       <div className="min-w-0">
                         <p className="break-all font-bold">{item.invoiceNumber}</p>
                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                          {item.createdAt ? formatDate(item.createdAt) : "-"} -{" "}
-                          {item.customer ?? "Walk-in"}
+                          {item.createdAt ? formatDate(item.createdAt) : "-"} •{" "}
+                          Customer {item.customer ?? "Walk-in"}
                         </p>
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {item.cashier} - {item.itemCount ?? 0} item -{" "}
+                          Operator {item.cashier ?? "tidak diketahui"} •{" "}
+                          {item.itemCount ?? 0} item •{" "}
                           {item.paymentMethod}
                         </p>
                         {item.transactionStatus || item.paymentStatus ? (
