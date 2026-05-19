@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   ArrowUpRight,
   BarChart3,
@@ -22,6 +22,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import ClientPaginationControl from "@/components/ui/client-pagination-control";
+import { downloadOwnerReportPdf } from "@/components/reports/download-owner-report-pdf";
 
 type KpiTone = "emerald" | "rose" | "blue" | "violet" | "amber";
 
@@ -108,18 +110,65 @@ type PurchaseRow = {
   number: string;
   date: string;
   supplier: string;
+  itemCount: number;
+  totalQty: number;
   total: string;
+  createdBy: string | null;
+  notes: string | null;
+  items: {
+    id: string;
+    product: string;
+    sku: string;
+    category: string | null;
+    qty: number;
+    costPrice: string;
+    subtotal: string;
+    stockBefore: number | null;
+    stockAfter: number | null;
+    notes: string | null;
+  }[];
 };
 
 type ProfitProductRow = {
   productId: number;
   name: string;
   sku: string;
-  qty: number;
+  category: string | null;
+  soldQty: number;
+  returnQty: number;
+  netQty: number;
+  grossRevenue: string;
+  returnRevenue: string;
+  netRevenue: string;
+  salesCogs: string;
+  returnCogs: string;
+  netCogs: string;
   revenue: string;
   cogs: string;
   profit: string;
   margin: string;
+  marginValue: number | null;
+  status: "HPP belum lengkap" | "Cek HPP retur" | "Rugi" | "Margin rendah" | "Sehat";
+  marginValid: boolean;
+  sales: {
+    invoiceNumber: string;
+    createdAt: string;
+    qty: number;
+    revenue: string;
+    cogs: string;
+    profit: string;
+    margin: string;
+    paymentMethod: string;
+  }[];
+  returns: {
+    invoiceNumber: string;
+    createdAt: string;
+    qty: number;
+    revenue: string;
+    cogs: string;
+    reason: string;
+    paymentMethod: string;
+  }[];
 };
 
 type MonthlySummaryItem = {
@@ -174,6 +223,7 @@ export type OwnerReportViewData = {
     margin: string;
     returnCostWarning: string | null;
     topProducts: ProfitProductRow[];
+    products: ProfitProductRow[];
   };
   monthlySummary: {
     title: string;
@@ -219,6 +269,17 @@ const mobileTabs = [
 ] as const;
 
 type MobileStatsTab = (typeof mobileTabs)[number]["id"];
+
+const REPORT_DETAIL_PAGE_SIZE = 7;
+const PROFIT_STATUS_FILTERS = [
+  "Semua",
+  "Sehat",
+  "HPP belum lengkap",
+  "Cek HPP retur",
+  "Rugi",
+  "Margin rendah",
+] as const;
+const TOKEN_KEY = "fishing_pos_token";
 
 const toneClass: Record<KpiTone, { badge: string; soft: string; text: string; border: string }> = {
   emerald: {
@@ -296,9 +357,9 @@ function statusBadgeClass(status: string) {
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="flex min-h-32 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center">
+    <div className="flex min-h-32 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center dark:border-slate-800 dark:bg-slate-900">
       <PackageOpen className="h-7 w-7 text-slate-400" />
-      <p className="mt-3 text-sm font-semibold text-slate-500">{label}</p>
+      <p className="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">{label}</p>
     </div>
   );
 }
@@ -320,12 +381,12 @@ function ReportSectionCard({
     <section
       id={id}
       className={cx(
-        "min-w-0 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50 md:p-5",
+        "min-w-0 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 md:p-5",
         className,
       )}
     >
-      <div className="mb-4 flex min-w-0 items-center justify-between gap-3">
-        <h2 className="min-w-0 truncate text-base font-extrabold text-slate-950 md:text-lg">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <h2 className="min-w-0 flex-1 break-words text-base font-extrabold leading-tight text-slate-950 dark:text-slate-100 md:text-lg">
           {title}
         </h2>
         {action}
@@ -803,18 +864,22 @@ function LowStockList({ rows, mobile = false }: { rows: LowStockRow[]; mobile?: 
 function RecentTransactions({
   rows,
   mobile = false,
+  limit,
   onSelect,
 }: {
   rows: TransactionRow[];
   mobile?: boolean;
+  limit?: number;
   onSelect?: (sale: TransactionRow) => void;
 }) {
   if (!rows.length) return <EmptyState label="Tidak ada transaksi pada periode ini." />;
 
   if (mobile) {
+    const visibleRows = rows.slice(0, limit ?? 5);
+
     return (
       <div className="space-y-3">
-        {rows.slice(0, 5).map((sale) => (
+        {visibleRows.map((sale) => (
           <button
             key={sale.id}
             type="button"
@@ -869,7 +934,7 @@ function RecentTransactions({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {rows.slice(0, 6).map((sale) => (
+          {rows.slice(0, limit ?? 6).map((sale) => (
             <tr
               key={sale.id}
               onClick={() => onSelect?.(sale)}
@@ -954,12 +1019,15 @@ function PurchasesList({ rows }: { rows: PurchaseRow[] }) {
   return (
     <div className="space-y-2">
       {rows.slice(0, 5).map((purchase) => (
-        <div key={purchase.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-xl border border-slate-100 p-3 text-sm">
+        <div key={purchase.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-xl border border-slate-100 p-3 text-sm dark:border-slate-800">
           <div className="min-w-0">
-            <p className="truncate font-extrabold text-slate-950">{purchase.number}</p>
-            <p className="truncate text-xs font-semibold text-slate-500">{purchase.date} - {purchase.supplier}</p>
+            <p className="truncate font-extrabold text-slate-950 dark:text-slate-100">{purchase.number}</p>
+            <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{purchase.date} - {purchase.supplier}</p>
+            <p className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+              {purchase.itemCount} item - Total Qty {purchase.totalQty}
+            </p>
           </div>
-          <strong className="text-right tabular-nums text-slate-950">{purchase.total}</strong>
+          <strong className="text-right tabular-nums text-slate-950 dark:text-slate-100">{purchase.total}</strong>
         </div>
       ))}
     </div>
@@ -987,41 +1055,41 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
           { label: "HPP Bersih", value: summary.netCogs, helper: "Snapshot HPP item terjual" },
           { label: "Laba Kotor", value: summary.netProfit, helper: `Margin ${summary.margin}` },
         ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-xs font-bold text-slate-500">{item.label}</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-950">{item.value}</p>
-            <p className="mt-2 text-xs font-semibold text-emerald-700">{item.helper}</p>
+          <div key={item.label} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.label}</p>
+            <p className="mt-2 text-lg font-extrabold text-slate-950 dark:text-slate-100">{item.value}</p>
+            <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{item.helper}</p>
           </div>
         ))}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-100 p-3 text-sm">
+        <div className="rounded-xl border border-slate-100 p-3 text-sm dark:border-slate-800">
           <div className="flex justify-between gap-3">
-            <span className="font-semibold text-slate-500">Omzet kotor</span>
-            <strong className="tabular-nums text-slate-950">{summary.grossRevenue}</strong>
+            <span className="font-semibold text-slate-500 dark:text-slate-400">Omzet kotor</span>
+            <strong className="tabular-nums text-slate-950 dark:text-slate-100">{summary.grossRevenue}</strong>
           </div>
           <div className="mt-2 flex justify-between gap-3">
-            <span className="font-semibold text-slate-500">Retur customer</span>
+            <span className="font-semibold text-slate-500 dark:text-slate-400">Retur customer</span>
             <strong className="tabular-nums text-rose-700">{summary.returnRevenue}</strong>
           </div>
         </div>
-        <div className="rounded-xl border border-slate-100 p-3 text-sm">
+        <div className="rounded-xl border border-slate-100 p-3 text-sm dark:border-slate-800">
           <div className="flex justify-between gap-3">
-            <span className="font-semibold text-slate-500">HPP penjualan</span>
-            <strong className="tabular-nums text-slate-950">{summary.salesCogs}</strong>
+            <span className="font-semibold text-slate-500 dark:text-slate-400">HPP penjualan</span>
+            <strong className="tabular-nums text-slate-950 dark:text-slate-100">{summary.salesCogs}</strong>
           </div>
           <div className="mt-2 flex justify-between gap-3">
-            <span className="font-semibold text-slate-500">HPP retur</span>
+            <span className="font-semibold text-slate-500 dark:text-slate-400">HPP retur</span>
             <strong className="tabular-nums text-rose-700">{summary.returnCogs}</strong>
           </div>
         </div>
       </div>
 
       {summary.topProducts.length ? (
-        <div className="overflow-x-auto rounded-xl border border-slate-100">
+        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500">
+            <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
               <tr>
                 <th className="px-3 py-3">Produk</th>
                 <th className="px-3 py-3 text-right">Qty Net</th>
@@ -1031,18 +1099,20 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
                 <th className="px-3 py-3 text-right">Margin</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {summary.topProducts.map((item) => (
                 <tr key={item.productId}>
                   <td className="px-3 py-3">
-                    <p className="font-extrabold text-slate-950">{item.name}</p>
-                    <p className="text-xs text-slate-500">{item.sku}</p>
+                    <p className="font-extrabold text-slate-950 dark:text-slate-100">{item.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.sku}</p>
                   </td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700">{item.qty}</td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-950">{item.revenue}</td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-950">{item.cogs}</td>
-                  <td className="px-3 py-3 text-right font-extrabold tabular-nums text-emerald-700">{item.profit}</td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700">{item.margin}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">{item.netQty}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-950 dark:text-slate-100">{item.netRevenue}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-950 dark:text-slate-100">{item.netCogs}</td>
+                  <td className="px-3 py-3 text-right font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">{item.profit}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">
+                    {item.marginValid ? item.margin : "Tidak valid"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1070,6 +1140,9 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
     useState<TransactionRow | null>(null);
   const [showTrendDetail, setShowTrendDetail] = useState(false);
   const [showPaymentDetail, setShowPaymentDetail] = useState(false);
+  const [showPurchaseDetail, setShowPurchaseDetail] = useState(false);
+  const [showProfitDetail, setShowProfitDetail] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("all");
 
   const netKpi = data.kpis.find((kpi) => kpi.id === "net") ?? data.kpis[0];
@@ -1138,10 +1211,21 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
     setShowMobileFilters(false);
   }
 
-  function exportPdf() {
+  async function exportPdf() {
     setExporting(true);
-    window.location.href = data.exportHref;
-    window.setTimeout(() => setExporting(false), 1500);
+
+    try {
+      await downloadOwnerReportPdf(
+        data.exportHref,
+        `owner-report-${data.period.from}.pdf`,
+      );
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "Export PDF gagal.",
+      );
+    } finally {
+      setExporting(false);
+    }
   }
 
   function scrollToSection(id: string) {
@@ -1206,7 +1290,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
   );
 
   return (
-    <div className="reports-page min-w-0 max-w-full overflow-x-hidden bg-[#f8fafc] pb-8 text-slate-900">
+    <div className="reports-page min-w-0 max-w-full overflow-x-hidden bg-[#f8fafc] pb-8 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <style>
         {`
           body:has(.reports-page) img[style*="position: fixed"][style*="right"],
@@ -1222,6 +1306,176 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           body:has(.reports-page) iframe[style*="position: fixed"][style*="right"] {
             display: none !important;
             pointer-events: none !important;
+          }
+
+          .dark .reports-page {
+            background:
+              radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 28rem),
+              #020617;
+            color: #e2e8f0;
+          }
+
+          .dark .reports-page [class~="bg-white"] {
+            background-color: rgba(2, 6, 23, 0.72) !important;
+          }
+
+          .dark .reports-page [class~="bg-slate-50"],
+          .dark .reports-page [class~="bg-slate-50/70"],
+          .dark .reports-page [class~="bg-gray-50"] {
+            background-color: rgba(15, 23, 42, 0.74) !important;
+          }
+
+          .dark .reports-page [class~="bg-slate-100"],
+          .dark .reports-page [class~="bg-gray-100"] {
+            background-color: rgba(30, 41, 59, 0.9) !important;
+          }
+
+          .dark .reports-page [class~="border-slate-200"],
+          .dark .reports-page [class~="border-slate-100"],
+          .dark .reports-page [class~="border-gray-200"] {
+            border-color: rgba(30, 41, 59, 0.95) !important;
+          }
+
+          .dark .reports-page [class~="divide-slate-100"] > :not([hidden]) ~ :not([hidden]),
+          .dark .reports-page [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) {
+            border-color: rgba(30, 41, 59, 0.95) !important;
+          }
+
+          .dark .reports-page [class~="text-slate-950"],
+          .dark .reports-page [class~="text-slate-900"],
+          .dark .reports-page [class~="text-black"] {
+            color: #f8fafc !important;
+          }
+
+          .dark .reports-page [class~="text-slate-800"],
+          .dark .reports-page [class~="text-slate-700"],
+          .dark .reports-page [class~="text-gray-800"],
+          .dark .reports-page [class~="text-gray-700"] {
+            color: #cbd5e1 !important;
+          }
+
+          .dark .reports-page [class~="text-slate-600"],
+          .dark .reports-page [class~="text-slate-500"],
+          .dark .reports-page [class~="text-gray-600"],
+          .dark .reports-page [class~="text-gray-500"] {
+            color: #94a3b8 !important;
+          }
+
+          .dark .reports-page [class~="text-slate-400"],
+          .dark .reports-page [class~="text-gray-400"] {
+            color: #64748b !important;
+          }
+
+          .dark .reports-page [class~="bg-emerald-50"] {
+            background-color: rgba(16, 185, 129, 0.14) !important;
+          }
+
+          .dark .reports-page [class~="text-emerald-700"],
+          .dark .reports-page [class~="text-emerald-600"] {
+            color: #a7f3d0 !important;
+          }
+
+          .dark .reports-page [class~="border-emerald-100"] {
+            border-color: rgba(16, 185, 129, 0.28) !important;
+          }
+
+          .dark .reports-page [class~="bg-blue-50"] {
+            background-color: rgba(37, 99, 235, 0.16) !important;
+          }
+
+          .dark .reports-page [class~="text-blue-700"],
+          .dark .reports-page [class~="text-blue-600"] {
+            color: #93c5fd !important;
+          }
+
+          .dark .reports-page [class~="border-blue-100"],
+          .dark .reports-page [class~="border-blue-200"] {
+            border-color: rgba(59, 130, 246, 0.34) !important;
+          }
+
+          .dark .reports-page [class~="bg-violet-50"] {
+            background-color: rgba(124, 58, 237, 0.16) !important;
+          }
+
+          .dark .reports-page [class~="text-violet-700"] {
+            color: #c4b5fd !important;
+          }
+
+          .dark .reports-page [class~="border-violet-100"] {
+            border-color: rgba(124, 58, 237, 0.34) !important;
+          }
+
+          .dark .reports-page [class~="bg-rose-50"] {
+            background-color: rgba(244, 63, 94, 0.14) !important;
+          }
+
+          .dark .reports-page [class~="text-rose-700"],
+          .dark .reports-page [class~="text-rose-600"] {
+            color: #fda4af !important;
+          }
+
+          .dark .reports-page [class~="border-rose-100"],
+          .dark .reports-page [class~="border-rose-200"] {
+            border-color: rgba(244, 63, 94, 0.32) !important;
+          }
+
+          .dark .reports-page [class~="bg-orange-50"],
+          .dark .reports-page [class~="bg-amber-50"] {
+            background-color: rgba(245, 158, 11, 0.14) !important;
+          }
+
+          .dark .reports-page [class~="text-orange-700"],
+          .dark .reports-page [class~="text-amber-700"],
+          .dark .reports-page [class~="text-amber-800"] {
+            color: #fcd34d !important;
+          }
+
+          .dark .reports-page [class~="border-orange-100"],
+          .dark .reports-page [class~="border-amber-200"] {
+            border-color: rgba(245, 158, 11, 0.32) !important;
+          }
+
+          .dark .reports-page [class~="shadow-sm"],
+          .dark .reports-page [class~="shadow-md"],
+          .dark .reports-page [class~="shadow-lg"],
+          .dark .reports-page [class~="shadow-2xl"] {
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22) !important;
+          }
+
+          .dark .reports-page input,
+          .dark .reports-page select,
+          .dark .reports-page textarea {
+            color-scheme: dark;
+            background-color: rgba(15, 23, 42, 0.92) !important;
+            border-color: rgba(51, 65, 85, 0.95) !important;
+            color: #f8fafc !important;
+          }
+
+          .dark .reports-page input::placeholder,
+          .dark .reports-page textarea::placeholder {
+            color: #64748b !important;
+          }
+
+          .dark .reports-page table thead {
+            background-color: rgba(15, 23, 42, 0.9) !important;
+            color: #94a3b8 !important;
+          }
+
+          .dark .reports-page tr:hover,
+          .dark .reports-page button[class*="hover:bg-blue-50"]:hover {
+            background-color: rgba(37, 99, 235, 0.08);
+          }
+
+          .dark .reports-page svg text {
+            fill: #cbd5e1;
+          }
+
+          .dark .reports-page svg line[stroke="#e2e8f0"] {
+            stroke: #334155;
+          }
+
+          .dark .reports-page svg [fill="#475569"] {
+            fill: #cbd5e1;
           }
         `}
       </style>
@@ -1390,7 +1644,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           ))}
         </div>
 
-        <div className="hidden gap-5 min-[1500px]:grid min-[1500px]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.9fr)_minmax(0,0.95fr)]">
+        <div className="hidden gap-5 md:grid min-[1500px]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.9fr)_minmax(0,0.95fr)]">
           <ReportSectionCard
             id="penjualan"
             title="Trend Penjualan (Omzet Bersih)"
@@ -1448,60 +1702,6 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           >
             <TopProducts products={data.bestSellers} onSelect={setSelectedProduct} />
           </ReportSectionCard>
-        </div>
-
-        <div className="hidden gap-5 md:grid min-[1500px]:hidden">
-          <ReportSectionCard
-            id="penjualan"
-            title="Trend Penjualan (Omzet Bersih)"
-            action={
-              <button
-                type="button"
-                onClick={() => setShowTrendDetail(true)}
-                className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700 transition hover:text-blue-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
-                aria-label="Buka detail trend penjualan"
-              >
-                Lihat detail <ArrowUpRight className="h-3.5 w-3.5" />
-              </button>
-            }
-          >
-            <button
-              type="button"
-              onClick={() => setShowTrendDetail(true)}
-              className="w-full cursor-pointer rounded-2xl text-left transition hover:bg-blue-50/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
-              aria-label="Buka detail trend penjualan"
-            >
-              <TrendChart rows={data.trend} />
-            </button>
-          </ReportSectionCard>
-          <div className="grid gap-5 min-[1500px]:grid-cols-2">
-            <ReportSectionCard
-              id="pembayaran"
-              title="Ringkasan Pembayaran"
-              action={
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentDetail(true)}
-                  className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700 transition hover:text-blue-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
-                  aria-label="Buka detail pembayaran"
-                >
-                  Lihat detail <ArrowUpRight className="h-3.5 w-3.5" />
-                </button>
-              }
-            >
-              <button
-                type="button"
-                onClick={() => setShowPaymentDetail(true)}
-                className="w-full cursor-pointer rounded-2xl text-left transition hover:bg-blue-50/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
-                aria-label="Buka detail pembayaran"
-              >
-                <PaymentSummary payments={data.payments} total={data.paymentTotal} />
-              </button>
-            </ReportSectionCard>
-            <ReportSectionCard id="produk" title="Produk Terlaris (Top 5)">
-              <TopProducts products={data.bestSellers} onSelect={setSelectedProduct} />
-            </ReportSectionCard>
-          </div>
         </div>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:hidden">
@@ -1644,10 +1844,34 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
         </ReportSectionCard>
 
         <div className="hidden gap-5 md:grid lg:grid-cols-2">
-          <ReportSectionCard id="pembelian" title="Pembelian Periode Ini">
+          <ReportSectionCard
+            id="pembelian"
+            title="Pembelian Periode Ini"
+            action={
+              <button
+                type="button"
+                onClick={() => setShowPurchaseDetail(true)}
+                className="shrink-0 whitespace-nowrap text-xs font-extrabold text-blue-700 dark:text-blue-300"
+              >
+                Lihat semua
+              </button>
+            }
+          >
             <PurchasesList rows={data.recentPurchases} />
           </ReportSectionCard>
-          <ReportSectionCard id="laba-margin" title="Laba & Margin">
+          <ReportSectionCard
+            id="laba-margin"
+            title="Laba & Margin"
+            action={
+              <button
+                type="button"
+                onClick={() => setShowProfitDetail(true)}
+                className="shrink-0 whitespace-nowrap text-xs font-extrabold text-blue-700 dark:text-blue-300"
+              >
+                Lihat detail
+              </button>
+            }
+          >
             <ProfitSummary summary={data.profitSummary} />
           </ReportSectionCard>
         </div>
@@ -1699,6 +1923,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
             panelClassName="max-w-5xl"
           >
             <TrendDetailContent
+              key={data.period.label}
               periodLabel={data.period.label}
               rows={data.trend}
             />
@@ -1712,6 +1937,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
             panelClassName="max-w-4xl"
           >
             <PaymentDetailContent
+              key={`${data.period.label}-${selectedPaymentMethod}`}
               payments={data.payments}
               paymentTotal={data.paymentTotal}
               reconciliation={data.reconciliation}
@@ -1725,6 +1951,41 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
             />
           </ReportModal>
         ) : null}
+
+        {showPurchaseDetail ? (
+          <ReportModal
+            title="Detail Pembelian Periode Ini"
+            onClose={() => {
+              setShowPurchaseDetail(false);
+              setSelectedPurchase(null);
+            }}
+            panelClassName="max-w-6xl"
+          >
+            <PurchaseDetailContent
+              key={data.period.label}
+              purchases={data.recentPurchases}
+              selectedPurchase={selectedPurchase}
+              onSelectPurchase={setSelectedPurchase}
+            />
+          </ReportModal>
+        ) : null}
+
+        {showProfitDetail ? (
+          <ReportModal
+            title="Detail Laba & Margin"
+            onClose={() => {
+              setShowProfitDetail(false);
+            }}
+            panelClassName="max-w-7xl"
+            subtitle={`Periode detail: ${data.period.label}`}
+          >
+            <ProfitDetailContent
+              key={data.period.label}
+              initialSummary={data.profitSummary}
+              initialPeriod={data.period}
+            />
+          </ReportModal>
+        ) : null}
       </div>
     </div>
   );
@@ -1735,27 +1996,36 @@ function ReportModal({
   onClose,
   children,
   panelClassName,
+  subtitle,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   panelClassName?: string;
+  subtitle?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 sm:items-center sm:p-6">
-      <div className={cx("w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl", panelClassName ?? "max-w-2xl")}>
-        <div className="flex items-center justify-between gap-4 border-b border-slate-200 p-5">
-          <h2 className="text-lg font-extrabold text-slate-950">{title}</h2>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-6">
+      <div className={cx("flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:max-h-[90vh] sm:rounded-2xl", panelClassName ?? "max-w-2xl")}>
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+          <div className="min-w-0">
+            <h2 className="break-words text-lg font-extrabold text-slate-950 dark:text-slate-100">{title}</h2>
+            {subtitle ? (
+              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                {subtitle}
+              </p>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 active:scale-95"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 active:scale-95 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
             aria-label="Tutup detail laporan"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
       </div>
     </div>
   );
@@ -1904,6 +2174,7 @@ function TrendDetailContent({
   periodLabel: string;
   rows: TrendRow[];
 }) {
+  const [page, setPage] = useState(1);
   const hasTrend = rows.length > 0 && rows.some((row) => row.omzet > 0 || row.transactions > 0);
   const totalOmzet = rows.reduce((total, row) => total + row.omzet, 0);
   const totalTransactions = rows.reduce((total, row) => total + row.transactions, 0);
@@ -1911,6 +2182,12 @@ function TrendDetailContent({
   const bestDay = rows.reduce(
     (best, row) => (row.omzet > best.omzet ? row : best),
     rows[0] ?? { label: "-", omzet: 0, transactions: 0 },
+  );
+  const pageCount = Math.max(1, Math.ceil(rows.length / REPORT_DETAIL_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = rows.slice(
+    (currentPage - 1) * REPORT_DETAIL_PAGE_SIZE,
+    currentPage * REPORT_DETAIL_PAGE_SIZE,
   );
 
   if (!hasTrend) {
@@ -1948,7 +2225,7 @@ function TrendDetailContent({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((row, index) => (
+            {visibleRows.map((row, index) => (
               <tr key={`${row.label}-${index}`}>
                 <td className="px-4 py-3 font-bold text-slate-700">{row.label}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-right font-extrabold tabular-nums text-slate-950">
@@ -1966,6 +2243,13 @@ function TrendDetailContent({
             ))}
           </tbody>
         </table>
+        <ClientPaginationControl
+          currentPage={currentPage}
+          totalItems={rows.length}
+          pageSize={REPORT_DETAIL_PAGE_SIZE}
+          onPageChange={setPage}
+          className="rounded-b-xl"
+        />
       </div>
     </div>
   );
@@ -1988,6 +2272,14 @@ function PaymentDetailContent({
   transactions: TransactionRow[];
   onSelectTransaction: (sale: TransactionRow) => void;
 }) {
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(transactions.length / REPORT_DETAIL_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleTransactions = transactions.slice(
+    (currentPage - 1) * REPORT_DETAIL_PAGE_SIZE,
+    currentPage * REPORT_DETAIL_PAGE_SIZE,
+  );
+
   if (!payments.length) {
     return <EmptyState label="Belum ada pembayaran pada periode ini." />;
   }
@@ -2063,11 +2355,23 @@ function PaymentDetailContent({
           Transaksi metode terpilih
         </h3>
         {transactions.length > 0 ? (
-          <RecentTransactions
-            rows={transactions}
-            mobile
-            onSelect={onSelectTransaction}
-          />
+          <div className="overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div className="p-0">
+              <RecentTransactions
+                rows={visibleTransactions}
+                mobile
+                limit={REPORT_DETAIL_PAGE_SIZE}
+                onSelect={onSelectTransaction}
+              />
+            </div>
+            <ClientPaginationControl
+              currentPage={currentPage}
+              totalItems={transactions.length}
+              pageSize={REPORT_DETAIL_PAGE_SIZE}
+              onPageChange={setPage}
+              className="rounded-b-2xl"
+            />
+          </div>
         ) : (
           <EmptyState label="Detail transaksi pembayaran belum tersedia." />
         )}
@@ -2076,11 +2380,899 @@ function PaymentDetailContent({
   );
 }
 
+function PurchaseDetailContent({
+  purchases,
+  selectedPurchase,
+  onSelectPurchase,
+}: {
+  purchases: PurchaseRow[];
+  selectedPurchase: PurchaseRow | null;
+  onSelectPurchase: (purchase: PurchaseRow | null) => void;
+}) {
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(purchases.length / REPORT_DETAIL_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visiblePurchases = purchases.slice(
+    (currentPage - 1) * REPORT_DETAIL_PAGE_SIZE,
+    currentPage * REPORT_DETAIL_PAGE_SIZE,
+  );
+
+  if (!purchases.length) {
+    return <EmptyState label="Belum ada pembelian pada periode ini." />;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="hidden max-w-full overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800 md:block">
+        <table className="w-full min-w-[980px] table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[190px]" />
+            <col className="w-[130px]" />
+            <col className="w-[160px]" />
+            <col className="w-[80px]" />
+            <col className="w-[95px]" />
+            <col className="w-[150px]" />
+            <col className="w-[140px]" />
+            <col className="w-[170px]" />
+            <col className="w-[100px]" />
+          </colgroup>
+          <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3">Nomor PO</th>
+              <th className="px-4 py-3">Tanggal</th>
+              <th className="px-4 py-3">Supplier</th>
+              <th className="px-4 py-3 text-right">Item</th>
+              <th className="px-4 py-3 text-right">Total Qty</th>
+              <th className="px-4 py-3 text-right">Total Pembelian</th>
+              <th className="px-4 py-3">Dibuat oleh</th>
+              <th className="px-4 py-3">Catatan</th>
+              <th className="px-4 py-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {visiblePurchases.map((purchase) => (
+              <tr key={purchase.id} className="hover:bg-blue-50/40 dark:hover:bg-slate-900">
+                <td className="px-4 py-3 font-extrabold text-slate-950 dark:text-slate-100">
+                  {purchase.number}
+                </td>
+                <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-300">
+                  {purchase.date}
+                </td>
+                <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
+                  {purchase.supplier}
+                </td>
+                <td className="px-4 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">
+                  {purchase.itemCount}
+                </td>
+                <td className="px-4 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">
+                  {purchase.totalQty}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-right font-extrabold tabular-nums text-slate-950 dark:text-slate-100">
+                  {purchase.total}
+                </td>
+                <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-300">
+                  {purchase.createdBy ?? "Data tidak tersedia"}
+                </td>
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                  <span className="line-clamp-2">{purchase.notes ?? "-"}</span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onSelectPurchase(purchase)}
+                    className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 px-3 text-xs font-extrabold text-blue-700 transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-slate-800"
+                  >
+                    Detail
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <ClientPaginationControl
+          currentPage={currentPage}
+          totalItems={purchases.length}
+          pageSize={REPORT_DETAIL_PAGE_SIZE}
+          itemLabel="data"
+          onPageChange={setPage}
+          className="rounded-b-2xl"
+        />
+      </div>
+
+      <div className="mobile-card-list rounded-2xl border border-slate-100 md:hidden dark:border-slate-800">
+        {visiblePurchases.map((purchase) => (
+          <article key={purchase.id} className="mobile-data-card">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="break-all text-base font-extrabold text-slate-950 dark:text-slate-100">
+                  {purchase.number}
+                </p>
+                <p className="mt-1 break-words text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  {purchase.supplier}
+                </p>
+              </div>
+              <p className="font-extrabold tabular-nums text-slate-950 dark:text-slate-100">
+                {purchase.total}
+              </p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+              <p>
+                <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Tanggal
+                </span>
+                {purchase.date}
+              </p>
+              <p>
+                <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Item
+                </span>
+                {purchase.itemCount} item
+              </p>
+              <p>
+                <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Total Qty
+                </span>
+                {purchase.totalQty}
+              </p>
+              <p className="min-w-0">
+                <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Dibuat oleh
+                </span>
+                <span className="break-words">
+                  {purchase.createdBy ?? "Data tidak tersedia"}
+                </span>
+              </p>
+            </div>
+            {purchase.notes ? (
+              <p className="mt-3 break-words rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                {purchase.notes}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => onSelectPurchase(purchase)}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-extrabold text-blue-700 transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-slate-800"
+            >
+              Detail
+            </button>
+          </article>
+        ))}
+        <ClientPaginationControl
+          currentPage={currentPage}
+          totalItems={purchases.length}
+          pageSize={REPORT_DETAIL_PAGE_SIZE}
+          itemLabel="data"
+          onPageChange={setPage}
+          className="rounded-b-2xl"
+        />
+      </div>
+
+      {selectedPurchase ? (
+        <PurchaseItemsDetail purchase={selectedPurchase} onClose={() => onSelectPurchase(null)} />
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          Pilih tombol Detail pada salah satu PO untuk melihat breakdown produk.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PurchaseItemsDetail({
+  purchase,
+  onClose,
+}: {
+  purchase: PurchaseRow;
+  onClose: () => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="break-words text-base font-extrabold text-slate-950 dark:text-slate-100">
+            {purchase.number}
+          </h3>
+          <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {purchase.supplier} - {purchase.date}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 text-xs font-extrabold text-slate-500 dark:text-slate-400"
+        >
+          Tutup detail
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <InsightBox label="Total item" value={String(purchase.itemCount)} />
+        <InsightBox label="Total qty" value={String(purchase.totalQty)} />
+        <InsightBox label="Total pembelian" value={purchase.total} />
+        <InsightBox label="Dibuat oleh" value={purchase.createdBy ?? "Data tidak tersedia"} />
+      </div>
+
+      {purchase.notes ? (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+          {purchase.notes}
+        </div>
+      ) : null}
+
+      {purchase.items.length ? (
+        <>
+        <div className="mt-4 hidden max-w-full overflow-x-auto rounded-xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950 md:block">
+          <table className="w-full min-w-[920px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+              <tr>
+                <th className="px-4 py-3">Produk</th>
+                <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">Kategori/Laci</th>
+                <th className="px-4 py-3 text-right">Qty Masuk</th>
+                <th className="px-4 py-3 text-right">Harga Beli / HPP</th>
+                <th className="px-4 py-3 text-right">Subtotal</th>
+                <th className="px-4 py-3 text-right">Stok Sebelum</th>
+                <th className="px-4 py-3 text-right">Stok Sesudah</th>
+                <th className="px-4 py-3">Catatan Item</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {purchase.items.map((item) => (
+                <tr key={item.id}>
+                  <td className="px-4 py-3 font-extrabold text-slate-950 dark:text-slate-100">
+                    {item.product}
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-300">
+                    {item.sku}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                    {item.category ?? "Data tidak tersedia"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">
+                    {item.qty}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-950 dark:text-slate-100">
+                    {item.costPrice}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-extrabold tabular-nums text-slate-950 dark:text-slate-100">
+                    {item.subtotal}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+                    {item.stockBefore ?? "Data tidak tersedia"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+                    {item.stockAfter ?? "Data tidak tersedia"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                    {item.notes ?? "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 mobile-card-list rounded-xl border border-slate-100 md:hidden dark:border-slate-800">
+          {purchase.items.map((item) => (
+            <article key={item.id} className="mobile-data-card">
+              <p className="break-words font-extrabold text-slate-950 dark:text-slate-100">
+                {item.product}
+              </p>
+              <p className="mt-1 break-all text-sm font-semibold text-slate-600 dark:text-slate-300">
+                {item.sku}
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Kategori/Laci
+                  </span>
+                  <span className="break-words">
+                    {item.category ?? "Data tidak tersedia"}
+                  </span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Qty Masuk
+                  </span>
+                  <span className="font-bold tabular-nums">{item.qty}</span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Harga Beli / HPP
+                  </span>
+                  <span className="font-bold tabular-nums">{item.costPrice}</span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Subtotal
+                  </span>
+                  <span className="font-extrabold tabular-nums text-slate-950 dark:text-slate-100">
+                    {item.subtotal}
+                  </span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Stok Sebelum
+                  </span>
+                  {item.stockBefore ?? "Data tidak tersedia"}
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Stok Sesudah
+                  </span>
+                  {item.stockAfter ?? "Data tidak tersedia"}
+                </p>
+              </div>
+              <p className="mt-3 break-words text-sm text-slate-500 dark:text-slate-400">
+                {item.notes ?? "-"}
+              </p>
+            </article>
+          ))}
+        </div>
+        </>
+      ) : (
+        <EmptyState label="Detail produk pembelian tidak tersedia." />
+      )}
+    </section>
+  );
+}
+
+function profitStatusClass(status: ProfitProductRow["status"]) {
+  if (status === "Sehat") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300";
+  if (status === "Margin rendah") return "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300";
+  if (status === "Rugi") return "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300";
+  return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+}
+
+type ProfitStatusFilter = (typeof PROFIT_STATUS_FILTERS)[number];
+
+type ProfitDetailResponse = {
+  period: {
+    from: string;
+    to: string;
+    label: string;
+  };
+  profitSummary: OwnerReportViewData["profitSummary"];
+};
+
+async function fetchProfitDetail(from: string, to: string) {
+  const token =
+    typeof window === "undefined"
+      ? ""
+      : window.localStorage.getItem(TOKEN_KEY) ?? "";
+  const response = await fetch(
+    `/api/reports/laba-margin?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    {
+      cache: "no-store",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(
+      payload && typeof payload === "object" && "message" in payload
+        ? String(payload.message)
+        : "Gagal memuat detail laba & margin.",
+    );
+  }
+
+  return (await response.json()) as ProfitDetailResponse;
+}
+
+function ProfitDetailContent({
+  initialSummary,
+  initialPeriod,
+}: {
+  initialSummary: OwnerReportViewData["profitSummary"];
+  initialPeriod: OwnerReportViewData["period"];
+}) {
+  const [page, setPage] = useState(1);
+  const [summary, setSummary] = useState(initialSummary);
+  const [period, setPeriod] = useState({
+    from: initialPeriod.from,
+    to: initialPeriod.to,
+    label: initialPeriod.label,
+  });
+  const [draftFrom, setDraftFrom] = useState(initialPeriod.from);
+  const [draftTo, setDraftTo] = useState(initialPeriod.to);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ProfitStatusFilter>("Semua");
+  const [selectedProduct, setSelectedProduct] = useState<ProfitProductRow | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim().toLowerCase());
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const rows = useMemo(() => {
+    return summary.products.filter((item) => {
+      const keyword = debouncedSearch;
+      const matchesSearch =
+        keyword.length === 0 ||
+        item.name.toLowerCase().includes(keyword) ||
+        item.sku.toLowerCase().includes(keyword) ||
+        (item.category?.toLowerCase().includes(keyword) ?? false);
+      const matchesStatus =
+        statusFilter === "Semua" || item.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [debouncedSearch, statusFilter, summary.products]);
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / REPORT_DETAIL_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = rows.slice(
+    (currentPage - 1) * REPORT_DETAIL_PAGE_SIZE,
+    currentPage * REPORT_DETAIL_PAGE_SIZE,
+  );
+
+  async function handleApplyPeriod() {
+    setLoading(true);
+    setError(null);
+    setSelectedProduct(null);
+
+    try {
+      const payload = await fetchProfitDetail(draftFrom, draftTo);
+      setSummary(payload.profitSummary);
+      setPeriod(payload.period);
+      setDraftFrom(payload.period.from);
+      setDraftTo(payload.period.to);
+      setPage(1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memuat detail laba & margin.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    setExporting(true);
+    setError(null);
+
+    try {
+      const from = encodeURIComponent(period.from);
+      const to = encodeURIComponent(period.to);
+      const fallback =
+        period.from === period.to
+          ? `laba-margin-${period.from}.pdf`
+          : `laba-margin-${period.from}-to-${period.to}.pdf`;
+
+      await downloadOwnerReportPdf(
+        `/api/reports/export/laba-margin/pdf?from=${from}&to=${to}`,
+        fallback,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export PDF laba & margin gagal.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <label className="min-w-0 flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Periode dari
+            <input
+              type="date"
+              value={draftFrom}
+              onChange={(event) => setDraftFrom(event.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            />
+          </label>
+          <label className="min-w-0 flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Periode sampai
+            <input
+              type="date"
+              value={draftTo}
+              onChange={(event) => setDraftTo(event.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            />
+          </label>
+          <label className="min-w-0 flex-[1.4] text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Cari
+            <div className="relative mt-2">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+              value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Cari produk, SKU, kategori..."
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+              />
+            </div>
+          </label>
+          <label className="min-w-0 flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value as ProfitStatusFilter);
+                setPage(1);
+              }}
+              className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            >
+              {PROFIT_STATUS_FILTERS.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:pb-0.5">
+            <button
+              type="button"
+              onClick={handleApplyPeriod}
+              disabled={loading}
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-teal-600 px-4 text-sm font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+            >
+              {loading ? "Memuat..." : "Terapkan"}
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={exporting || loading}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+              aria-label="Export PDF Laba & Margin"
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? "Export..." : "Export PDF"}
+            </button>
+          </div>
+        </div>
+        <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+          Periode detail: {period.label}
+        </p>
+      </div>
+
+      {error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <InsightBox label="Omzet Kotor" value={summary.grossRevenue} />
+        <InsightBox label="Retur Customer" value={summary.returnRevenue} />
+        <InsightBox label="Omzet Bersih" value={summary.netRevenue} />
+        <InsightBox label="HPP Penjualan" value={summary.salesCogs} />
+        <InsightBox label="HPP Retur" value={summary.returnCogs} />
+        <InsightBox label="HPP Bersih" value={summary.netCogs} />
+        <InsightBox label="Laba Kotor" value={summary.grossProfit} />
+        <InsightBox label="Margin %" value={summary.margin} />
+      </div>
+
+      {summary.returnCostWarning ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {summary.returnCostWarning}
+        </div>
+      ) : null}
+
+      {!summary.hasUnitCostSnapshot ? (
+        <EmptyState label="Data snapshot HPP belum tersedia. Laba dan margin akan muncul untuk transaksi baru setelah checkout menyimpan HPP." />
+      ) : rows.length ? (
+        <>
+        <div className="hidden max-w-full overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 md:block">
+          <table className="w-full min-w-[980px] table-fixed text-left text-sm">
+            <colgroup>
+              <col className="w-[240px]" />
+              <col className="w-[110px]" />
+              <col className="w-[90px]" />
+              <col className="w-[130px]" />
+              <col className="w-[130px]" />
+              <col className="w-[130px]" />
+              <col className="w-[100px]" />
+              <col className="w-[140px]" />
+              <col className="w-[120px]" />
+            </colgroup>
+            <thead className="bg-slate-100 text-xs font-bold uppercase text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+              <tr>
+                <th className="sticky left-0 z-10 bg-slate-100 px-3 py-3 dark:bg-slate-900">Produk</th>
+                <th className="px-3 py-3">SKU</th>
+                <th className="px-3 py-3 text-right">Qty Net</th>
+                <th className="px-3 py-3 text-right">Omzet Bersih</th>
+                <th className="px-3 py-3 text-right">HPP Bersih</th>
+                <th className="px-3 py-3 text-right">Laba Kotor</th>
+                <th className="px-3 py-3 text-right">Margin</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="sticky right-0 z-10 bg-slate-100 px-3 py-3 text-right dark:bg-slate-900">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {visibleRows.map((item) => (
+                <tr
+                  key={item.productId}
+                  className={cx(
+                    "hover:bg-slate-50 dark:hover:bg-slate-800",
+                    selectedProduct?.productId === item.productId
+                      ? "bg-teal-50/70 dark:bg-teal-500/10"
+                      : "bg-white dark:bg-slate-950",
+                  )}
+                >
+                  <td className="sticky left-0 z-10 bg-inherit px-3 py-3">
+                    <p className="break-words font-extrabold text-slate-950 dark:text-slate-100">
+                      {item.name}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {item.category ?? "Data tidak tersedia"}
+                    </p>
+                  </td>
+                  <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{item.sku}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">{item.netQty}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums text-slate-950 dark:text-slate-100">{item.netRevenue}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums text-slate-950 dark:text-slate-100">{item.netCogs}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">{item.profit}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">
+                    {item.marginValid ? item.margin : "Tidak valid"}
+                  </td>
+                  <td className="px-3 py-3">
+                    <span className={cx("inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-extrabold", profitStatusClass(item.status))}>
+                      {item.status}
+                    </span>
+                  </td>
+                  <td className="sticky right-0 z-10 bg-inherit px-3 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProduct(item)}
+                      className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-blue-700 transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-slate-800"
+                    >
+                      {selectedProduct?.productId === item.productId ? "Terbuka" : "Detail Produk"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <ClientPaginationControl
+            currentPage={currentPage}
+            totalItems={rows.length}
+            pageSize={REPORT_DETAIL_PAGE_SIZE}
+            itemLabel="data"
+            onPageChange={setPage}
+            className="rounded-b-2xl"
+          />
+        </div>
+        <div className="mobile-card-list rounded-2xl border border-slate-200 md:hidden dark:border-slate-800">
+          {visibleRows.map((item) => (
+            <article
+              key={item.productId}
+              className={cx(
+                "mobile-data-card",
+                selectedProduct?.productId === item.productId &&
+                  "bg-teal-50/70 dark:bg-teal-500/10",
+              )}
+            >
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="break-words font-extrabold text-slate-950 dark:text-slate-100">
+                    {item.name}
+                  </p>
+                  <p className="mt-1 break-words text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {item.sku} - {item.category ?? "Data tidak tersedia"}
+                  </p>
+                </div>
+                <span className={cx("w-fit rounded-full px-2.5 py-1 text-xs font-extrabold", profitStatusClass(item.status))}>
+                  {item.status}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Qty Net
+                  </span>
+                  <span className="font-bold tabular-nums">{item.netQty}</span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Margin
+                  </span>
+                  <span className="font-bold tabular-nums">
+                    {item.marginValid ? item.margin : "Tidak valid"}
+                  </span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Omzet Bersih
+                  </span>
+                  <span className="font-bold tabular-nums text-slate-950 dark:text-slate-100">
+                    {item.netRevenue}
+                  </span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    HPP Bersih
+                  </span>
+                  <span className="font-bold tabular-nums text-slate-950 dark:text-slate-100">
+                    {item.netCogs}
+                  </span>
+                </p>
+                <p className="col-span-2">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Laba Kotor
+                  </span>
+                  <span className="font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    {item.profit}
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedProduct(item)}
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-extrabold text-blue-700 transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-slate-800"
+              >
+                {selectedProduct?.productId === item.productId ? "Terbuka" : "Detail Produk"}
+              </button>
+            </article>
+          ))}
+          <ClientPaginationControl
+            currentPage={currentPage}
+            totalItems={rows.length}
+            pageSize={REPORT_DETAIL_PAGE_SIZE}
+            itemLabel="data"
+            onPageChange={setPage}
+            className="rounded-b-2xl"
+          />
+        </div>
+        </>
+      ) : (
+        <EmptyState label={summary.products.length ? "Tidak ada produk yang cocok." : "Tidak ada data laba & margin untuk periode ini."} />
+      )}
+
+      {selectedProduct ? (
+        <ReportModal
+          title="Detail Produk Margin"
+          subtitle={`Periode detail: ${period.label}`}
+          onClose={() => setSelectedProduct(null)}
+          panelClassName="max-w-6xl"
+        >
+          <ProfitProductAuditContent product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+        </ReportModal>
+      ) : null}
+    </div>
+  );
+}
+
+function ProfitProductAuditContent({
+  product,
+  onClose,
+}: {
+  product: ProfitProductRow;
+  onClose: () => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="break-words text-base font-extrabold text-slate-950 dark:text-slate-100">
+            {product.name}
+          </h3>
+          <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {product.sku} - {product.category ?? "Data tidak tersedia"}
+          </p>
+          <span className={cx("mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", profitStatusClass(product.status))}>
+            {product.status}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 text-xs font-extrabold text-slate-500 dark:text-slate-400"
+        >
+          Tutup detail
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <InsightBox label="Qty terjual" value={String(product.soldQty)} />
+        <InsightBox label="Qty retur" value={String(product.returnQty)} />
+        <InsightBox label="Qty net" value={String(product.netQty)} />
+        <InsightBox label="Omzet kotor" value={product.grossRevenue} />
+        <InsightBox label="Retur customer" value={product.returnRevenue} />
+        <InsightBox label="Omzet bersih" value={product.netRevenue} />
+        <InsightBox label="HPP penjualan" value={product.salesCogs} />
+        <InsightBox label="HPP retur" value={product.returnCogs} />
+        <InsightBox label="HPP bersih" value={product.netCogs} />
+        <InsightBox label="Laba" value={product.profit} />
+        <InsightBox label="Margin" value={product.marginValid ? product.margin : "Tidak valid"} />
+        <InsightBox label="Status" value={product.status} />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
+          <h4 className="text-sm font-extrabold text-slate-950 dark:text-slate-100">Transaksi Penjualan</h4>
+          {product.sales.length ? (
+            <div className="mt-3 max-w-full overflow-x-auto">
+              <table className="w-full min-w-[700px] text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2">Invoice</th>
+                    <th className="px-3 py-2">Tanggal</th>
+                    <th className="px-3 py-2 text-right">Qty</th>
+                    <th className="px-3 py-2 text-right">Omzet</th>
+                    <th className="px-3 py-2 text-right">HPP</th>
+                    <th className="px-3 py-2 text-right">Laba</th>
+                    <th className="px-3 py-2 text-right">Margin</th>
+                    <th className="px-3 py-2">Payment</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {product.sales.map((sale, index) => (
+                    <tr key={`${sale.invoiceNumber}-${index}`}>
+                      <td className="px-3 py-2 font-bold text-slate-950 dark:text-slate-100">{sale.invoiceNumber}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{sale.createdAt}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">{sale.qty}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-950 dark:text-slate-100">{sale.revenue}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-950 dark:text-slate-100">{sale.cogs}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{sale.profit}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">{sale.margin}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{sale.paymentMethod}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState label="Belum ada transaksi penjualan untuk produk ini pada periode ini." />
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
+          <h4 className="text-sm font-extrabold text-slate-950 dark:text-slate-100">Retur Produk</h4>
+          {product.returns.length ? (
+            <div className="mt-3 max-w-full overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2">Invoice</th>
+                    <th className="px-3 py-2">Tanggal</th>
+                    <th className="px-3 py-2 text-right">Qty</th>
+                    <th className="px-3 py-2 text-right">Retur</th>
+                    <th className="px-3 py-2 text-right">HPP Retur</th>
+                    <th className="px-3 py-2">Alasan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {product.returns.map((saleReturn, index) => (
+                    <tr key={`${saleReturn.invoiceNumber}-${index}`}>
+                      <td className="px-3 py-2 font-bold text-slate-950 dark:text-slate-100">{saleReturn.invoiceNumber}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{saleReturn.createdAt}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-700 dark:text-slate-300">{saleReturn.qty}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-rose-700 dark:text-rose-300">{saleReturn.revenue}</td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums text-rose-700 dark:text-rose-300">{saleReturn.cogs}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{saleReturn.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState label="Belum ada retur produk pada periode ini." />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function InsightBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-      <p className="text-[11px] font-bold text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-sm font-extrabold text-slate-950">{value}</p>
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+      <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 truncate text-sm font-extrabold text-slate-950 dark:text-slate-100">{value}</p>
     </div>
   );
 }

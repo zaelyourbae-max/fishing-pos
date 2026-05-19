@@ -9,6 +9,7 @@ import {
   rupiah,
   type OwnerReportRange,
 } from "@/lib/reports";
+import { serializeProfitSummary } from "@/lib/report-profit-detail";
 
 type ReportsPageProps = {
   searchParams?: Promise<{
@@ -406,33 +407,29 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       number: purchase.purchaseNumber,
       date: formatDate(purchase.createdAt),
       supplier: purchase.supplier.name,
+      itemCount: purchase.items.length,
+      totalQty: purchase.items.reduce((total, item) => total + item.qty, 0),
       total: rupiah(purchase.total ?? 0),
+      createdBy: purchase.user?.name ?? null,
+      notes: purchase.notes ?? null,
+      items: purchase.items.map((item) => {
+        const movement = item.stockMovements[0];
+
+        return {
+          id: item.id,
+          product: item.product.name,
+          sku: item.product.sku ?? "-",
+          category: item.product.category ?? null,
+          qty: item.qty,
+          costPrice: rupiah(item.costPrice),
+          subtotal: rupiah(item.subtotal),
+          stockBefore: movement?.stockBefore ?? null,
+          stockAfter: movement?.stockAfter ?? null,
+          notes: movement?.notes ?? null,
+        };
+      }),
     })),
-    profitSummary: {
-      hasUnitCostSnapshot: report.profit.hasUnitCostSnapshot,
-      grossRevenue: rupiah(report.profit.grossRevenue),
-      returnRevenue: rupiah(report.profit.returnRevenue),
-      netRevenue: rupiah(report.profit.netRevenue),
-      salesCogs: rupiah(report.profit.salesCogs),
-      returnCogs: rupiah(report.profit.returnCogs),
-      netCogs: rupiah(report.profit.netCogs),
-      grossProfit: rupiah(report.profit.grossProfit),
-      netProfit: rupiah(report.profit.netProfit),
-      margin: formatPercent(report.profit.marginPercent),
-      returnCostWarning: report.profit.hasIncompleteReturnCost
-        ? `${report.profit.incompleteReturnCostCount} item retur belum memiliki snapshot HPP. HPP retur lama tidak mengurangi HPP sampai data dilengkapi.`
-        : null,
-      topProducts: report.profit.topProducts.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        sku: item.sku,
-        qty: item.qty,
-        revenue: rupiah(item.revenue),
-        cogs: rupiah(item.cogs),
-        profit: rupiah(item.profit),
-        margin: formatPercent(item.marginPercent),
-      })),
-    },
+    profitSummary: serializeProfitSummary(report.profit),
     monthlySummary: {
       title: `Ringkasan Bulanan (${formatMonthYear(rangeParams.from)})`,
       items: [

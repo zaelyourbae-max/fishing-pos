@@ -25,7 +25,10 @@ export function rupiah(amount: number) {
 }
 
 export function reportDateStamp(date = new Date()) {
-  return date.toISOString().slice(0, 10);
+  const local = new Date(date);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+
+  return local.toISOString().slice(0, 10);
 }
 
 export type OwnerReportRange = {
@@ -285,15 +288,47 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       orderBy: {
         createdAt: "desc",
       },
-      take: 5,
+      take: 200,
       select: {
         id: true,
         purchaseNumber: true,
         total: true,
+        notes: true,
         createdAt: true,
         supplier: {
           select: {
             name: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+          },
+        },
+        items: {
+          select: {
+            id: true,
+            qty: true,
+            costPrice: true,
+            subtotal: true,
+            product: {
+              select: {
+                name: true,
+                sku: true,
+                category: true,
+              },
+            },
+            stockMovements: {
+              orderBy: {
+                createdAt: "asc",
+              },
+              take: 1,
+              select: {
+                stockBefore: true,
+                stockAfter: true,
+                notes: true,
+              },
+            },
           },
         },
       },
@@ -439,6 +474,14 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
           select: {
             name: true,
             sku: true,
+            category: true,
+          },
+        },
+        sale: {
+          select: {
+            invoiceNumber: true,
+            createdAt: true,
+            paymentMethod: true,
           },
         },
       },
@@ -460,6 +503,19 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
           select: {
             name: true,
             sku: true,
+            category: true,
+          },
+        },
+        saleReturn: {
+          select: {
+            reason: true,
+            createdAt: true,
+            sale: {
+              select: {
+                invoiceNumber: true,
+                paymentMethod: true,
+              },
+            },
           },
         },
       },
@@ -513,10 +569,37 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       productId: number;
       name: string;
       sku: string;
+      category: string | null;
+      soldQty: number;
+      returnQty: number;
       qty: number;
+      grossRevenue: number;
+      returnRevenue: number;
       revenue: number;
+      salesCogs: number;
+      returnCogs: number;
       cogs: number;
       profit: number;
+      missingSalesCost: boolean;
+      missingReturnCost: boolean;
+      sales: {
+        invoiceNumber: string;
+        createdAt: Date;
+        qty: number;
+        revenue: number;
+        cogs: number;
+        profit: number;
+        paymentMethod: string;
+      }[];
+      returns: {
+        invoiceNumber: string;
+        createdAt: Date;
+        qty: number;
+        revenue: number;
+        cogs: number;
+        reason: string;
+        paymentMethod: string;
+      }[];
     }
   >();
 
@@ -526,16 +609,42 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       productId: item.productId,
       name: item.product.name,
       sku: item.product.sku ?? "-",
+      category: item.product.category,
+      soldQty: 0,
+      returnQty: 0,
       qty: 0,
+      grossRevenue: 0,
+      returnRevenue: 0,
       revenue: 0,
+      salesCogs: 0,
+      returnCogs: 0,
       cogs: 0,
       profit: 0,
+      missingSalesCost: false,
+      missingReturnCost: false,
+      sales: [],
+      returns: [],
     };
 
-    current.qty += item.qty;
-    current.revenue += itemRevenue;
-    current.cogs += item.qty * item.unitCost;
+    const itemCogs = item.qty * item.unitCost;
+
+    current.soldQty += item.qty;
+    current.qty = current.soldQty - current.returnQty;
+    current.grossRevenue += itemRevenue;
+    current.revenue = current.grossRevenue - current.returnRevenue;
+    current.salesCogs += itemCogs;
+    current.cogs = current.salesCogs - current.returnCogs;
     current.profit = current.revenue - current.cogs;
+    current.missingSalesCost = current.missingSalesCost || item.unitCost <= 0;
+    current.sales.push({
+      invoiceNumber: item.sale.invoiceNumber,
+      createdAt: item.sale.createdAt,
+      qty: item.qty,
+      revenue: itemRevenue,
+      cogs: itemCogs,
+      profit: itemRevenue - itemCogs,
+      paymentMethod: item.sale.paymentMethod,
+    });
     profitByProduct.set(item.productId, current);
   }
 
@@ -545,16 +654,42 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       productId,
       name: item.product.name,
       sku: item.product.sku ?? "-",
+      category: item.product.category,
+      soldQty: 0,
+      returnQty: 0,
       qty: 0,
+      grossRevenue: 0,
+      returnRevenue: 0,
       revenue: 0,
+      salesCogs: 0,
+      returnCogs: 0,
       cogs: 0,
       profit: 0,
+      missingSalesCost: false,
+      missingReturnCost: false,
+      sales: [],
+      returns: [],
     };
 
-    current.qty -= item.qty;
-    current.revenue -= item.subtotal;
-    current.cogs -= item.qty * item.unitCost;
+    const itemCogs = item.qty * item.unitCost;
+
+    current.returnQty += item.qty;
+    current.qty = current.soldQty - current.returnQty;
+    current.returnRevenue += item.subtotal;
+    current.revenue = current.grossRevenue - current.returnRevenue;
+    current.returnCogs += itemCogs;
+    current.cogs = current.salesCogs - current.returnCogs;
     current.profit = current.revenue - current.cogs;
+    current.missingReturnCost = current.missingReturnCost || item.unitCost <= 0;
+    current.returns.push({
+      invoiceNumber: item.saleReturn.sale.invoiceNumber,
+      createdAt: item.saleReturn.createdAt,
+      qty: item.qty,
+      revenue: item.subtotal,
+      cogs: itemCogs,
+      reason: item.saleReturn.reason,
+      paymentMethod: item.saleReturn.sale.paymentMethod,
+    });
     profitByProduct.set(productId, current);
   }
 
@@ -651,6 +786,12 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
         grossProfit,
         netRevenue,
       ),
+      productBreakdown: Array.from(profitByProduct.values())
+        .sort((a, b) => b.profit - a.profit)
+        .map((item) => ({
+          ...item,
+          marginPercent: marginPercent(item.profit, item.revenue),
+        })),
       topProducts: Array.from(profitByProduct.values())
         .sort((a, b) => b.profit - a.profit)
         .slice(0, 5)

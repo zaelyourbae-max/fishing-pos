@@ -22,6 +22,7 @@ const SOFT_TEAL = "#ECFDF5";
 const SOFT_BLUE = "#EFF6FF";
 const SOFT_ROSE = "#FFF1F2";
 const SOFT_AMBER = "#FFFBEB";
+const BUSINESS_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
@@ -113,14 +114,24 @@ function truncate(value: string, max = 22) {
   return value.length > max ? `${value.slice(0, max - 3)}...` : value;
 }
 
-function parseDateParam(value: string | null, end = false) {
+function parseBusinessDate(value: string | null, end = false) {
   if (!value) {
     return undefined;
   }
 
-  const date = new Date(`${value}T00:00:00`);
+  if (!BUSINESS_DATE_PATTERN.test(value)) {
+    return undefined;
+  }
 
-  if (Number.isNaN(date.getTime())) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
     return undefined;
   }
 
@@ -129,6 +140,42 @@ function parseDateParam(value: string | null, end = false) {
   }
 
   return date;
+}
+
+function resolveExportDate(searchParams: URLSearchParams) {
+  const selectedDate = searchParams.get("date");
+
+  if (selectedDate && BUSINESS_DATE_PATTERN.test(selectedDate)) {
+    const from = parseBusinessDate(selectedDate);
+    const to = parseBusinessDate(selectedDate, true);
+
+    if (from && to) {
+      return {
+        range: {
+          from,
+          to,
+        } satisfies OwnerReportRange,
+        periodLabel: formatDate(from),
+        filenameDate: selectedDate,
+      };
+    }
+  }
+
+  const fromKey = searchParams.get("from");
+  const toKey = searchParams.get("to");
+  const from = parseBusinessDate(fromKey);
+  const to = parseBusinessDate(toKey, true);
+  const range: OwnerReportRange = {
+    from,
+    to,
+  };
+  const periodLabel =
+    from || to ? `${formatDate(from)} - ${formatDate(to)}` : "Bulan ini";
+  return {
+    range,
+    periodLabel,
+    filenameDate: reportDateStamp(),
+  };
 }
 
 function formatDate(date?: Date) {
@@ -280,14 +327,9 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const range: OwnerReportRange = {
-    from: parseDateParam(url.searchParams.get("from")),
-    to: parseDateParam(url.searchParams.get("to"), true),
-  };
-  const periodLabel =
-    range.from || range.to
-      ? `${formatDate(range.from)} - ${formatDate(range.to)}`
-      : "Bulan ini";
+  const { range, periodLabel, filenameDate } = resolveExportDate(
+    url.searchParams,
+  );
   const [report, transactions] = await Promise.all([
     getOwnerReportSummary(range),
     getOwnerReportTransactions(60, range),
@@ -563,7 +605,7 @@ export async function GET(req: Request) {
     [...page, pageFooter(index + 1, pages.length)].join("\n"),
   );
 
-  const filename = `owner-report-${reportDateStamp()}.pdf`;
+  const filename = `owner-report-${filenameDate}.pdf`;
 
   return new NextResponse(new Uint8Array(buildPdfPages(finalPages)), {
     headers: {
