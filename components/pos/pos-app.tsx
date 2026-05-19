@@ -417,6 +417,7 @@ export default function PosApp({
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [productPage, setProductPage] = useState(1);
   const [productView, setProductView] = useState<"grid" | "list">("grid");
+  const productSearchRef = useRef("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [summary, setSummary] = useState<SummaryStats>({
     totalProducts: 0,
@@ -896,6 +897,21 @@ export default function PosApp({
         currentProductPage * POS_PRODUCT_PAGE_SIZE,
       ),
     [currentProductPage, filteredProducts],
+  );
+  const handleProductSearch = useCallback((value: string) => {
+    if (productSearchRef.current === value) {
+      return;
+    }
+
+    productSearchRef.current = value;
+    setSearch(value);
+    setProductPage(1);
+  }, []);
+  const handleProductPageChange = useCallback(
+    (page: number) => {
+      setProductPage(Math.min(Math.max(page, 1), productPageCount));
+    },
+    [productPageCount],
   );
   const currentRole = user?.role?.slug ?? currentUser.role?.slug ?? "cashier";
   const canOpenInventoryDetails =
@@ -1827,10 +1843,7 @@ export default function PosApp({
             <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_56px]">
               <LocalLiveSearchInput
                 value={search}
-                onSearch={(value) => {
-                  setSearch(value);
-                  setProductPage(1);
-                }}
+                onSearch={handleProductSearch}
                 placeholder="Cari produk, SKU, barcode..."
               />
 
@@ -1949,7 +1962,7 @@ export default function PosApp({
               currentPage={currentProductPage}
               totalItems={filteredProducts.length}
               pageSize={POS_PRODUCT_PAGE_SIZE}
-              onPageChange={setProductPage}
+              onPageChange={handleProductPageChange}
               itemLabel="produk"
               className="mt-5 -mx-5 -mb-5 rounded-b-xl"
             />
