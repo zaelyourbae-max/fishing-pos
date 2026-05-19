@@ -48,9 +48,9 @@ export default function PaymentConfirmationModal({
   const change = Math.max(paidAmount - total, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 sm:p-7">
-        <div className="border-b border-slate-200 pb-4 dark:border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4">
+      <div className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-900 shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 sm:max-h-[92vh] sm:rounded-2xl">
+        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white p-5 pb-4 dark:border-slate-800 dark:bg-slate-900 sm:p-7 sm:pb-4">
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
             Menunggu pembayaran
           </p>
@@ -63,7 +63,7 @@ export default function PaymentConfirmationModal({
           </h2>
         </div>
 
-        <div className="py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center dark:border-slate-800 dark:bg-slate-800">
             <p className="text-sm text-slate-500 dark:text-slate-400">Total yang harus dibayar</p>
             <p className="metric-value mt-2 text-3xl sm:text-4xl">{rupiah(total)}</p>
@@ -76,7 +76,7 @@ export default function PaymentConfirmationModal({
                 <img
                   src={paymentSettings.qrisImageUrl}
                   alt="QRIS pembayaran"
-                  className="mx-auto h-[min(70vw,360px)] w-[min(70vw,360px)] rounded-2xl border border-slate-200 bg-white object-contain p-3"
+                  className="mx-auto h-[min(82vw,360px)] w-[min(82vw,360px)] rounded-2xl border border-slate-200 bg-white object-contain p-3"
                 />
               ) : (
                 <div className="mx-auto flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
@@ -104,7 +104,7 @@ export default function PaymentConfirmationModal({
                 <p>
                   <span className="text-sm text-teal-700 dark:text-teal-300">Nomor rekening</span>
                   <br />
-                  <b className="text-2xl tracking-wide tabular-nums">
+                  <b className="break-all text-2xl tracking-wide tabular-nums">
                     {paymentSettings.bankAccountNumber}
                   </b>
                 </p>
@@ -135,7 +135,7 @@ export default function PaymentConfirmationModal({
           ) : null}
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 dark:border-slate-800 sm:flex-row sm:justify-end">
+        <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-3 border-t border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:justify-end sm:p-7 sm:pt-4">
           <button
             type="button"
             onClick={onCancel}

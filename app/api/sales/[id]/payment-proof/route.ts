@@ -93,6 +93,16 @@ export async function POST(
     );
   }
 
+  if (
+    sale.transactionStatus !== TransactionStatus.PENDING ||
+    sale.paymentStatus !== PaymentStatus.WAITING_PROOF
+  ) {
+    return NextResponse.json(
+      { message: "Upload bukti hanya tersedia untuk transaksi QRIS pending." },
+      { status: 409 },
+    );
+  }
+
   const uploadDir = join(process.cwd(), "public", "uploads", "payment-proofs");
   await mkdir(uploadDir, { recursive: true });
 

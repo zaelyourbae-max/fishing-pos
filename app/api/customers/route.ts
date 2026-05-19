@@ -101,41 +101,91 @@ export async function GET(req: Request) {
   }
 
   const q = String(searchParams.get("q") ?? "").trim();
+  const lookup = String(searchParams.get("lookup") ?? "").trim();
+  const searchType = String(searchParams.get("type") ?? "").trim();
+  const take = Math.min(
+    Math.max(Number(searchParams.get("limit") ?? (lookup === "pos" ? 8 : 25)) || 25, 1),
+    25,
+  );
+  const rawQueryDigits = q.replace(/\D/g, "");
   const normalizedQueryPhone = normalizeIndonesianPhone(q);
+  const phoneFilters: Prisma.CustomerWhereInput[] = rawQueryDigits
+    ? [
+        {
+          phone: {
+            startsWith: normalizedQueryPhone || rawQueryDigits,
+            mode: "insensitive",
+          },
+        },
+        {
+          phone: {
+            contains: normalizedQueryPhone || rawQueryDigits,
+            mode: "insensitive",
+          },
+        },
+        {
+          phone: {
+            endsWith: normalizedQueryPhone || rawQueryDigits,
+            mode: "insensitive",
+          },
+        },
+        {
+          phone: {
+            startsWith: rawQueryDigits,
+            mode: "insensitive",
+          },
+        },
+        {
+          phone: {
+            contains: rawQueryDigits,
+            mode: "insensitive",
+          },
+        },
+        {
+          phone: {
+            endsWith: rawQueryDigits,
+            mode: "insensitive",
+          },
+        },
+      ]
+    : [];
+  const nameFilters: Prisma.CustomerWhereInput[] = q
+    ? [
+        {
+          name: {
+            contains: q,
+            mode: "insensitive",
+          },
+        },
+      ]
+    : [];
+  const customerCodeFilters: Prisma.CustomerWhereInput[] = q
+    ? [
+        {
+          customerCode: {
+            contains: q,
+            mode: "insensitive",
+          },
+        },
+      ]
+    : [];
+  const searchFilters =
+    searchType === "phone"
+      ? phoneFilters
+      : searchType === "name"
+        ? nameFilters
+        : [...nameFilters, ...phoneFilters, ...customerCodeFilters];
   const where: Prisma.CustomerWhereInput = {
     isActive: true,
     deletedAt: null,
-    ...(q
-      ? {
-          OR: [
-            {
-              name: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-            {
-              phone: {
-                contains: normalizedQueryPhone || q,
-                mode: "insensitive",
-              },
-            },
-            {
-              customerCode: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-          ],
-        }
-      : {}),
+    ...(q && searchFilters.length ? { OR: searchFilters } : {}),
   };
   const customers = await prisma.customer.findMany({
     where,
     orderBy: {
       updatedAt: "desc",
     },
-    take: 25,
+    take,
     select: {
       id: true,
       customerCode: true,
@@ -152,9 +202,8 @@ export async function GET(req: Request) {
     },
   });
   const canViewAnalytics = isOwnerRole(session.role);
-
-  return NextResponse.json({
-    data: customers.map((item) => ({
+  const customerPayload = await Promise.all(
+    customers.map(async (item) => ({
       id: item.id,
       customer_code: item.customerCode,
       name: item.name,
@@ -162,7 +211,14 @@ export async function GET(req: Request) {
       address: item.address,
       notes: item.notes,
       loyalty_points: item.loyaltyPoints,
+      ...(lookup === "pos"
+        ? { loyalty_progress: await getCustomerLoyaltyProgress(item.id) }
+        : {}),
       ...(canViewAnalytics ? { total_transactions: item._count.sales } : {}),
     })),
+  );
+
+  return NextResponse.json({
+    data: customerPayload,
   });
 }

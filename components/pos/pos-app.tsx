@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -20,11 +20,12 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import PaymentConfirmationModal from "@/components/pos/payment-confirmation-modal";
 import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
+import ClientPaginationControl from "@/components/ui/client-pagination-control";
 import {
   Dialog,
   DialogContent,
@@ -109,6 +110,8 @@ type CustomerLookup = {
   loyalty_progress?: LoyaltyProgress | null;
 };
 
+type CustomerSuggestionType = "phone" | "name";
+
 type CheckoutSuccess = {
   id: string;
   invoiceNumber: string;
@@ -173,6 +176,7 @@ type SummaryDetail = {
 
 const TOKEN_KEY = "fishing_pos_token";
 const USER_KEY = "fishing_pos_user";
+const POS_PRODUCT_PAGE_SIZE = 6;
 
 function rupiah(amount: number) {
   return `Rp ${amount.toLocaleString("id-ID")}`;
@@ -293,6 +297,53 @@ function readStoredUser() {
   return value ? (JSON.parse(value) as UserPayload) : null;
 }
 
+function objectValue(value: unknown, key: string) {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeCustomerSuggestion(raw: unknown): CustomerLookup {
+  return {
+    id: Number(objectValue(raw, "id") ?? 0),
+    customerCode: stringValue(
+      objectValue(raw, "customerCode") ?? objectValue(raw, "customer_code"),
+    ),
+    name: stringValue(objectValue(raw, "name")),
+    phone: stringValue(objectValue(raw, "phone")) || null,
+    address: stringValue(objectValue(raw, "address")) || null,
+    notes: stringValue(objectValue(raw, "notes")) || null,
+    loyaltyPoints: Number(
+      objectValue(raw, "loyaltyPoints") ?? objectValue(raw, "loyalty_points") ?? 0,
+    ),
+    loyalty_progress:
+      (objectValue(raw, "loyalty_progress") as LoyaltyProgress | null) ?? null,
+  };
+}
+
+function normalizedPhoneDigits(value: string | null | undefined) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function customerMatchesInput(
+  customer: CustomerLookup | null,
+  phone: string,
+  name: string,
+) {
+  if (!customer) {
+    return false;
+  }
+
+  return (
+    normalizedPhoneDigits(customer.phone) === normalizedPhoneDigits(phone) &&
+    customer.name.trim().toLowerCase() === name.trim().toLowerCase()
+  );
+}
+
 function categoryIconElement(category: string, className = "h-4 w-4"): ReactNode {
   const normalized = category.toLowerCase();
 
@@ -364,7 +415,7 @@ export default function PosApp({
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Semua");
-  const [visibleCount, setVisibleCount] = useState(6);
+  const [productPage, setProductPage] = useState(1);
   const [productView, setProductView] = useState<"grid" | "list">("grid");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [summary, setSummary] = useState<SummaryStats>({
@@ -386,6 +437,19 @@ export default function PosApp({
   const [foundCustomer, setFoundCustomer] = useState<CustomerLookup | null>(
     null,
   );
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerLookup | null>(null);
+  const [customerSuggestions, setCustomerSuggestions] = useState<
+    CustomerLookup[]
+  >([]);
+  const [customerSuggestionType, setCustomerSuggestionType] =
+    useState<CustomerSuggestionType | null>(null);
+  const [customerSuggestionOpen, setCustomerSuggestionOpen] = useState(false);
+  const [customerSuggestionLoading, setCustomerSuggestionLoading] =
+    useState(false);
+  const [activeCustomerSuggestionIndex, setActiveCustomerSuggestionIndex] =
+    useState(0);
+  const customerAutocompleteRef = useRef<HTMLDivElement | null>(null);
   const [normalizedCustomerPhone, setNormalizedCustomerPhone] = useState("");
   const [customerLookupMessage, setCustomerLookupMessage] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
@@ -499,14 +563,203 @@ export default function PosApp({
     });
   }, [request]);
 
+  const fetchActivePendingQris = useCallback(async () => {
+    try {
+      const response = await request("/api/sales?pending_qris=active");
+      const sale = response.data;
+
+      if (!sale) {
+        setCheckoutSuccess((current) =>
+          current?.paymentStatus === "WAITING_PROOF" ? null : current,
+        );
+        return;
+      }
+
+      setCheckoutSuccess({
+        id: String(sale.id ?? ""),
+        invoiceNumber: String(sale.sale_number ?? sale.invoice_number ?? ""),
+        total: Number(sale.grand_total ?? 0),
+        paymentMethod: String(sale.payment_method ?? "QRIS"),
+        transactionStatus: String(sale.transaction_status ?? "PENDING"),
+        paymentStatus: String(sale.payment_status ?? "WAITING_PROOF"),
+        paymentProofUrl: sale.payment_proof_url ?? null,
+      });
+      setLastSaleId(String(sale.id ?? ""));
+      setSuccessMessage(
+        `Transaksi QRIS pending masih menunggu bukti - ${
+          sale.sale_number ?? sale.invoice_number ?? ""
+        }`,
+      );
+      setProofFile(null);
+      setProofMessage("");
+    } catch {
+      // Panel pending bersifat pemulihan state; error utama POS tetap dari flow aktif.
+    }
+  }, [request]);
+
+  function closeCustomerSuggestions() {
+    setCustomerSuggestionOpen(false);
+    setCustomerSuggestionType(null);
+    setCustomerSuggestions([]);
+    setActiveCustomerSuggestionIndex(0);
+    setCustomerSuggestionLoading(false);
+  }
+
+  function selectCustomerSuggestion(customer: CustomerLookup) {
+    setSelectedCustomer(customer);
+    setFoundCustomer(customer);
+    setCustomerPhone(customer.phone ?? "");
+    setCustomerName(customer.name);
+    setCustomerAddress(customer.address ?? "");
+    setNormalizedCustomerPhone(customer.phone ?? "");
+    setCustomerLookupMessage("Customer lama dipilih");
+    setLoyaltyConfirmedKey("");
+    closeCustomerSuggestions();
+  }
+
+  function handleCustomerManualEdit(
+    nextValue: string,
+    type: CustomerSuggestionType,
+  ) {
+    if (type === "phone") {
+      setCustomerPhone(nextValue);
+    } else {
+      setCustomerName(nextValue);
+    }
+
+    setCustomerSuggestionType(type);
+    setCustomerSuggestionOpen(true);
+    setActiveCustomerSuggestionIndex(0);
+    setCustomerLookupMessage("");
+
+    const nextPhone = type === "phone" ? nextValue : customerPhone;
+    const nextName = type === "name" ? nextValue : customerName;
+
+    if (!customerMatchesInput(selectedCustomer, nextPhone, nextName)) {
+      setSelectedCustomer(null);
+      setFoundCustomer(null);
+      setNormalizedCustomerPhone("");
+      setLoyaltyConfirmedKey("");
+    }
+  }
+
+  function handleCustomerSuggestionKeyDown(
+    event: KeyboardEvent<HTMLInputElement>,
+    type: CustomerSuggestionType,
+  ) {
+    if (event.key === "Escape") {
+      closeCustomerSuggestions();
+      return;
+    }
+
+    if (!customerSuggestionOpen || customerSuggestionType !== type) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveCustomerSuggestionIndex((current) =>
+        Math.min(current + 1, Math.max(customerSuggestions.length - 1, 0)),
+      );
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveCustomerSuggestionIndex((current) => Math.max(current - 1, 0));
+    }
+
+    if (event.key === "Enter" && customerSuggestions.length > 0) {
+      event.preventDefault();
+      selectCustomerSuggestion(
+        customerSuggestions[
+          Math.min(activeCustomerSuggestionIndex, customerSuggestions.length - 1)
+        ],
+      );
+    }
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void fetchProducts();
       void fetchSummary();
+      void fetchActivePendingQris();
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [fetchProducts, fetchSummary]);
+  }, [fetchActivePendingQris, fetchProducts, fetchSummary]);
+
+  useEffect(() => {
+    if (!customerSuggestionOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (
+        customerAutocompleteRef.current &&
+        !customerAutocompleteRef.current.contains(event.target as Node)
+      ) {
+        closeCustomerSuggestions();
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [customerSuggestionOpen]);
+
+  useEffect(() => {
+    if (!customerSuggestionType) {
+      return;
+    }
+
+    const rawQuery =
+      customerSuggestionType === "phone" ? customerPhone : customerName;
+    const query =
+      customerSuggestionType === "phone"
+        ? normalizedPhoneDigits(rawQuery)
+        : rawQuery.trim();
+    const minimumLength = 2;
+
+    if (
+      query.length < minimumLength ||
+      customerMatchesInput(selectedCustomer, customerPhone, customerName)
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        setCustomerSuggestionLoading(true);
+        const data = await request(
+          `/api/customers?q=${encodeURIComponent(
+            rawQuery.trim(),
+          )}&lookup=pos&type=${customerSuggestionType}&limit=8`,
+        );
+        const suggestions = Array.isArray(data.data)
+          ? data.data.map(normalizeCustomerSuggestion)
+          : [];
+
+        setCustomerSuggestions(suggestions);
+        setCustomerSuggestionOpen(true);
+        setActiveCustomerSuggestionIndex(0);
+      } catch {
+        setCustomerSuggestions([]);
+        setCustomerSuggestionOpen(false);
+      } finally {
+        setCustomerSuggestionLoading(false);
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    customerName,
+    customerPhone,
+    customerSuggestionType,
+    request,
+    selectedCustomer,
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -631,9 +884,18 @@ export default function PosApp({
     });
   }, [products, search, selectedCategory]);
 
+  const productPageCount = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / POS_PRODUCT_PAGE_SIZE),
+  );
+  const currentProductPage = Math.min(productPage, productPageCount);
   const visibleProducts = useMemo(
-    () => filteredProducts.slice(0, visibleCount),
-    [filteredProducts, visibleCount],
+    () =>
+      filteredProducts.slice(
+        (currentProductPage - 1) * POS_PRODUCT_PAGE_SIZE,
+        currentProductPage * POS_PRODUCT_PAGE_SIZE,
+      ),
+    [currentProductPage, filteredProducts],
   );
   const currentRole = user?.role?.slug ?? currentUser.role?.slug ?? "cashier";
   const canOpenInventoryDetails =
@@ -1012,6 +1274,14 @@ export default function PosApp({
       return;
     }
 
+    const selectedCustomerId = customerMatchesInput(
+      selectedCustomer,
+      customerPhone,
+      customerName,
+    )
+      ? selectedCustomer?.id
+      : undefined;
+
     setLoadingCheckout(true);
     setErrorMessage("");
     setSuccessMessage("");
@@ -1022,6 +1292,7 @@ export default function PosApp({
         body: JSON.stringify({
           paid_amount: paid,
           payment_method: paymentMethod,
+          customer_id: selectedCustomerId,
           loyalty: eligibleLoyaltyMilestone
             ? {
                 benefit_type: loyaltyDraft.type,
@@ -1087,8 +1358,10 @@ export default function PosApp({
       setCustomerPhone("");
       setCustomerAddress("");
       setFoundCustomer(null);
+      setSelectedCustomer(null);
       setNormalizedCustomerPhone("");
       setCustomerLookupMessage("");
+      closeCustomerSuggestions();
       await fetchProducts();
       await fetchSummary();
     } catch (error) {
@@ -1172,6 +1445,8 @@ export default function PosApp({
     setSuccessMessage("");
     setLastSaleId("");
     setCheckoutSuccess(null);
+    setSelectedCustomer(null);
+    closeCustomerSuggestions();
     setPaymentModalOpen(false);
     setErrorMessage("");
     window.location.href = "/login";
@@ -1197,6 +1472,61 @@ export default function PosApp({
     }
   }
 
+  function renderCustomerSuggestions(type: CustomerSuggestionType) {
+    if (!customerSuggestionOpen || customerSuggestionType !== type) {
+      return null;
+    }
+
+    const query =
+      type === "phone" ? normalizedPhoneDigits(customerPhone) : customerName.trim();
+
+    if (query.length < 2) {
+      return null;
+    }
+
+    return (
+      <div className="absolute left-0 right-0 top-full z-40 mt-2 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+        {customerSuggestionLoading ? (
+          <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+            Mencari customer...
+          </div>
+        ) : customerSuggestions.length === 0 ? (
+          <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+            Tidak ada customer ditemukan
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {customerSuggestions.map((customer, index) => (
+              <button
+                key={customer.id}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectCustomerSuggestion(customer)}
+                className={`w-full rounded-xl px-3 py-3 text-left transition ${
+                  index === activeCustomerSuggestionIndex
+                    ? "bg-teal-50 text-teal-900 dark:bg-teal-500/10 dark:text-teal-100"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-900"
+                }`}
+              >
+                <span className="block truncate text-sm font-bold text-slate-950 dark:text-white">
+                  {customer.name}
+                </span>
+                <span className="mt-1 block truncate text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                  {customer.phone ?? "-"} - {customer.customerCode || "Customer"}
+                </span>
+                {customer.address ? (
+                  <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
+                    {customer.address}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <main className="w-full min-w-0 pb-4 text-slate-950 dark:text-slate-50">
       <PaymentConfirmationModal
@@ -1215,10 +1545,10 @@ export default function PosApp({
       />
 
       {summaryDetail ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="max-h-[86vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 text-slate-950 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4">
+          <div className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-950 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 sm:max-h-[86vh] sm:rounded-xl">
+            <div className="sticky top-0 z-10 mb-0 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+              <div className="min-w-0">
                 <h2 className="text-lg font-bold">{summaryDetail.title}</h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {summaryDetail.description}
@@ -1233,6 +1563,7 @@ export default function PosApp({
               </button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
             {summaryDetail.total !== undefined ? (
               <div className="mb-4 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800">
                 <span className="text-slate-500 dark:text-slate-400">
@@ -1262,8 +1593,8 @@ export default function PosApp({
                 >
                   {item.invoiceNumber ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="font-bold">{item.invoiceNumber}</p>
+                      <div className="min-w-0">
+                        <p className="break-all font-bold">{item.invoiceNumber}</p>
                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                           {item.createdAt ? formatDate(item.createdAt) : "-"} -{" "}
                           {item.customer ?? "Walk-in"}
@@ -1287,15 +1618,15 @@ export default function PosApp({
                           </div>
                         ) : null}
                       </div>
-                      <p className="font-bold tabular-nums">
+                      <p className="font-bold tabular-nums sm:text-right">
                         {rupiah(item.amount ?? 0)}
                       </p>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-bold">{item.name}</p>
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        <p className="break-words font-bold">{item.name}</p>
+                        <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">
                           {item.sku ?? "-"}
                           {item.category ? ` - ${item.category}` : ""}
                         </p>
@@ -1322,6 +1653,7 @@ export default function PosApp({
                 </div>
               ))}
             </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -1336,7 +1668,7 @@ export default function PosApp({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <ThemeToggle />
           <div className="relative">
             <button
@@ -1349,7 +1681,7 @@ export default function PosApp({
               <Bell className="h-5 w-5" />
             </button>
             {notificationsOpen ? (
-              <div className="absolute right-0 top-12 z-20 w-64 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+              <div className="absolute right-0 top-12 z-20 w-[min(16rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
                 Belum ada notifikasi
               </div>
             ) : null}
@@ -1468,6 +1800,21 @@ export default function PosApp({
         </div>
       )}
 
+      {cart.length > 0 ? (
+        <a
+          href="#pos-cart"
+          className="fixed inset-x-4 bottom-20 z-30 flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 xl:hidden"
+        >
+          <span className="min-w-0">
+            <span className="block truncate">Keranjang {cartItemCount} item</span>
+            <span className="block text-xs text-slate-500 dark:text-slate-400">
+              Tap untuk checkout
+            </span>
+          </span>
+          <span className="shrink-0 tabular-nums">{rupiah(grandTotal)}</span>
+        </a>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_410px]">
         <div className="min-w-0 space-y-6">
           <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900">
@@ -1482,7 +1829,7 @@ export default function PosApp({
                 value={search}
                 onSearch={(value) => {
                   setSearch(value);
-                  setVisibleCount(6);
+                  setProductPage(1);
                 }}
                 placeholder="Cari produk, SKU, barcode..."
               />
@@ -1492,7 +1839,7 @@ export default function PosApp({
                   value={selectedCategory}
                   onChange={(event) => {
                     setSelectedCategory(event.target.value);
-                    setVisibleCount(6);
+                    setProductPage(1);
                   }}
                   className="min-h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
                 >
@@ -1598,18 +1945,14 @@ export default function PosApp({
               ))}
             </div>
 
-            {filteredProducts.length > visibleCount ? (
-              <div className="mt-5 flex justify-center">
-                <button
-                  onClick={() => setVisibleCount((count) => count + 6)}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition-colors hover:bg-teal-50 dark:border-teal-500/30 dark:bg-slate-950 dark:text-teal-300 dark:hover:bg-teal-500/10"
-                  type="button"
-                >
-                  Lihat lebih banyak
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </div>
-            ) : null}
+            <ClientPaginationControl
+              currentPage={currentProductPage}
+              totalItems={filteredProducts.length}
+              pageSize={POS_PRODUCT_PAGE_SIZE}
+              onPageChange={setProductPage}
+              itemLabel="produk"
+              className="mt-5 -mx-5 -mb-5 rounded-b-xl"
+            />
           </section>
 
           <section>
@@ -1625,7 +1968,7 @@ export default function PosApp({
                     key={category}
                     onClick={() => {
                       setSelectedCategory(category);
-                      setVisibleCount(6);
+                      setProductPage(1);
                     }}
                     className={
                       active
@@ -1763,7 +2106,10 @@ export default function PosApp({
         </div>
 
         <aside className="min-w-0 space-y-5 xl:sticky xl:top-6 xl:self-start">
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <section
+            ref={customerAutocompleteRef}
+            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+          >
             <div className="mb-5 flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                 <User className="h-5 w-5" />
@@ -1782,18 +2128,30 @@ export default function PosApp({
                   <input
                     type="tel"
                     value={customerPhone}
-                    onChange={(event) => setCustomerPhone(event.target.value)}
+                    onChange={(event) =>
+                      handleCustomerManualEdit(event.target.value, "phone")
+                    }
+                    onFocus={() => {
+                      setCustomerSuggestionType("phone");
+                      setCustomerSuggestionOpen(true);
+                    }}
+                    onKeyDown={(event) =>
+                      handleCustomerSuggestionKeyDown(event, "phone")
+                    }
                     className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                     placeholder="08xxxxxxxxxx"
                   />
+                  {renderCustomerSuggestions("phone")}
                   {customerPhone ? (
                     <button
                       type="button"
                       onClick={() => {
                         setCustomerPhone("");
+                        setSelectedCustomer(null);
                         setFoundCustomer(null);
                         setNormalizedCustomerPhone("");
                         setCustomerLookupMessage("");
+                        closeCustomerSuggestions();
                       }}
                       className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                       aria-label="Bersihkan nomor customer"
@@ -1813,10 +2171,20 @@ export default function PosApp({
                 <input
                   type="text"
                   value={customerName}
-                  onChange={(event) => setCustomerName(event.target.value)}
+                  onChange={(event) =>
+                    handleCustomerManualEdit(event.target.value, "name")
+                  }
+                  onFocus={() => {
+                    setCustomerSuggestionType("name");
+                    setCustomerSuggestionOpen(true);
+                  }}
+                  onKeyDown={(event) =>
+                    handleCustomerSuggestionKeyDown(event, "name")
+                  }
                   className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                   placeholder="Nama customer (opsional)"
                 />
+                <div className="relative">{renderCustomerSuggestions("name")}</div>
               </div>
 
               <div>
@@ -1889,7 +2257,7 @@ export default function PosApp({
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <section id="pos-cart" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <ShoppingCart className="h-5 w-5 text-slate-900 dark:text-slate-100" />
@@ -1922,10 +2290,10 @@ export default function PosApp({
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-950 dark:text-slate-50">
+                      <p className="line-clamp-2 break-words font-semibold text-slate-950 dark:text-slate-50">
                         {item.name}
                       </p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
                         {item.sku}
                       </p>
                     </div>
@@ -1972,7 +2340,7 @@ export default function PosApp({
                         </p>
                         {cartLineDiscountAmount(item) > 0 &&
                         item.discountReason ? (
-                          <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                          <p className="mt-1 break-words text-xs text-slate-500 dark:text-slate-400">
                             {item.discountReason}
                           </p>
                         ) : null}

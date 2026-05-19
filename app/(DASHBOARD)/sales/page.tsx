@@ -17,6 +17,7 @@ import { requireProtectedPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import LiveSearchInput from "@/components/search/live-search-input";
 import CancelSaleButton from "@/components/sales/cancel-sale-button";
+import PaymentProofActionButton from "@/components/sales/payment-proof-action-button";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 
 type SalesPageProps = {
@@ -148,6 +149,18 @@ function saleDiscountAmount(items: { discountAmount: unknown }[]) {
   );
 }
 
+function isPendingQrisSale(sale: {
+  paymentMethod: string;
+  transactionStatus: string;
+  paymentStatus: string;
+}) {
+  return (
+    sale.paymentMethod.toUpperCase().includes("QRIS") &&
+    sale.transactionStatus === "PENDING" &&
+    sale.paymentStatus === "WAITING_PROOF"
+  );
+}
+
 export default async function SalesPage({ searchParams }: SalesPageProps) {
   const session = await requireProtectedPage();
   const params = (await searchParams) ?? {};
@@ -216,6 +229,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           paymentMethod: true,
           transactionStatus: true,
           paymentStatus: true,
+          paymentProofUrl: true,
           cancelReason: true,
           cancelledAt: true,
           loyaltyApplied: true,
@@ -333,9 +347,9 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
               : "Semua transaksi dengan filter dasar."}
           </p>
         </div>
-        <div className="inline-flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+        <div className="inline-flex min-h-12 max-w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
           <Calendar className="h-4 w-4 text-slate-500" />
-          <span>{rangeLabel}</span>
+          <span className="min-w-0 break-words">{rangeLabel}</span>
           <ChevronDown className="h-4 w-4 text-slate-400" />
         </div>
       </div>
@@ -488,6 +502,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 const discountTotal = saleDiscountAmount(sale.items);
                 const paymentName =
                   paymentLabel.get(sale.paymentMethod) ?? sale.paymentMethod;
+                const isPendingQris = isPendingQrisSale(sale);
 
                 return (
                   <tr key={sale.id} className="text-sm">
@@ -562,7 +577,13 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {isPendingQris ? (
+                          <PaymentProofActionButton
+                            saleId={sale.id}
+                            invoiceNumber={sale.invoiceNumber}
+                          />
+                        ) : null}
                         {sale.transactionStatus === "PENDING" ? (
                           <CancelSaleButton
                             saleId={sale.id}
@@ -596,12 +617,13 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             const discountTotal = saleDiscountAmount(sale.items);
             const paymentName =
               paymentLabel.get(sale.paymentMethod) ?? sale.paymentMethod;
+            const isPendingQris = isPendingQrisSale(sale);
 
             return (
               <div key={sale.id} className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className="truncate font-bold text-slate-950 dark:text-white">
+                    <p className="break-all font-bold text-slate-950 dark:text-white">
                       {sale.invoiceNumber}
                     </p>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -609,7 +631,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     </p>
                   </div>
                   <p
-                    className={`shrink-0 text-right font-bold tabular-nums ${
+                    className={`font-bold tabular-nums sm:shrink-0 sm:text-right ${
                       hasReturn
                         ? "text-rose-600 dark:text-rose-300"
                         : "text-slate-950 dark:text-white"
@@ -631,14 +653,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     </span>
                     {sale.cashier.name}
                   </p>
-                  <p className="inline-flex items-center gap-2">
+                  <p className="flex min-w-0 flex-wrap items-center gap-2">
                     <span className="block text-xs font-medium text-slate-400">
                       Payment
                     </span>
                     {paymentIcon(sale.paymentMethod)}
-                    {paymentName}
+                    <span className="break-words">{paymentName}</span>
                   </p>
-                  <p className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <span className="block w-full text-xs font-medium text-slate-400">
                       Status
                     </span>
@@ -648,24 +670,25 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
                       {sale.paymentStatus}
                     </span>
-                  </p>
-                  <p>
+                  </div>
+                  <div>
                     <span className="block text-xs font-medium text-slate-400">
                       Item
                     </span>
-                    {sale.items.length} item
+                    <span>{sale.items.length} item</span>
+                    <div className="mt-2 flex flex-wrap gap-2">
                     {hasReturn ? (
-                      <span className="ml-2 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                      <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
                         Ada retur
                       </span>
                     ) : null}
                     {discountTotal > 0 ? (
-                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
                         Diskon {rupiah(discountTotal)}
                       </span>
                     ) : null}
                     {sale.loyaltyApplied ? (
-                      <span className="ml-2 rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+                      <span className="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
                         Loyalty
                         {sale.loyaltyMilestone
                           ? ` ke-${sale.loyaltyMilestone}`
@@ -673,23 +696,32 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       </span>
                     ) : null}
                     {sale.transactionStatus === "CANCELLED" ? (
-                      <span className="ml-2 rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                      <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
                         Dibatalkan
                       </span>
                     ) : null}
-                  </p>
+                    </div>
+                  </div>
                 </div>
                 {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
                   <p className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
                     {sale.cancelReason}
                   </p>
                 ) : null}
-                {sale.transactionStatus === "PENDING" ? (
-                  <div className="mt-4">
-                    <CancelSaleButton
-                      saleId={sale.id}
-                      invoiceNumber={sale.invoiceNumber}
-                    />
+                {isPendingQris || sale.transactionStatus === "PENDING" ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {isPendingQris ? (
+                      <PaymentProofActionButton
+                        saleId={sale.id}
+                        invoiceNumber={sale.invoiceNumber}
+                      />
+                    ) : null}
+                    {sale.transactionStatus === "PENDING" ? (
+                      <CancelSaleButton
+                        saleId={sale.id}
+                        invoiceNumber={sale.invoiceNumber}
+                      />
+                    ) : null}
                   </div>
                 ) : null}
                 <Link
@@ -714,7 +746,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 )}`}{" "}
             dari {totalSales} data
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             <Link
               aria-disabled={safePage === 1}
               href={buildHref(pageParams, Math.max(1, safePage - 1))}

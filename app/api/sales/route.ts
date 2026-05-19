@@ -88,6 +88,72 @@ function calculateDiscount(input: {
   return Math.round(input.value);
 }
 
+function saleAccessWhere(role: string | null, userId: number) {
+  return role === "cashier" ? { cashierId: userId } : {};
+}
+
+export async function GET(req: Request) {
+  const auth = requireCashier(req);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const { searchParams } = new URL(req.url);
+
+  if (searchParams.get("pending_qris") !== "active") {
+    return NextResponse.json(
+      {
+        message: "Query tidak didukung.",
+      },
+      {
+        status: 400,
+      },
+    );
+  }
+
+  const sale = await prisma.sale.findFirst({
+    where: {
+      ...saleAccessWhere(auth.session.role, auth.session.sub),
+      transactionStatus: "PENDING",
+      paymentStatus: "WAITING_PROOF",
+      paymentMethod: {
+        contains: "QRIS",
+        mode: "insensitive",
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      subtotal: true,
+      paymentMethod: true,
+      transactionStatus: true,
+      paymentStatus: true,
+      paymentProofUrl: true,
+      createdAt: true,
+    },
+  });
+
+  return NextResponse.json({
+    data: sale
+      ? {
+          id: sale.id,
+          sale_number: sale.invoiceNumber,
+          invoice_number: sale.invoiceNumber,
+          grand_total: sale.subtotal,
+          payment_method: sale.paymentMethod,
+          transaction_status: sale.transactionStatus,
+          payment_status: sale.paymentStatus,
+          payment_proof_url: sale.paymentProofUrl,
+          created_at: sale.createdAt,
+        }
+      : null,
+  });
+}
+
 export async function POST(req: Request) {
   const auth = requireCashier(req);
 
