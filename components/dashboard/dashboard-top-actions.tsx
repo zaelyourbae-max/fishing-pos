@@ -135,8 +135,8 @@ export default function DashboardTopActions({
 
   return (
     <>
-      <div className="flex w-full flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
-        <div className="relative flex shrink-0 justify-end">
+      <div className="grid w-full grid-cols-[44px_minmax(0,1fr)_44px] gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 xl:justify-end">
+        <div className="relative col-start-1 row-start-1 flex shrink-0 justify-end">
           <button
             type="button"
             onClick={() => setNotificationOpen((open) => !open)}
@@ -152,7 +152,7 @@ export default function DashboardTopActions({
             ) : null}
           </button>
           {notificationOpen ? (
-            <div className="absolute right-0 top-12 z-30 w-72 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="absolute left-0 top-12 z-30 w-72 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:left-auto sm:right-0">
               <p className="text-sm font-bold text-slate-950 dark:text-white">
                 Notifikasi Dashboard
               </p>
@@ -170,8 +170,8 @@ export default function DashboardTopActions({
           ) : null}
         </div>
 
-        <form className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex-none">
-          <label className="relative min-w-0 flex-1 sm:flex-none">
+        <form className="contents sm:flex sm:min-w-0 sm:flex-none sm:items-center sm:gap-2">
+          <label className="relative col-start-2 row-start-1 min-w-0 sm:flex-none">
             <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               type="date"
@@ -183,7 +183,7 @@ export default function DashboardTopActions({
           </label>
           <button
             type="submit"
-            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+            className="col-start-1 row-start-2 inline-flex h-11 min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           >
             Terapkan
           </button>
@@ -191,7 +191,7 @@ export default function DashboardTopActions({
 
         <a
           href={`/dashboard?date=${selectedDateInput}`}
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-12 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+          className="col-start-3 row-start-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-12 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           aria-label="Refresh dashboard"
           title="Refresh dashboard"
         >
@@ -202,7 +202,7 @@ export default function DashboardTopActions({
           type="button"
           onClick={exportPdf}
           disabled={exportingPdf}
-          className="inline-flex h-11 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:flex-none sm:px-5 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
+          className="col-span-2 col-start-2 row-start-2 inline-flex h-11 min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:flex-none sm:px-5 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
           title="Export PDF"
         >
           {exportingPdf ? (
@@ -216,7 +216,7 @@ export default function DashboardTopActions({
         <button
           type="button"
           onClick={() => setClosingOpen(true)}
-          className={`inline-flex h-11 w-full min-w-[150px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 sm:h-12 sm:w-auto dark:focus:ring-teal-500/10 ${
+          className={`col-span-3 row-start-3 inline-flex h-11 w-full min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 sm:h-12 sm:w-auto sm:min-w-[150px] dark:focus:ring-teal-500/10 ${
             isSelectedClosed
               ? "bg-teal-600 hover:bg-teal-700"
               : isSelectedToday
