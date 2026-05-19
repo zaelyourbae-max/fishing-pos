@@ -7,6 +7,7 @@ import { formatDateTime, RETURN_REASON_LABELS, rupiah } from "@/lib/returns";
 import LiveSearchInput from "@/components/search/live-search-input";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import PaginationLinks from "@/components/ui/pagination-links";
+import { operatorLabel } from "@/lib/transaction-identity";
 
 type ReturnsPageProps = {
   searchParams?: Promise<{
@@ -108,6 +109,12 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
             cashier: {
               select: {
                 name: true,
+                role: {
+                  select: {
+                    name: true,
+                    slug: true,
+                  },
+                },
               },
             },
             customer: {
@@ -182,7 +189,7 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
               <th className="p-4 text-left">Tanggal</th>
               <th className="p-4 text-left">Invoice</th>
               <th className="p-4 text-left">Customer</th>
-              <th className="p-4 text-left">Kasir</th>
+              <th className="p-4 text-left">Operator</th>
               <th className="p-4 text-left">Alasan</th>
               <th className="p-4 text-left">Refund</th>
               <th className="p-4 text-left">Status</th>
@@ -215,7 +222,7 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
                 <td className="p-4 text-slate-700 dark:text-slate-300">
                   {saleReturn.sale.customer?.name ?? "Walk-in"}
                 </td>
-                <td className="p-4 text-slate-700 dark:text-slate-300">{saleReturn.sale.cashier.name}</td>
+                <td className="p-4 text-slate-700 dark:text-slate-300">{operatorLabel(saleReturn.sale.cashier)}</td>
                 <td className="p-4 text-slate-700 dark:text-slate-300">
                   {RETURN_REASON_LABELS[
                     saleReturn.reason as keyof typeof RETURN_REASON_LABELS
@@ -270,9 +277,9 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
                 </p>
                 <p className="min-w-0">
                   <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
-                    Kasir
+                    Operator
                   </span>
-                  <span className="break-words">{saleReturn.sale.cashier.name}</span>
+                  <span className="break-words">{operatorLabel(saleReturn.sale.cashier)}</span>
                 </p>
                 <p className="min-w-0">
                   <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">

@@ -19,6 +19,7 @@ import {
   LOYALTY_MIN_PURCHASE_AMOUNT,
   loyaltyProgressFromValidCount,
 } from "@/lib/loyalty";
+import { operatorLabel } from "@/lib/transaction-identity";
 import PaginationLinks from "@/components/ui/pagination-links";
 
 type CustomerDetailPageProps = {
@@ -121,6 +122,12 @@ export default async function CustomerDetailPage({
         cashier: {
           select: {
             name: true,
+            role: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
         items: {
@@ -376,7 +383,7 @@ export default async function CustomerDetailPage({
                     <tr>
                       <th className="px-5 py-4">Invoice</th>
                       <th className="px-5 py-4">Tanggal</th>
-                      <th className="px-5 py-4">Kasir</th>
+                      <th className="px-5 py-4">Operator</th>
                       <th className="px-5 py-4">Item</th>
                       <th className="px-5 py-4">Payment</th>
                       <th className="px-5 py-4">Status</th>
@@ -411,7 +418,7 @@ export default async function CustomerDetailPage({
                           {formatDateTime(sale.createdAt)}
                         </td>
                         <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
-                          {sale.cashier.name}
+                          {operatorLabel(sale.cashier)}
                         </td>
                         <td className="px-5 py-4 text-slate-700 dark:text-slate-300">
                           <div className="max-w-xs space-y-1">
@@ -460,7 +467,8 @@ export default async function CustomerDetailPage({
                           {sale.invoiceNumber}
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          {formatDateTime(sale.createdAt)} - {sale.cashier.name}
+                          {formatDateTime(sale.createdAt)} • Operator{" "}
+                          {operatorLabel(sale.cashier)}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
                           {sale.paymentMethod} - {sale.transactionStatus} /{" "}

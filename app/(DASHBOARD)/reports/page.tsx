@@ -447,6 +447,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       createdAt: sale.createdAt.toISOString(),
       createdAtLabel: formatDateTime(sale.createdAt),
       cashierName: sale.cashier.name,
+      cashierRoleName: sale.cashier.role?.name ?? null,
+      cashierRoleSlug: sale.cashier.role?.slug ?? null,
       customerName: sale.customer?.name ?? "Walk-in",
       paymentMethod: sale.paymentMethod,
       paymentLabel: sale.paymentLabel,

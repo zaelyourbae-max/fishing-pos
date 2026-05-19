@@ -102,25 +102,25 @@ export default function KpiActionCard({
         onClick={() => setOpen(true)}
         aria-pressed={open}
         title={`Lihat detail ${title}`}
-        className={`group flex min-h-[116px] w-full cursor-pointer items-center justify-between gap-4 rounded-[22px] border bg-white px-4 py-4 text-left shadow-[0_14px_34px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_20px_48px_rgba(15,23,42,0.075)] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:bg-slate-950/70 dark:focus:ring-teal-500/10 sm:px-5 ${
+        className={`group relative flex min-h-[122px] w-full cursor-pointer flex-col items-start justify-between gap-3 rounded-[22px] border bg-white px-3.5 py-4 text-left shadow-[0_14px_34px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_20px_48px_rgba(15,23,42,0.075)] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:bg-slate-950/70 dark:focus:ring-teal-500/10 sm:min-h-[116px] sm:flex-row sm:items-center sm:gap-4 sm:px-5 ${
           open
             ? "border-teal-300 ring-4 ring-teal-100 dark:border-teal-500/60 dark:ring-teal-500/10"
             : "border-slate-200 dark:border-slate-800"
         }`}
       >
         <span
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${toneClass[tone]}`}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12 ${toneClass[tone]}`}
         >
-          <Icon className="h-6 w-6" />
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block line-clamp-2 text-xs font-bold leading-snug text-slate-500 dark:text-slate-400 sm:text-sm">
+          <span className="block line-clamp-2 pr-6 text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:pr-0 sm:text-sm">
             {title}
           </span>
-          <span className="mt-1.5 block whitespace-nowrap text-xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-2xl 2xl:text-xl">
+          <span className="mt-1.5 block whitespace-nowrap text-lg font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-2xl 2xl:text-xl">
             {value}
           </span>
-          <span className="mt-2 block line-clamp-2 text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">
+          <span className="mt-2 block line-clamp-2 text-[11px] font-semibold leading-snug text-slate-500 dark:text-slate-400 sm:text-xs">
             {trend ? (
               <span
                 className={
@@ -135,7 +135,7 @@ export default function KpiActionCard({
             {helper}
           </span>
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition duration-200 group-hover:translate-x-0.5 group-hover:text-teal-600" />
+        <ChevronRight className="absolute right-3 top-4 h-4 w-4 shrink-0 text-slate-400 transition duration-200 group-hover:translate-x-0.5 group-hover:text-teal-600 sm:static" />
       </button>
 
       {open ? (

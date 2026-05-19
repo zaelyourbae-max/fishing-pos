@@ -7,6 +7,7 @@ import DeadStockCard, {
 import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireCashierPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
+import { transactionIdentityLabel } from "@/lib/transaction-identity";
 
 const LOW_STOCK_LIMIT = 10;
 
@@ -85,6 +86,17 @@ export default async function CashierPage() {
             select: {
               name: true,
               phone: true,
+            },
+          },
+          cashier: {
+            select: {
+              name: true,
+              role: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
             },
           },
           _count: {
@@ -216,7 +228,10 @@ export default async function CashierPage() {
                 <div className="min-w-0">
                   <p className="break-all font-semibold text-slate-950 dark:text-white">{sale.invoiceNumber}</p>
                   <p className="mt-1 break-words text-sm text-slate-400">
-                    {sale.customer?.name ?? "Walk-in"} - {sale._count.items} item
+                    {transactionIdentityLabel({
+                      operator: sale.cashier,
+                      customer: sale.customer,
+                    })} • {sale._count.items} item
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>

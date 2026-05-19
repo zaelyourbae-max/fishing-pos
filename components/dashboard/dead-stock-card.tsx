@@ -91,13 +91,19 @@ export default function DeadStockCard({
           </span>
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div
+          className={
+            dark
+              ? "mt-4 space-y-3"
+              : "mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2"
+          }
+        >
           {items.length === 0 ? (
             <div
               className={
                 dark
                   ? "rounded-2xl border border-dashed border-slate-700 p-5 text-sm text-slate-400"
-                  : "rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400"
+                  : "rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400 sm:col-span-2 xl:col-span-1 2xl:col-span-2"
               }
             >
               Tidak ada dead stock untuk periode ini.

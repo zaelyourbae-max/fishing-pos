@@ -149,7 +149,7 @@ export default function TransactionPaymentPanel({
 
   return (
     <>
-      <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
+      <section className="order-2 min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 sm:p-5 xl:order-1">
         <SectionHeader title="Transaksi Terakhir" href="/sales" />
         {selectedPayment ? (
           <button
@@ -248,7 +248,7 @@ export default function TransactionPaymentPanel({
         </div>
       </section>
 
-      <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
+      <section className="order-1 min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 sm:p-5 xl:order-2">
         <SectionHeader title="Ringkasan Pembayaran Hari Ini" href="/reports" action="Lihat detail" />
         <div className="mt-5 grid min-w-0 items-center gap-5 lg:grid-cols-[minmax(140px,176px)_1fr]">
           <div className="relative mx-auto flex h-36 w-36 items-center justify-center rounded-full sm:h-40 sm:w-40">

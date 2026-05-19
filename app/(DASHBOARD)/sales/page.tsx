@@ -19,6 +19,7 @@ import LiveSearchInput from "@/components/search/live-search-input";
 import CancelSaleButton from "@/components/sales/cancel-sale-button";
 import PaymentProofActionButton from "@/components/sales/payment-proof-action-button";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
+import { operatorLabel } from "@/lib/transaction-identity";
 
 type SalesPageProps = {
   searchParams?: Promise<{
@@ -238,6 +239,12 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           cashier: {
             select: {
               name: true,
+              role: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
             },
           },
           customer: {
@@ -304,6 +311,12 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             select: {
               id: true,
               name: true,
+              role: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
             },
           }),
       prisma.paymentMethod.findMany({
@@ -383,17 +396,17 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           {session.role !== "cashier" ? (
             <label className="space-y-2">
               <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Kasir
+                Operator
               </span>
               <select
                 name="cashier"
                 defaultValue={params.cashier ?? ""}
                 className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
               >
-                <option value="">Semua Kasir</option>
+                <option value="">Semua Operator</option>
                 {cashiers.map((cashier) => (
                   <option key={cashier.id} value={cashier.id}>
-                    {cashier.name}
+                    {operatorLabel(cashier)}
                   </option>
                 ))}
               </select>
@@ -481,7 +494,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 <th className="px-5 py-4">Invoice</th>
                 <th className="px-5 py-4">Tanggal</th>
                 <th className="px-5 py-4">Customer</th>
-                <th className="px-5 py-4">Kasir</th>
+                <th className="px-5 py-4">Operator</th>
                 <th className="px-5 py-4">Total</th>
                 <th className="px-5 py-4">Payment</th>
                 <th className="px-5 py-4">Status</th>
@@ -551,7 +564,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       {sale.customer?.name ?? "Walk-in"}
                     </td>
                     <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                      {sale.cashier.name}
+                      {operatorLabel(sale.cashier)}
                     </td>
                     <td
                       className={`px-5 py-4 font-bold tabular-nums ${
@@ -649,9 +662,9 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                   </p>
                   <p>
                     <span className="block text-xs font-medium text-slate-400">
-                      Kasir
+                      Operator
                     </span>
-                    {sale.cashier.name}
+                    {operatorLabel(sale.cashier)}
                   </p>
                   <p className="flex min-w-0 flex-wrap items-center gap-2">
                     <span className="block text-xs font-medium text-slate-400">

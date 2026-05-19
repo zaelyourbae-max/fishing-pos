@@ -32,6 +32,7 @@ import { LOW_STOCK_LIMIT, rupiah } from "@/lib/reports";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { getSettings } from "@/lib/settings";
+import { transactionIdentityLabel } from "@/lib/transaction-identity";
 
 type DashboardPageProps = {
   searchParams?: Promise<{
@@ -332,17 +333,17 @@ function MiniMetricCard({
   tone: StatTone;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-100 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:p-4">
+    <div className="flex min-w-0 items-start gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-100 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:items-center sm:gap-3 sm:p-4">
       <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${toneClass[tone]}`}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12 ${toneClass[tone]}`}
       >
-        <Icon className="h-6 w-6" />
+        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">
           {title}
         </span>
-        <span className="mt-1 block whitespace-nowrap text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-base xl:text-lg">
+        <span className="mt-1 block whitespace-nowrap text-[13px] font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-base xl:text-lg">
           {value}
         </span>
         <span className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
@@ -583,6 +584,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         cashier: {
           select: {
             name: true,
+            role: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
         customer: {
@@ -681,6 +688,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         cashier: {
           select: {
             name: true,
+            role: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
         customer: {
@@ -720,6 +733,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             cashier: {
               select: {
                 name: true,
+                role: {
+                  select: {
+                    name: true,
+                    slug: true,
+                  },
+                },
               },
             },
             customer: {
@@ -823,7 +842,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const todayTransactionRows: KpiDetail["rows"] = todaySalesQuick.map((sale) => ({
     label: sale.invoiceNumber,
     value: rupiah(sale.subtotal),
-    meta: `${sale.cashier.name} - ${sale.customer?.name ?? "Walk-in"} - ${sale._count.items} item`,
+    meta: `${transactionIdentityLabel({
+      operator: sale.cashier,
+      customer: sale.customer,
+    })} • ${sale._count.items} item`,
     tone: sale._count.returns > 0 ? "danger" : "default",
   }));
   const todayReturnRows: KpiDetail["rows"] = todayReturnsQuick.map((saleReturn) => ({
@@ -1118,6 +1140,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     subtotal: rupiah(sale.subtotal),
     createdAt: formatDateTime(sale.createdAt),
     cashierName: sale.cashier.name,
+    cashierRoleName: sale.cashier.role?.name ?? null,
+    cashierRoleSlug: sale.cashier.role?.slug ?? null,
     customerName: sale.customer?.name ?? "Walk-in",
     itemCount: sale._count.items,
     returnCount: sale._count.returns,
@@ -1281,51 +1305,57 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5">
-      <div className="rounded-[28px] border border-slate-200 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 space-y-4">
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-normal text-slate-950 sm:text-[28px] dark:text-white">
-                {greeting}, {ownerName}
-              </h1>
-              <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                {storeName}
-              </p>
-            </div>
-            <DashboardStatusChips
-              selectedDateInput={selectedDateInput}
-              selectedDateLabel={formatDate(selectedDate)}
-              userName={ownerName}
-              role={session.role}
-              lowStockCount={lowStockProducts.length}
-            />
-          </div>
+    <div className="mx-auto w-full max-w-[1480px] space-y-4 sm:space-y-5">
+      <section className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.045)] dark:border-slate-800 dark:bg-slate-950/80 sm:p-5 xl:p-6">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
+            {greeting}, {ownerName}
+          </h1>
+          <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {storeName}
+          </p>
+        </div>
 
-          <DashboardTopActions
+        <div className="mt-4">
+          <DashboardStatusChips
             selectedDateInput={selectedDateInput}
-            selectedDateLabel={headerDate}
-            cashAmount={rupiah(cashTodayValue)}
-            cashValue={cashTodayValue}
-            grossOmzet={rupiah(grossToday)}
-            returnValue={rupiah(returnTodayValue)}
-            transactionCount={salesToday._count._all}
-            notificationCount={operationalAlerts.length}
-            payments={paymentRows}
-            closedBy={ownerName}
+            selectedDateLabel={formatDate(selectedDate)}
+            userName={ownerName}
+            role={session.role}
+            lowStockCount={lowStockProducts.length}
           />
         </div>
-      </div>
+      </section>
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-        {dashboardKpiCards.map((card) => (
-          <div key={card.title} className="min-w-0">
+      <section className="rounded-[24px] border border-slate-200/80 bg-white/95 p-3 shadow-[0_14px_38px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-950/80 sm:p-4">
+        <DashboardTopActions
+          selectedDateInput={selectedDateInput}
+          selectedDateLabel={headerDate}
+          cashAmount={rupiah(cashTodayValue)}
+          cashValue={cashTodayValue}
+          grossOmzet={rupiah(grossToday)}
+          returnValue={rupiah(returnTodayValue)}
+          transactionCount={salesToday._count._all}
+          notificationCount={operationalAlerts.length}
+          payments={paymentRows}
+          closedBy={ownerName}
+        />
+      </section>
+
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
+        {dashboardKpiCards.map((card, index) => (
+          <div
+            key={card.title}
+            className={`min-w-0 ${
+              index === dashboardKpiCards.length - 1 ? "col-span-2 lg:col-span-1" : ""
+            }`}
+          >
             <KpiActionCard key={card.title} {...card} />
           </div>
         ))}
       </div>
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
         <TransactionPaymentPanel
           recentSales={recentSaleRows}
           paymentSummary={paymentRows}
@@ -1403,7 +1433,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 lg:col-span-2 xl:col-span-12">
           <SectionHeader title={`Ringkasan Bulanan (${formatMonthYear(monthStart)})`} href="/reports" />
-          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="mt-4 grid min-w-0 grid-cols-2 gap-3 md:grid-cols-2 2xl:grid-cols-3">
             {monthlyMetrics.map((metric) => (
               <MiniMetricCard key={metric.title} {...metric} />
             ))}

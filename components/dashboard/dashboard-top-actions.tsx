@@ -6,6 +6,7 @@ import {
   Banknote,
   Bell,
   Calendar,
+  CalendarDays,
   CreditCard,
   Download,
   FileText,
@@ -134,13 +135,13 @@ export default function DashboardTopActions({
 
   return (
     <>
-      <div className="flex w-full flex-wrap items-center justify-end gap-3 xl:w-auto">
-        <div className="relative flex shrink-0 justify-end xl:order-last">
+      <div className="flex w-full flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
+        <div className="relative flex shrink-0 justify-end">
           <button
             type="button"
             onClick={() => setNotificationOpen((open) => !open)}
             aria-expanded={notificationOpen}
-            className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10 sm:h-12 sm:w-12"
             title="Buka notifikasi"
           >
             <Bell className="h-4 w-4" />
@@ -169,20 +170,20 @@ export default function DashboardTopActions({
           ) : null}
         </div>
 
-        <form className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+        <form className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex-none">
           <label className="relative min-w-0 flex-1 sm:flex-none">
             <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               type="date"
               name="date"
               defaultValue={selectedDateInput}
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:w-52 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:focus:ring-blue-500/10"
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-52 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:focus:ring-blue-500/10"
               title="Pilih tanggal dashboard"
             />
           </label>
           <button
             type="submit"
-            className="inline-flex h-12 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           >
             Terapkan
           </button>
@@ -190,7 +191,7 @@ export default function DashboardTopActions({
 
         <a
           href={`/dashboard?date=${selectedDateInput}`}
-          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-12 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           aria-label="Refresh dashboard"
           title="Refresh dashboard"
         >
@@ -201,7 +202,7 @@ export default function DashboardTopActions({
           type="button"
           onClick={exportPdf}
           disabled={exportingPdf}
-          className="inline-flex h-12 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
+          className="inline-flex h-11 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:flex-none sm:px-5 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
           title="Export PDF"
         >
           {exportingPdf ? (
@@ -215,7 +216,7 @@ export default function DashboardTopActions({
         <button
           type="button"
           onClick={() => setClosingOpen(true)}
-          className={`inline-flex h-12 min-w-[150px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:focus:ring-teal-500/10 ${
+          className={`inline-flex h-11 w-full min-w-[150px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 sm:h-12 sm:w-auto dark:focus:ring-teal-500/10 ${
             isSelectedClosed
               ? "bg-teal-600 hover:bg-teal-700"
               : isSelectedToday
@@ -281,14 +282,20 @@ export function DashboardStatusChips({
         : `Owner: ${userName}`;
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <span className="inline-flex min-h-9 items-center gap-2 rounded-2xl border border-teal-100 bg-white px-3 py-2 text-xs font-bold text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-slate-950/70 dark:text-teal-200">
-        <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
-        Login Aktif
-        <span className="font-medium text-slate-500">{roleLabel}</span>
+    <div className="grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+      <span className="flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border border-teal-100 bg-white px-3.5 py-3 text-xs font-bold text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-slate-950/70 dark:text-teal-200">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+          <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+        </span>
+        <span className="min-w-0">
+          <span className="block">Login Aktif</span>
+          <span className="mt-1 block truncate font-medium text-slate-500 dark:text-slate-400">
+            {roleLabel}
+          </span>
+        </span>
       </span>
       <span
-        className={`inline-flex min-h-9 items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
+        className={`flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border px-3.5 py-3 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
           status === "CLOSED"
             ? "border-teal-200 bg-white text-teal-700"
             : status === "REOPENED"
@@ -296,7 +303,11 @@ export function DashboardStatusChips({
               : "border-slate-200 bg-white text-amber-700"
         }`}
       >
-        Tanggal Dipilih: {closingStatusLabel(status)}
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200">
+          <CalendarDays className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block">Tanggal Dipilih: {closingStatusLabel(status)}</span>
         <span className="sr-only">
         {status === "CLOSED"
           ? "✓ Sudah Closing"
@@ -304,14 +315,15 @@ export function DashboardStatusChips({
             ? "Reopened"
             : "Belum Closing"}
         </span>
-        <span className="font-medium text-slate-500">
+        <span className="mt-1 block truncate font-medium text-slate-500 dark:text-slate-400">
           {status === "CLOSED" && closing?.closedAt
             ? `${selectedDateLabel} • ${formatTime(closing.closedAt)}`
             : selectedDateLabel}
         </span>
+        </span>
       </span>
       <span
-        className={`inline-flex min-h-9 items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
+        className={`flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border px-3.5 py-3 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
           operationalStatus === "CLOSED"
             ? "border-teal-200 bg-white text-teal-700"
             : operationalStatus === "REOPENED"
@@ -319,18 +331,27 @@ export function DashboardStatusChips({
               : "border-slate-200 bg-white text-amber-700"
         }`}
       >
-        Hari Ini / Operasional: {closingStatusLabel(operationalStatus)}
-        {!isSelectedToday ? (
-          <span className="font-medium text-slate-500">
-            berbeda dari tanggal dipilih
-          </span>
-        ) : null}
-      </span>
-      <span className="inline-flex min-h-9 items-center gap-2 rounded-2xl border border-rose-100 bg-white px-3 py-2 text-xs font-bold text-rose-600 shadow-sm dark:border-rose-500/20 dark:bg-slate-950/70 dark:text-rose-200">
-        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-50 px-1 dark:bg-rose-500/15">
-          {lowStockCount}
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+          <LockKeyhole className="h-4 w-4" />
         </span>
-        Stok Rendah
+        <span className="min-w-0">
+          <span className="block">Hari Ini / Operasional</span>
+          <span className="mt-1 block truncate font-medium">
+            {closingStatusLabel(operationalStatus)}
+            {!isSelectedToday ? " - berbeda dari tanggal dipilih" : ""}
+          </span>
+        </span>
+      </span>
+      <span className="flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border border-rose-100 bg-white px-3.5 py-3 text-xs font-bold text-rose-600 shadow-sm dark:border-rose-500/20 dark:bg-slate-950/70 dark:text-rose-200">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
+          <AlertTriangle className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block">{lowStockCount} Stok Rendah</span>
+          <span className="mt-1 block truncate font-medium text-rose-500 dark:text-rose-200">
+            Stok &lt; 10
+          </span>
+        </span>
       </span>
     </div>
   );
