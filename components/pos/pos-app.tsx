@@ -1297,6 +1297,11 @@ export default function PosApp({
     )
       ? selectedCustomer?.id
       : undefined;
+    const hasCustomerInput =
+      Boolean(selectedCustomerId) ||
+      Boolean(customerName.trim()) ||
+      Boolean(customerPhone.trim()) ||
+      Boolean(customerAddress.trim());
 
     setLoadingCheckout(true);
     setErrorMessage("");
@@ -1317,7 +1322,7 @@ export default function PosApp({
                 benefit_note: loyaltyDraft.note,
               }
             : undefined,
-          customer: customerPhone.trim()
+          customer: hasCustomerInput
             ? {
                 name: customerName,
                 phone: customerPhone,

@@ -60,6 +60,50 @@ function normalizeDiscountType(value: unknown) {
   return null;
 }
 
+function customerCodeFromName(name: string) {
+  const slug =
+    name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 18) || "CUSTOMER";
+  const stamp = Date.now().toString(36).toUpperCase();
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+
+  return `CUST-${slug}-${stamp}${suffix}`;
+}
+
+function customerUpdateData(input: {
+  current: {
+    name: string;
+    address: string | null;
+    notes: string | null;
+  };
+  customerName: string;
+  customerAddress: string;
+  customerNotes: string;
+}) {
+  const updateData: Prisma.CustomerUpdateInput = {};
+
+  if (input.customerName && input.customerName !== input.current.name) {
+    updateData.name = input.customerName;
+  }
+
+  if (
+    input.customerAddress &&
+    input.customerAddress !== (input.current.address ?? "")
+  ) {
+    updateData.address = input.customerAddress;
+  }
+
+  if (input.customerNotes && input.customerNotes !== (input.current.notes ?? "")) {
+    updateData.notes = input.customerNotes;
+  }
+
+  return updateData;
+}
+
 async function resolveSaleCustomer(input: {
   tx: Prisma.TransactionClient;
   customerIdInput: number | null;
@@ -76,6 +120,47 @@ async function resolveSaleCustomer(input: {
     customerAddress,
     customerNotes,
   } = input;
+
+  if (customerIdInput) {
+    const customerRecord = await tx.customer.findFirst({
+      where: {
+        id: customerIdInput,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        notes: true,
+      },
+    });
+
+    if (!customerRecord) {
+      throw new Error("CUSTOMER_NOT_FOUND");
+    }
+
+    const updateData = customerUpdateData({
+      current: customerRecord,
+      customerName,
+      customerAddress,
+      customerNotes,
+    });
+
+    if (Object.keys(updateData).length > 0) {
+      await tx.customer.update({
+        where: {
+          id: customerRecord.id,
+        },
+        data: updateData,
+        select: {
+          id: true,
+        },
+      });
+    }
+
+    return customerRecord.id;
+  }
 
   if (customerPhone) {
     const existingCustomer = await tx.customer.findUnique({
@@ -97,19 +182,12 @@ async function resolveSaleCustomer(input: {
         throw new Error("CUSTOMER_NOT_FOUND");
       }
 
-      const updateData: Prisma.CustomerUpdateInput = {};
-
-      if (customerName && customerName !== existingCustomer.name) {
-        updateData.name = customerName;
-      }
-
-      if (customerAddress && customerAddress !== (existingCustomer.address ?? "")) {
-        updateData.address = customerAddress;
-      }
-
-      if (customerNotes && customerNotes !== (existingCustomer.notes ?? "")) {
-        updateData.notes = customerNotes;
-      }
+      const updateData = customerUpdateData({
+        current: existingCustomer,
+        customerName,
+        customerAddress,
+        customerNotes,
+      });
 
       if (Object.keys(updateData).length > 0) {
         await tx.customer.update({
@@ -129,7 +207,7 @@ async function resolveSaleCustomer(input: {
     const createdCustomer = await tx.customer.create({
       data: {
         customerCode: `CUST-${customerPhone}`,
-        name: customerName,
+        name: customerName || customerPhone,
         phone: customerPhone,
         address: customerAddress || null,
         notes: customerNotes || null,
@@ -143,26 +221,25 @@ async function resolveSaleCustomer(input: {
     return createdCustomer.id;
   }
 
-  if (!customerIdInput) {
+  if (!customerName) {
     return null;
   }
 
-  const customerRecord = await tx.customer.findFirst({
-    where: {
-      id: customerIdInput,
+  const nameOnlyCustomer = await tx.customer.create({
+    data: {
+      customerCode: customerCodeFromName(customerName),
+      name: customerName,
+      phone: null,
+      address: customerAddress || null,
+      notes: customerNotes || null,
       isActive: true,
-      deletedAt: null,
     },
     select: {
       id: true,
     },
   });
 
-  if (!customerRecord) {
-    throw new Error("CUSTOMER_NOT_FOUND");
-  }
-
-  return customerRecord.id;
+  return nameOnlyCustomer.id;
 }
 
 function calculateDiscount(input: {
@@ -341,17 +418,6 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         message: "Nominal pembayaran tidak valid.",
-      },
-      {
-        status: 422,
-      },
-    );
-  }
-
-  if (customerPhone && !customerName && !customerIdInput) {
-    return NextResponse.json(
-      {
-        message: "Nama customer wajib diisi untuk customer baru.",
       },
       {
         status: 422,
