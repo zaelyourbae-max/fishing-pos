@@ -194,11 +194,13 @@ function SectionHeader({
   action?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+    <div className="flex items-start justify-between gap-3">
+      <h2 className="min-w-0 flex-1 break-words text-lg font-extrabold leading-tight tracking-tight text-slate-950 dark:text-white">
+        {title}
+      </h2>
       <Link
         href={href}
-        className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:text-teal-600 dark:text-teal-300"
+        className="inline-flex min-h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-2 text-xs font-bold text-teal-700 transition duration-200 hover:bg-teal-50 hover:text-teal-600 active:scale-95 dark:text-teal-300 dark:hover:bg-teal-500/10"
       >
         {action}
         <ArrowUpRight className="h-3.5 w-3.5" />
@@ -276,11 +278,11 @@ function EmptyState({
   helper?: string;
 }) {
   return (
-    <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 p-6 text-center dark:border-slate-800">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
-        <Icon className="h-8 w-8" />
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-5 text-center dark:border-slate-800 dark:bg-slate-900/40">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+        <Icon className="h-6 w-6" />
       </span>
-      <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
+      <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
         {label}
       </p>
       {helper ? (
@@ -302,7 +304,7 @@ function ProductThumb({
   if (imageUrl) {
     return (
       <span
-        className="h-11 w-11 shrink-0 rounded-xl border border-slate-200 bg-cover bg-center dark:border-slate-800"
+        className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-cover bg-center dark:border-slate-800"
         style={{ backgroundImage: `url("${imageUrl}")` }}
         aria-label={name}
       />
@@ -310,7 +312,7 @@ function ProductThumb({
   }
 
   return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
       <Package className="h-5 w-5" />
     </span>
   );
@@ -330,20 +332,20 @@ function MiniMetricCard({
   tone: StatTone;
 }) {
   return (
-    <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70">
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-100 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:p-4">
       <span
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${toneClass[tone]}`}
       >
         <Icon className="h-6 w-6" />
       </span>
-      <span className="min-w-0">
-        <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">
           {title}
         </span>
-        <span className="mt-1 block text-lg font-bold text-slate-950 dark:text-white">
+        <span className="mt-1 block whitespace-nowrap text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-base xl:text-lg">
           {value}
         </span>
-        <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+        <span className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
           {helper}
         </span>
       </span>
@@ -1279,52 +1281,51 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   ];
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-5 rounded-none border-b border-slate-200 pb-5 dark:border-slate-800 xl:flex-row xl:items-center xl:justify-between">
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-normal text-slate-950 sm:text-3xl dark:text-white">
-              {greeting}, {ownerName}
-            </h1>
-            <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-              {storeName}
-            </p>
+    <div className="mx-auto w-full max-w-[1600px] space-y-5">
+      <div className="rounded-[28px] border border-slate-200 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 space-y-4">
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-normal text-slate-950 sm:text-[28px] dark:text-white">
+                {greeting}, {ownerName}
+              </h1>
+              <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                {storeName}
+              </p>
+            </div>
+            <DashboardStatusChips
+              selectedDateInput={selectedDateInput}
+              selectedDateLabel={formatDate(selectedDate)}
+              userName={ownerName}
+              role={session.role}
+              lowStockCount={lowStockProducts.length}
+            />
           </div>
-          <DashboardStatusChips
+
+          <DashboardTopActions
             selectedDateInput={selectedDateInput}
-            selectedDateLabel={formatDate(selectedDate)}
-            userName={ownerName}
-            role={session.role}
-            lowStockCount={lowStockProducts.length}
+            selectedDateLabel={headerDate}
+            cashAmount={rupiah(cashTodayValue)}
+            cashValue={cashTodayValue}
+            grossOmzet={rupiah(grossToday)}
+            returnValue={rupiah(returnTodayValue)}
+            transactionCount={salesToday._count._all}
+            notificationCount={operationalAlerts.length}
+            payments={paymentRows}
+            closedBy={ownerName}
           />
         </div>
-
-        <DashboardTopActions
-          selectedDateInput={selectedDateInput}
-          selectedDateLabel={headerDate}
-          cashAmount={rupiah(cashTodayValue)}
-          cashValue={cashTodayValue}
-          grossOmzet={rupiah(grossToday)}
-          returnValue={rupiah(returnTodayValue)}
-          transactionCount={salesToday._count._all}
-          notificationCount={operationalAlerts.length}
-          payments={paymentRows}
-          closedBy={ownerName}
-        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
-        {dashboardKpiCards.map((card, index) => (
-          <div
-            key={card.title}
-            className={index === 3 ? "col-span-2 xl:col-span-1" : undefined}
-          >
-          <KpiActionCard key={card.title} {...card} />
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        {dashboardKpiCards.map((card) => (
+          <div key={card.title} className="min-w-0">
+            <KpiActionCard key={card.title} {...card} />
           </div>
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_1.05fr]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)]">
         <TransactionPaymentPanel
           recentSales={recentSaleRows}
           paymentSummary={paymentRows}
@@ -1334,67 +1335,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-2 xl:grid-cols-12">
+        <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 xl:col-span-4">
           <SectionHeader title="Produk Terlaris Hari Ini" href={salesHref(selectedDateInput)} />
-          <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800">
+          <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/40 p-2 dark:border-slate-800 dark:bg-slate-900/30">
             {bestSellerGroups.length === 0 ? (
               <EmptyState
                 icon={ShoppingBag}
                 label="Belum ada produk terjual hari ini."
               />
-            ) : (
-              <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[520px] text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                    <tr>
-                      <th className="w-12 px-3 py-3">#</th>
-                      <th className="px-3 py-3">Produk</th>
-                      <th className="px-3 py-3 text-right">Terjual (Qty)</th>
-                      <th className="px-3 py-3 text-right">Omzet</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {bestSellerGroups.map((item, index) => {
-                      const product = productMap.get(item.productId);
-
-                      return (
-                        <tr
-                          key={item.productId}
-                          className="transition hover:bg-teal-50/40 dark:hover:bg-teal-500/10"
-                        >
-                          <td className="px-3 py-3 text-xs font-bold text-slate-600 dark:text-slate-300">
-                            {index + 1}
-                          </td>
-                          <td className="px-3 py-3">
-                            <Link
-                              href={`/products?q=${encodeURIComponent(product?.sku ?? product?.name ?? "")}`}
-                              className="flex min-w-0 items-center gap-3 rounded-lg transition hover:text-teal-700 dark:hover:text-teal-200"
-                            >
-                              <ProductThumb imageUrl={product?.imageUrl} name={product?.name ?? "Produk"} />
-                              <span className="min-w-0">
-                                <span className="block truncate font-bold text-slate-950 dark:text-white">
-                                  {product?.name ?? "Produk tidak ditemukan"}
-                                </span>
-                                <span className="text-xs text-slate-500">{product?.sku ?? "-"}</span>
-                              </span>
-                            </Link>
-                          </td>
-                          <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-700 dark:text-slate-200">
-                            {item._sum.qty ?? 0}
-                          </td>
-                          <td className="px-3 py-3 text-right font-bold tabular-nums text-slate-950 dark:text-white">
-                            {rupiah(item._sum.subtotal ?? 0)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            ) : null}
             {bestSellerGroups.length > 0 ? (
-              <div className="divide-y divide-slate-100 lg:hidden dark:divide-slate-800">
+              <div className="space-y-2 p-3">
                 {bestSellerGroups.map((item, index) => {
                   const product = productMap.get(item.productId);
 
@@ -1402,23 +1354,32 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <Link
                       key={item.productId}
                       href={`/products?q=${encodeURIComponent(product?.sku ?? product?.name ?? "")}`}
-                      className="flex min-h-16 items-center justify-between gap-3 p-3 transition hover:bg-teal-50/40 dark:hover:bg-teal-500/10"
+                      className="grid min-h-20 grid-cols-1 gap-3 rounded-2xl border border-slate-100 bg-white p-3 transition duration-200 hover:-translate-y-0.5 hover:border-teal-100 hover:bg-teal-50/40 hover:shadow-sm active:scale-[0.99] dark:border-slate-800 dark:bg-slate-950/70 dark:hover:bg-teal-500/10 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                     >
                       <span className="flex min-w-0 items-center gap-3">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
                           {index + 1}
                         </span>
+                        <ProductThumb imageUrl={product?.imageUrl} name={product?.name ?? "Produk"} />
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-bold text-slate-950 dark:text-white">
                             {product?.name ?? "Produk tidak ditemukan"}
                           </span>
                           <span className="mt-1 block truncate text-xs text-slate-500">
-                            {product?.sku ?? "-"} - {item._sum.qty ?? 0} terjual
+                            {product?.sku ?? "-"}
                           </span>
                         </span>
                       </span>
-                      <span className="shrink-0 text-right text-sm font-bold tabular-nums text-slate-950 dark:text-white">
-                        {rupiah(item._sum.subtotal ?? 0)}
+                      <span className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:grid sm:shrink-0 sm:gap-1 sm:text-right">
+                        <span className="whitespace-nowrap text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          Terjual{" "}
+                          <span className="font-extrabold tabular-nums text-slate-800 dark:text-slate-100">
+                            {item._sum.qty ?? 0}
+                          </span>
+                        </span>
+                        <span className="whitespace-nowrap text-sm font-extrabold tabular-nums text-slate-950 dark:text-white">
+                          {rupiah(item._sum.subtotal ?? 0)}
+                        </span>
                       </span>
                     </Link>
                   );
@@ -1428,17 +1389,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </div>
         </section>
 
-        <OperationalAlerts alerts={operationalAlerts} />
+        <div className="min-w-0 xl:col-span-4">
+          <OperationalAlerts alerts={operationalAlerts} />
+        </div>
 
-        <DeadStockCard
-          items={deadStockItems}
-          total={deadStock.total}
-          thresholdDays={deadStock.thresholdDays}
-        />
+        <div className="min-w-0 xl:col-span-4">
+          <DeadStockCard
+            items={deadStockItems}
+            total={deadStock.total}
+            thresholdDays={deadStock.thresholdDays}
+          />
+        </div>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70">
+        <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 lg:col-span-2 xl:col-span-12">
           <SectionHeader title={`Ringkasan Bulanan (${formatMonthYear(monthStart)})`} href="/reports" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
             {monthlyMetrics.map((metric) => (
               <MiniMetricCard key={metric.title} {...metric} />
             ))}

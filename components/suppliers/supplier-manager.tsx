@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
+import ClientPaginationControl from "@/components/ui/client-pagination-control";
 
 type Supplier = {
   id: number;
@@ -19,6 +20,7 @@ type SupplierManagerProps = {
 };
 
 const TOKEN_KEY = "fishing_pos_token";
+const PAGE_SIZE = 8;
 
 function emptyForm() {
   return {
@@ -38,9 +40,11 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const isEditing = form.id > 0;
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
+    setPage(1);
   }, []);
   const filteredSuppliers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -63,6 +67,12 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
         .includes(keyword),
     );
   }, [search, suppliers]);
+  const pageCount = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleSuppliers = filteredSuppliers.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   async function request(method: "POST" | "PATCH", body: object) {
     const token =
@@ -137,10 +147,10 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
         className="surface-panel space-y-4 rounded-3xl p-5 sm:p-6"
       >
         <div>
-          <h2 className="text-2xl font-bold text-white">
+          <h2 className="text-2xl font-bold text-slate-950 dark:text-white">
             {isEditing ? "Edit Supplier" : "Tambah Supplier"}
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Supplier aktif akan tersedia di form pembelian.
           </p>
         </div>
@@ -204,11 +214,11 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
           placeholder="Notes"
         />
 
-        <div className="flex flex-wrap gap-3">
+        <div className="responsive-action-row">
           <button
             type="submit"
             disabled={loading}
-            className="rounded-2xl bg-teal-600 px-6 py-3 font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center rounded-2xl bg-teal-600 px-6 py-3 font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
             {loading ? "Menyimpan..." : isEditing ? "Update Supplier" : "Simpan Supplier"}
           </button>
@@ -216,7 +226,7 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
             <button
               type="button"
               onClick={() => setForm(emptyForm())}
-              className="rounded-2xl border border-slate-200 px-6 py-3 font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"
+              className="inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-6 py-3 font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"
             >
               Batal
             </button>
@@ -225,8 +235,8 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
       </form>
 
       <div className="surface-panel overflow-hidden rounded-3xl">
-        <div className="border-b border-slate-200 dark:border-slate-800 p-6">
-          <h2 className="text-2xl font-bold text-white">Daftar Supplier Aktif</h2>
+        <div className="border-b border-slate-200 p-6 dark:border-slate-800">
+          <h2 className="text-2xl font-bold text-slate-950 dark:text-white">Daftar Supplier Aktif</h2>
           <div className="mt-4">
             <LocalLiveSearchInput
               value={search}
@@ -236,9 +246,10 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
           </div>
         </div>
 
+        <div className="hidden md:block">
         <div className="table-scroll">
         <table className="data-table">
-          <thead className="bg-[#060B1F] text-sm text-slate-400">
+          <thead>
             <tr>
               <th className="p-4 text-left">Kode</th>
               <th className="p-4 text-left">Nama</th>
@@ -258,16 +269,16 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
               </tr>
             ) : null}
 
-            {filteredSuppliers.map((supplier) => (
+            {visibleSuppliers.map((supplier) => (
               <tr key={supplier.id} className="border-t border-slate-200 dark:border-slate-800">
-                <td className="p-4 text-slate-300">{supplier.code}</td>
-                <td className="p-4 font-semibold text-white">{supplier.name}</td>
-                <td className="p-4 text-slate-300">
+                <td className="p-4 text-slate-600 dark:text-slate-300">{supplier.code}</td>
+                <td className="p-4 font-semibold text-slate-950 dark:text-white">{supplier.name}</td>
+                <td className="p-4 text-slate-600 dark:text-slate-300">
                   {supplier.type === "DISTRIBUTOR" ? "Distributor" : "Supplier"}
                 </td>
-                <td className="p-4 text-slate-300">{supplier.phone ?? "-"}</td>
-                <td className="p-4 text-slate-300">{supplier.address ?? "-"}</td>
-                <td className="p-4 text-slate-300">{supplier.notes ?? "-"}</td>
+                <td className="p-4 text-slate-600 dark:text-slate-300">{supplier.phone ?? "-"}</td>
+                <td className="p-4 text-slate-600 dark:text-slate-300">{supplier.address ?? "-"}</td>
+                <td className="p-4 text-slate-600 dark:text-slate-300">{supplier.notes ?? "-"}</td>
                 <td className="p-4">
                   <div className="flex gap-2">
                     <button
@@ -300,6 +311,83 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
           </tbody>
         </table>
         </div>
+        </div>
+        <div className="mobile-card-list md:hidden">
+          {filteredSuppliers.length === 0 ? (
+            <div className="mobile-data-card text-center text-sm text-slate-500 dark:text-slate-400">
+              Tidak ada supplier yang cocok.
+            </div>
+          ) : null}
+
+          {visibleSuppliers.map((supplier) => (
+            <article key={supplier.id} className="mobile-data-card">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="break-words text-base font-semibold text-slate-950 dark:text-white">
+                    {supplier.name}
+                  </p>
+                  <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
+                    {supplier.code}
+                  </p>
+                </div>
+                <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  {supplier.type === "DISTRIBUTOR" ? "Distributor" : "Supplier"}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Telepon
+                  </span>
+                  <span className="break-all">{supplier.phone ?? "-"}</span>
+                </p>
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Alamat
+                  </span>
+                  <span className="break-words">{supplier.address ?? "-"}</span>
+                </p>
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Notes
+                  </span>
+                  <span className="break-words">{supplier.notes ?? "-"}</span>
+                </p>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      id: supplier.id,
+                      name: supplier.name,
+                      type: supplier.type === "DISTRIBUTOR" ? "DISTRIBUTOR" : "SUPPLIER",
+                      phone: supplier.phone ?? "",
+                      address: supplier.address ?? "",
+                      notes: supplier.notes ?? "",
+                    })
+                  }
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-teal-300 px-4 text-sm font-semibold text-teal-700 dark:border-teal-500/50 dark:text-teal-200"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deactivateSupplier(supplier.id)}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-200 px-4 text-sm font-semibold text-red-700 dark:border-red-500/40 dark:text-red-300"
+                >
+                  Nonaktifkan
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+        <ClientPaginationControl
+          currentPage={currentPage}
+          totalItems={filteredSuppliers.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

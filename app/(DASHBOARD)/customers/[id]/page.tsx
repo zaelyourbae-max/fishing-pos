@@ -19,12 +19,18 @@ import {
   LOYALTY_MIN_PURCHASE_AMOUNT,
   loyaltyProgressFromValidCount,
 } from "@/lib/loyalty";
+import PaginationLinks from "@/components/ui/pagination-links";
 
 type CustomerDetailPageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams?: Promise<{
+    history_page?: string;
+  }>;
 };
+
+const HISTORY_PAGE_SIZE = 8;
 
 function rupiah(amount: number) {
   return `Rp ${amount.toLocaleString("id-ID")}`;
@@ -42,11 +48,14 @@ function formatDateTime(date: Date) {
 
 export default async function CustomerDetailPage({
   params,
+  searchParams,
 }: CustomerDetailPageProps) {
   const session = await requireCustomersPage();
   const canViewBusinessSummary = isOwnerRole(session.role);
   const { id } = await params;
+  const queryParams = (await searchParams) ?? {};
   const customerId = Number(id);
+  const historyPage = Math.max(Number(queryParams.history_page ?? 1) || 1, 1);
 
   if (!Number.isInteger(customerId) || customerId <= 0) {
     notFound();
@@ -75,12 +84,14 @@ export default async function CustomerDetailPage({
     notFound();
   }
 
-  const [summary, sales] = await Promise.all([
+  const finalCustomerSaleWhere = {
+    customerId: customer.id,
+    ...FINAL_SALE_STATUS_WHERE,
+  };
+  const [summary, sales, totalHistorySales, loyaltyBenefitSales] =
+    await Promise.all([
     prisma.sale.aggregate({
-      where: {
-        customerId: customer.id,
-        ...FINAL_SALE_STATUS_WHERE,
-      },
+      where: finalCustomerSaleWhere,
       _count: {
         _all: true,
       },
@@ -89,14 +100,12 @@ export default async function CustomerDetailPage({
       },
     }),
     prisma.sale.findMany({
-      where: {
-        customerId: customer.id,
-        ...FINAL_SALE_STATUS_WHERE,
-      },
+      where: finalCustomerSaleWhere,
       orderBy: {
         createdAt: "desc",
       },
-      take: 25,
+      skip: (historyPage - 1) * HISTORY_PAGE_SIZE,
+      take: HISTORY_PAGE_SIZE,
       select: {
         id: true,
         invoiceNumber: true,
@@ -136,13 +145,36 @@ export default async function CustomerDetailPage({
         },
       },
     }),
+    prisma.sale.count({
+      where: finalCustomerSaleWhere,
+    }),
+    prisma.sale.findMany({
+      where: {
+        ...finalCustomerSaleWhere,
+        loyaltyApplied: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+      select: {
+        id: true,
+        invoiceNumber: true,
+        loyaltyMilestone: true,
+        loyaltyDiscountAmount: true,
+      },
+    }),
   ]);
   const totalSpent = summary._sum.subtotal ?? 0;
   const transactionCount = summary._count._all;
   const averageTransaction =
     transactionCount > 0 ? Math.round(totalSpent / transactionCount) : 0;
   const loyaltyProgress = loyaltyProgressFromValidCount(transactionCount);
-  const loyaltyBenefitSales = sales.filter((sale) => sale.loyaltyApplied);
+  const historyPageCount = Math.max(
+    1,
+    Math.ceil(totalHistorySales / HISTORY_PAGE_SIZE),
+  );
+  const safeHistoryPage = Math.min(historyPage, historyPageCount);
 
   return (
     <div className="space-y-7">
@@ -465,6 +497,16 @@ export default async function CustomerDetailPage({
                   </Link>
                 ))}
               </div>
+              <PaginationLinks
+                currentPage={safeHistoryPage}
+                totalItems={totalHistorySales}
+                pageSize={HISTORY_PAGE_SIZE}
+                hrefForPage={(page) =>
+                  page > 1
+                    ? `/customers/${customer.id}?history_page=${page}`
+                    : `/customers/${customer.id}`
+                }
+              />
             </>
           )}
         </div>

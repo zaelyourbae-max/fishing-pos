@@ -127,16 +127,16 @@ export default async function SupplierReturnPage({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="responsive-action-row">
           <Link
             href="/returns"
-            className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            className="inline-flex min-h-11 items-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             Retur Customer
           </Link>
           <Link
             href="/returns/new"
-            className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            className="inline-flex min-h-11 items-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             Buat Retur Customer
           </Link>
@@ -167,7 +167,8 @@ export default async function SupplierReturnPage({
             placeholder="Cari nomor retur, supplier, alasan..."
           />
         </div>
-        <div className="mt-5 table-scroll">
+        <div className="mt-5 hidden md:block">
+        <div className="table-scroll">
           <table className="data-table text-sm">
             <thead>
               <tr>
@@ -219,6 +220,62 @@ export default async function SupplierReturnPage({
               ))}
             </tbody>
           </table>
+        </div>
+        </div>
+        <div className="mt-5 mobile-card-list rounded-2xl border border-slate-200 md:hidden dark:border-slate-800">
+          {recentReturns.length === 0 ? (
+            <div className="mobile-data-card text-center text-sm text-slate-500 dark:text-slate-400">
+              Belum ada retur supplier.
+            </div>
+          ) : null}
+          {recentReturns.map((item) => (
+            <article key={item.id} className="mobile-data-card">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="break-all text-base font-semibold text-slate-900 dark:text-slate-100">
+                    {item.returnNumber}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {formatDateTime(item.createdAt)}
+                  </p>
+                </div>
+                <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  {item.status}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Supplier
+                  </span>
+                  <span className="break-words">{item.supplier.name}</span>
+                  <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                    {item.supplier.type}
+                  </span>
+                </p>
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Alasan
+                  </span>
+                  <span className="break-words">{item.reason}</span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Nilai
+                  </span>
+                  <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                    {rupiah(item.totalAmount)}
+                  </span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Item
+                  </span>
+                  {item._count.items} item
+                </p>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
     </div>

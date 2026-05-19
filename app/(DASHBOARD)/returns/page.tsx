@@ -6,17 +6,38 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, RETURN_REASON_LABELS, rupiah } from "@/lib/returns";
 import LiveSearchInput from "@/components/search/live-search-input";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
+import PaginationLinks from "@/components/ui/pagination-links";
 
 type ReturnsPageProps = {
   searchParams?: Promise<{
     q?: string;
+    page?: string;
   }>;
 };
+
+const PAGE_SIZE = 8;
+
+function pageHref(page: number, params: { q: string }) {
+  const query = new URLSearchParams();
+
+  if (params.q) {
+    query.set("q", params.q);
+  }
+
+  if (page > 1) {
+    query.set("page", String(page));
+  }
+
+  const next = query.toString();
+
+  return next ? `/returns?${next}` : "/returns";
+}
 
 export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
   const session = await requireReturnsPage();
   const params = (await searchParams) ?? {};
   const q = String(params.q ?? "").trim();
+  const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
   const saleWhere = {
     ...FINAL_SALE_STATUS_WHERE,
     ...(session.role === "cashier" ? { cashierId: session.sub } : {}),
@@ -65,47 +86,55 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
         }
       : {}),
   };
-  const returns = await prisma.saleReturn.findMany({
-    where,
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 50,
-    select: {
-      id: true,
-      reason: true,
-      notes: true,
-      status: true,
-      totalRefund: true,
-      createdAt: true,
-      sale: {
-        select: {
-          id: true,
-          invoiceNumber: true,
-          cashier: {
-            select: {
-              name: true,
+  const [returns, totalReturns] = await Promise.all([
+    prisma.saleReturn.findMany({
+      where,
+      orderBy: {
+        createdAt: "desc",
+      },
+      skip: (currentPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        reason: true,
+        notes: true,
+        status: true,
+        totalRefund: true,
+        createdAt: true,
+        sale: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            cashier: {
+              select: {
+                name: true,
+              },
+            },
+            customer: {
+              select: {
+                name: true,
+              },
             },
           },
-          customer: {
-            select: {
-              name: true,
-            },
+        },
+        createdBy: {
+          select: {
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            items: true,
           },
         },
       },
-      createdBy: {
-        select: {
-          name: true,
-        },
-      },
-      _count: {
-        select: {
-          items: true,
-        },
-      },
-    },
-  });
+    }),
+    prisma.saleReturn.count({
+      where,
+    }),
+  ]);
+  const pageCount = Math.max(1, Math.ceil(totalReturns / PAGE_SIZE));
+  const safePage = Math.min(currentPage, pageCount);
 
   return (
     <div className="space-y-8">
@@ -118,16 +147,16 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="responsive-action-row">
           <Link
             href="/returns/new"
-            className="rounded-2xl bg-teal-600 px-6 py-4 text-sm font-semibold text-white hover:bg-teal-700"
+            className="inline-flex min-h-12 items-center rounded-2xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white hover:bg-teal-700"
           >
             Buat Retur Customer
           </Link>
           <Link
             href="/returns/supplier"
-            className="rounded-2xl border border-slate-300 bg-white px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            className="inline-flex min-h-12 items-center rounded-2xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             Retur Supplier
           </Link>
@@ -145,6 +174,7 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
       </form>
 
       <div className="surface-panel overflow-hidden rounded-3xl">
+        <div className="hidden md:block">
         <div className="table-scroll">
         <table className="data-table">
           <thead className="bg-slate-100 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -204,6 +234,77 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
           </tbody>
         </table>
         </div>
+        </div>
+        <div className="mobile-card-list md:hidden">
+          {returns.length === 0 ? (
+            <div className="mobile-data-card text-center text-sm text-slate-500 dark:text-slate-400">
+              Belum ada retur.
+            </div>
+          ) : null}
+          {returns.map((saleReturn) => (
+            <article key={saleReturn.id} className="mobile-data-card">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <Link
+                    href={`/invoices/${saleReturn.sale.id}`}
+                    className="break-all text-base font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300"
+                  >
+                    {saleReturn.sale.invoiceNumber}
+                  </Link>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {formatDateTime(saleReturn.createdAt)}
+                  </p>
+                </div>
+                <span className="w-fit rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  {saleReturn.status}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Customer
+                  </span>
+                  <span className="break-words">
+                    {saleReturn.sale.customer?.name ?? "Walk-in"}
+                  </span>
+                </p>
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Kasir
+                  </span>
+                  <span className="break-words">{saleReturn.sale.cashier.name}</span>
+                </p>
+                <p className="min-w-0">
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Alasan
+                  </span>
+                  <span className="break-words">
+                    {RETURN_REASON_LABELS[
+                      saleReturn.reason as keyof typeof RETURN_REASON_LABELS
+                    ] ?? saleReturn.reason}
+                  </span>
+                </p>
+                <p>
+                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Refund
+                  </span>
+                  <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                    {rupiah(saleReturn.totalRefund ?? 0)}
+                  </span>
+                </p>
+              </div>
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                {saleReturn._count.items} item retur
+              </p>
+            </article>
+          ))}
+        </div>
+        <PaginationLinks
+          currentPage={safePage}
+          totalItems={totalReturns}
+          pageSize={PAGE_SIZE}
+          hrefForPage={(page) => pageHref(page, { q })}
+        />
       </div>
     </div>
   );

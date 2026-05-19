@@ -363,6 +363,7 @@ export default function ReturnForm() {
             </p>
           </div>
 
+          <div className="hidden md:block">
           <div className="table-scroll">
             <table className="min-w-[820px] w-full text-sm">
               <thead className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -430,6 +431,83 @@ export default function ReturnForm() {
                 ))}
               </tbody>
             </table>
+          </div>
+          </div>
+
+          <div className="mobile-card-list rounded-2xl border border-slate-200 md:hidden dark:border-slate-800">
+            {selectedSale.items.map((item) => (
+              <article key={item.id} className="mobile-data-card">
+                <div className="min-w-0">
+                  <p className="break-words font-semibold text-slate-900 dark:text-slate-100">
+                    {item.product_name}
+                  </p>
+                  <p className="mt-1 break-all text-xs text-slate-500 dark:text-slate-400">
+                    {item.product_sku ?? "-"}
+                  </p>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Terjual
+                    </span>
+                    <span className="font-semibold tabular-nums">{item.qty_sold}</span>
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Sudah Retur
+                    </span>
+                    <span className="font-semibold tabular-nums">{item.qty_returned}</span>
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Maks Retur
+                    </span>
+                    <span className="font-semibold tabular-nums">{item.max_return_qty}</span>
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Harga
+                    </span>
+                    <span className="font-semibold tabular-nums">{rupiah(item.price)}</span>
+                  </p>
+                </div>
+                <label className="mt-4 block">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Qty Retur
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={item.max_return_qty}
+                    value={qtyByItem[String(item.id)] ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+
+                      if (value === "") {
+                        setQtyByItem((current) => ({
+                          ...current,
+                          [String(item.id)]: "",
+                        }));
+                        return;
+                      }
+
+                      const numericValue = Number(value);
+
+                      if (Number.isNaN(numericValue)) return;
+                      if (numericValue < 0) return;
+                      if (numericValue > item.max_return_qty) return;
+
+                      setQtyByItem((current) => ({
+                        ...current,
+                        [String(item.id)]: value,
+                      }));
+                    }}
+                    disabled={item.max_return_qty <= 0}
+                    className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+                  />
+                </label>
+              </article>
+            ))}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

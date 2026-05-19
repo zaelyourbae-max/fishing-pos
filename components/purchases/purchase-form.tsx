@@ -259,7 +259,7 @@ export default function PurchaseForm({
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Qty</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-400">Qty</label>
                 <input
                   type="number"
                   min="1"
@@ -275,7 +275,7 @@ export default function PurchaseForm({
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Harga beli</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-400">Harga beli</label>
                 <input
                   type="number"
                   min="0"
@@ -291,8 +291,8 @@ export default function PurchaseForm({
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Subtotal</label>
-                <p className="mt-4 font-semibold tabular-nums text-white">
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-400">Subtotal</label>
+                <p className="mt-4 font-semibold tabular-nums text-slate-950 dark:text-white">
                   {rupiah(Number.isFinite(lineTotal) ? lineTotal : 0)}
                 </p>
               </div>
@@ -322,8 +322,8 @@ export default function PurchaseForm({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="text-right">
-            <p className="text-sm text-slate-400">Total</p>
-            <p className="metric-value text-2xl text-white">{rupiah(total)}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Total</p>
+            <p className="metric-value text-2xl">{rupiah(total)}</p>
           </div>
 
           <button

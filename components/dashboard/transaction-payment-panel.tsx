@@ -51,7 +51,9 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+      <h2 className="min-w-0 truncate text-lg font-extrabold tracking-tight text-slate-950 dark:text-white">
+        {title}
+      </h2>
       <Link
         href={href}
         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-teal-700 transition hover:bg-teal-50 hover:text-teal-600 active:scale-95 dark:text-teal-300 dark:hover:bg-teal-500/10"
@@ -76,7 +78,7 @@ function EmptyState({
   const Icon = icon === "file" ? FileText : Wallet;
 
   return (
-    <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 p-6 text-center dark:border-slate-800">
+    <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/40">
       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
         <Icon className="h-8 w-8" />
       </span>
@@ -141,7 +143,7 @@ export default function TransactionPaymentPanel({
 
   return (
     <>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70">
+      <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
         <SectionHeader title="Transaksi Terakhir" href="/sales" />
         {selectedPayment ? (
           <button
@@ -171,10 +173,10 @@ export default function TransactionPaymentPanel({
               key={sale.id}
               type="button"
               onClick={() => setSelectedSale(sale)}
-              className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-100 p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-sm active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
+              className="flex w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-100 p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-sm active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10 sm:gap-4"
               title={`Lihat quick detail ${sale.invoiceNumber}`}
             >
-              <span className="flex min-w-0 items-center gap-3">
+              <span className="flex min-w-0 flex-1 items-center gap-3">
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                     sale.returnCount > 0
@@ -184,9 +186,9 @@ export default function TransactionPaymentPanel({
                 >
                   <FileText className="h-5 w-5" />
                 </span>
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-bold text-slate-950 dark:text-white">
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="max-w-full truncate text-sm font-extrabold text-slate-950 dark:text-white">
                       {sale.invoiceNumber}
                     </span>
                     <span
@@ -208,16 +210,16 @@ export default function TransactionPaymentPanel({
                       </span>
                     ) : null}
                   </span>
-                  <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
+                  <span className="mt-1 block truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                     {sale.cashierName} - {sale.customerName}
                   </span>
-                  <span className="mt-1 block text-xs text-slate-500">
+                  <span className="mt-1 block truncate text-xs text-slate-500">
                     {sale.createdAt} - {sale.itemCount} item
                   </span>
                 </span>
               </span>
               <span
-                className={`shrink-0 text-right text-sm font-bold tabular-nums ${
+                className={`shrink-0 whitespace-nowrap text-right text-sm font-extrabold tabular-nums ${
                   sale.returnCount > 0
                     ? "text-rose-600 dark:text-rose-300"
                     : "text-slate-950 dark:text-white"
@@ -231,22 +233,22 @@ export default function TransactionPaymentPanel({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70">
+      <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
         <SectionHeader title="Ringkasan Pembayaran Hari Ini" href="/reports" action="Lihat detail" />
-        <div className="mt-5 grid items-center gap-5 lg:grid-cols-[minmax(150px,190px)_1fr]">
-          <div className="relative mx-auto flex h-40 w-40 items-center justify-center rounded-full sm:h-44 sm:w-44">
+        <div className="mt-5 grid min-w-0 items-center gap-5 lg:grid-cols-[minmax(140px,176px)_1fr]">
+          <div className="relative mx-auto flex h-36 w-36 items-center justify-center rounded-full sm:h-40 sm:w-40">
             <div
               className="absolute inset-0 rounded-full transition duration-300"
               style={{ background: `conic-gradient(${paymentGradient})` }}
             />
-            <div className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white text-center shadow-sm dark:bg-slate-950">
-              <span className="text-base font-bold text-slate-950 dark:text-white">
+            <div className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white text-center shadow-sm ring-1 ring-slate-100 dark:bg-slate-950 dark:ring-slate-800">
+              <span className="text-sm font-extrabold text-slate-950 dark:text-white sm:text-base">
                 {paymentTotal}
               </span>
               <span className="mt-1 text-xs text-slate-500">Total Omzet</span>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             {paymentSummary.length === 0 ? (
               <EmptyState icon="wallet" label="Belum ada pembayaran bulan ini." />
             ) : null}
@@ -259,7 +261,7 @@ export default function TransactionPaymentPanel({
                   type="button"
                   onClick={() => setSelectedPayment(isSelected ? null : item.method)}
                   aria-pressed={isSelected}
-                  className={`grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 text-left text-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10 sm:grid-cols-[minmax(0,1fr)_auto_auto] ${
+                  className={`grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-2xl border px-3 py-2.5 text-left text-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10 sm:grid-cols-[minmax(0,1fr)_auto_auto] ${
                     isSelected
                       ? "border-teal-300 bg-teal-50/70 dark:border-teal-500/60 dark:bg-teal-500/10"
                       : "border-slate-100 dark:border-slate-800"
@@ -275,7 +277,7 @@ export default function TransactionPaymentPanel({
                       {item.method} ({item.count})
                     </span>
                   </span>
-                  <span className="font-bold tabular-nums text-slate-950 dark:text-white">
+                  <span className="whitespace-nowrap font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {item.total}
                   </span>
                   <span className="col-span-2 text-xs font-semibold text-slate-500 sm:col-span-1 sm:text-right">
@@ -286,7 +288,7 @@ export default function TransactionPaymentPanel({
             })}
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-teal-200 bg-teal-50/60 px-4 py-3 text-sm dark:border-teal-500/30 dark:bg-teal-500/10">
+        <div className="mt-4 flex min-h-12 items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-teal-50/70 px-4 py-3 text-sm dark:border-teal-500/30 dark:bg-teal-500/10">
           <span className="font-bold text-teal-700 dark:text-teal-200">
             Expected Cash Drawer
           </span>

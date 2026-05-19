@@ -550,23 +550,23 @@ export default function SettingsForm({
           {methods.map((method) => (
             <div
               key={method.id}
-              className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
+              className="flex min-w-0 flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex min-w-0 items-center gap-4">
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
                   {methodIcon(method.type)}
                 </span>
                 <div className="min-w-0">
-                  <h3 className="truncate text-base font-bold text-slate-950 dark:text-slate-50">
+                  <h3 className="break-words text-base font-bold text-slate-950 dark:text-slate-50">
                     {method.name}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">
                     {methodDescription(method.type)}
                   </p>
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex w-full shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-end">
                 <span
                   className={
                     method.isActive

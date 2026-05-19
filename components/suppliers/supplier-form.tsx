@@ -69,11 +69,11 @@ export default function SupplierForm() {
   return (
     <form
       onSubmit={submitSupplier}
-      className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6"
+      className="surface-panel space-y-4 rounded-3xl p-6"
     >
       <div>
-        <h2 className="text-2xl font-bold text-white">Tambah Supplier</h2>
-        <p className="mt-1 text-sm text-slate-400">
+        <h2 className="text-2xl font-bold text-slate-950 dark:text-white">Tambah Supplier</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Data dasar supplier untuk pembelian stok.
         </p>
       </div>
@@ -92,7 +92,7 @@ export default function SupplierForm() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-sm text-slate-300">Nama</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Nama</label>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -102,7 +102,7 @@ export default function SupplierForm() {
         </div>
 
         <div>
-          <label className="text-sm text-slate-300">Type</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
           <select
             value={type}
             onChange={(event) => setType(event.target.value)}
@@ -114,7 +114,7 @@ export default function SupplierForm() {
         </div>
 
         <div>
-          <label className="text-sm text-slate-300">Telepon</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Telepon</label>
           <input
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
@@ -125,7 +125,7 @@ export default function SupplierForm() {
       </div>
 
       <div>
-        <label className="text-sm text-slate-300">Alamat</label>
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Alamat</label>
         <input
           value={address}
           onChange={(event) => setAddress(event.target.value)}
@@ -135,7 +135,7 @@ export default function SupplierForm() {
       </div>
 
       <div>
-        <label className="text-sm text-slate-300">Notes</label>
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
         <textarea
           value={notes}
           onChange={(event) => setNotes(event.target.value)}

@@ -134,17 +134,17 @@ export default function ProductImportForm() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="responsive-action-row">
           <Link
             href="/api/products/import/template"
             prefetch={false}
-            className="rounded-2xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white hover:bg-teal-700"
+            className="inline-flex min-h-11 items-center rounded-2xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white hover:bg-teal-700"
           >
             Download Template
           </Link>
           <Link
             href="/products"
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Kembali
           </Link>
@@ -232,9 +232,10 @@ export default function ProductImportForm() {
             </div>
           </div>
 
+          <div className="hidden lg:block">
           <div className="table-scroll">
             <table className="w-full min-w-[1100px] text-sm">
-              <thead className="bg-[#060B1F] text-slate-400">
+              <thead>
                 <tr>
                   <th className="p-4 text-left">Row</th>
                   <th className="p-4 text-left">Status</th>
@@ -261,8 +262,8 @@ export default function ProductImportForm() {
                         {row.status}
                       </span>
                     </td>
-                    <td className="p-4 text-white">{row.sku || "Auto"}</td>
-                    <td className="p-4 font-semibold text-white">{row.name || "-"}</td>
+                    <td className="p-4 text-slate-700 dark:text-white">{row.sku || "Auto"}</td>
+                    <td className="p-4 font-semibold text-slate-950 dark:text-white">{row.name || "-"}</td>
                     <td className="p-4 text-slate-300">{row.category || "-"}</td>
                     <td className="p-4 text-slate-300">{row.supplier || "-"}</td>
                     <td className="p-4 text-right tabular-nums text-slate-300">
@@ -279,6 +280,79 @@ export default function ProductImportForm() {
                 ))}
               </tbody>
             </table>
+          </div>
+          </div>
+
+          <div className="mobile-card-list lg:hidden">
+            {preview.rows.map((row) => (
+              <article key={row.rowNumber} className="mobile-data-card">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      Row {row.rowNumber}
+                    </p>
+                    <p className="mt-1 break-words text-base font-semibold text-slate-950 dark:text-white">
+                      {row.name || "-"}
+                    </p>
+                    <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
+                      SKU: {row.sku || "Auto"}
+                    </p>
+                  </div>
+                  <span
+                    className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusClass(
+                      row.status,
+                    )}`}
+                  >
+                    {row.status}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+                  <p className="min-w-0">
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Kategori
+                    </span>
+                    <span className="break-words">{row.category || "-"}</span>
+                  </p>
+                  <p className="min-w-0">
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Supplier
+                    </span>
+                    <span className="break-words">{row.supplier || "-"}</span>
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Modal/HPP
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {row.costPrice.toLocaleString("id-ID")}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Harga Jual
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {row.sellPrice.toLocaleString("id-ID")}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Stok
+                    </span>
+                    <span className="font-semibold tabular-nums">{row.stock}</span>
+                  </p>
+                  <p>
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Min Stok
+                    </span>
+                    <span className="font-semibold tabular-nums">{row.minStock}</span>
+                  </p>
+                </div>
+                <p className="mt-4 break-words rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                  {[...row.errors, ...row.warnings].join("; ") || "-"}
+                </p>
+              </article>
+            ))}
           </div>
         </section>
       ) : (

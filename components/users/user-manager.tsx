@@ -386,11 +386,11 @@ export default function UserManager({ users }: UserManagerProps) {
               >
                 <Icon className="h-7 w-7" />
               </span>
-              <span>
+              <span className="min-w-0">
                 <span className="block text-sm font-medium text-slate-500 dark:text-slate-400">
                   {card.label}
                 </span>
-                <span className="mt-1 block text-2xl font-bold text-slate-950 dark:text-white">
+                <span className="mt-1 block break-words text-2xl font-bold tabular-nums text-slate-950 dark:text-white">
                   {card.value}
                 </span>
                 <span className="mt-1 block text-sm text-slate-500 dark:text-slate-400">
@@ -638,7 +638,7 @@ export default function UserManager({ users }: UserManagerProps) {
                 )}`}{" "}
             dari {filteredUsers.length} user
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={currentPage === 1}
@@ -678,10 +678,10 @@ export default function UserManager({ users }: UserManagerProps) {
       </div>
 
       {modalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-4 sm:items-center">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4">
           <form
             onSubmit={submitUser}
-            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+            className="max-h-[100dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl"
           >
             <div className="flex items-start justify-between gap-4">
               <div>

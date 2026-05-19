@@ -8,12 +8,16 @@ import { normalizeIndonesianPhone } from "@/lib/phone";
 import { requireCustomersPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
+import PaginationLinks from "@/components/ui/pagination-links";
 
 type CustomersPageProps = {
   searchParams?: Promise<{
     q?: string;
+    page?: string;
   }>;
 };
+
+const PAGE_SIZE = 8;
 
 function rupiah(amount: number) {
   return `Rp ${amount.toLocaleString("id-ID")}`;
@@ -60,33 +64,56 @@ function customerWhere(q: string): Prisma.CustomerWhereInput {
   };
 }
 
+function pageHref(page: number, params: { q: string }) {
+  const query = new URLSearchParams();
+
+  if (params.q) {
+    query.set("q", params.q);
+  }
+
+  if (page > 1) {
+    query.set("page", String(page));
+  }
+
+  const next = query.toString();
+
+  return next ? `/customers?${next}` : "/customers";
+}
+
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   const session = await requireCustomersPage();
   const canViewAnalytics = isOwnerRole(session.role);
   const params = (await searchParams) ?? {};
   const q = String(params.q ?? "").trim();
+  const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
   const where = customerWhere(q);
-  const customers = await prisma.customer.findMany({
-    where,
-    orderBy: {
-      updatedAt: "desc",
-    },
-    take: 50,
-    select: {
-      id: true,
-      customerCode: true,
-      name: true,
-      phone: true,
-      address: true,
-      loyaltyPoints: true,
-      createdAt: true,
-      _count: {
-        select: {
-          sales: true,
+  const [customers, totalCustomers] = await Promise.all([
+    prisma.customer.findMany({
+      where,
+      orderBy: {
+        updatedAt: "desc",
+      },
+      skip: (currentPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        customerCode: true,
+        name: true,
+        phone: true,
+        address: true,
+        loyaltyPoints: true,
+        createdAt: true,
+        _count: {
+          select: {
+            sales: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.customer.count({
+      where,
+    }),
+  ]);
   const customerIds = customers.map((customer) => customer.id);
   const salesSummary =
     canViewAnalytics && customerIds.length
@@ -111,6 +138,8 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       .filter((summary) => summary.customerId !== null)
       .map((summary) => [summary.customerId as number, summary]),
   );
+  const pageCount = Math.max(1, Math.ceil(totalCustomers / PAGE_SIZE));
+  const safePage = Math.min(currentPage, pageCount);
 
   return (
     <div className="space-y-7">
@@ -125,7 +154,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         </div>
         <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
           <Users className="h-4 w-4 text-teal-600" />
-          {customers.length} customer tampil
+          {totalCustomers} customer tampil
         </div>
       </div>
 
@@ -238,12 +267,12 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                 href={`/customers/${customer.id}`}
                 className="block p-4 transition hover:bg-slate-50 dark:hover:bg-slate-900"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="truncate font-bold text-slate-950 dark:text-white">
+                    <p className="break-words font-bold text-slate-950 dark:text-white">
                       {customer.name}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 break-all text-sm text-slate-500">
                       {customer.phone ?? "WhatsApp belum ada"}
                     </p>
                   </div>
@@ -252,15 +281,17 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                   </span>
                 </div>
                 <div className="mt-3 grid gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <p className="inline-flex items-center gap-2">
+                  <p className="flex min-w-0 items-start gap-2">
                     <MapPin className="h-4 w-4 text-slate-400" />
-                    {customer.address ?? "-"}
+                    <span className="min-w-0 break-words">{customer.address ?? "-"}</span>
                   </p>
                   {canViewAnalytics ? (
-                    <p className="inline-flex items-center gap-2 font-semibold">
+                    <p className="flex min-w-0 items-start gap-2 font-semibold">
                       <History className="h-4 w-4 text-slate-400" />
-                      {summary?._count._all ?? customer._count.sales} transaksi
-                      - {rupiah(summary?._sum.subtotal ?? 0)}
+                      <span className="min-w-0 break-words">
+                        {summary?._count._all ?? customer._count.sales} transaksi
+                        - {rupiah(summary?._sum.subtotal ?? 0)}
+                      </span>
                     </p>
                   ) : null}
                 </div>
@@ -268,6 +299,12 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             );
           })}
         </div>
+        <PaginationLinks
+          currentPage={safePage}
+          totalItems={totalCustomers}
+          pageSize={PAGE_SIZE}
+          hrefForPage={(page) => pageHref(page, { q })}
+        />
       </section>
     </div>
   );

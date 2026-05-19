@@ -106,7 +106,7 @@ function Brand() {
 
 function RoleBadge({ role }: { role: SidebarProps["role"] }) {
   return role === "developer" ? (
-    <span className="rounded-full border border-teal-200 px-3 py-1 text-xs font-medium text-teal-700 dark:border-teal-800 dark:text-teal-400 lg:mt-4 lg:inline-flex">
+    <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700 dark:border-teal-800 dark:bg-teal-500/10 dark:text-teal-300 lg:mt-4 lg:inline-flex">
       Developer
     </span>
   ) : null;
@@ -136,8 +136,8 @@ function MenuList({
             onClick={onNavigate}
             className={
               isActive
-                ? "flex min-h-11 w-full items-center gap-3 rounded-xl bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-700 transition-colors duration-200 dark:bg-teal-500/10 dark:text-teal-400"
-                : "flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                ? "flex min-h-11 w-full items-center gap-3 rounded-2xl bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700 shadow-sm ring-1 ring-teal-100 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300 dark:ring-teal-500/20"
+                : "flex min-h-11 w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-600 transition duration-200 hover:bg-slate-50 hover:text-slate-950 active:scale-[0.99] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
             }
           >
             <Icon className="h-5 w-5 shrink-0" />
@@ -164,7 +164,7 @@ export default function Sidebar({ role }: SidebarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-white p-4 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 lg:hidden">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 p-4 text-slate-900 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 lg:hidden">
         <div className="min-w-0">
           <Brand />
         </div>
@@ -173,7 +173,7 @@ export default function Sidebar({ role }: SidebarProps) {
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-100"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-teal-500/10"
             aria-label="Buka menu"
           >
             <Menu className="h-5 w-5" />
@@ -200,7 +200,7 @@ export default function Sidebar({ role }: SidebarProps) {
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-100"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-700 transition duration-200 hover:bg-slate-50 active:scale-95 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-800"
                 aria-label="Tutup menu"
               >
                 <X className="h-5 w-5" />
@@ -220,19 +220,20 @@ export default function Sidebar({ role }: SidebarProps) {
         </div>
       ) : null}
 
-      <aside className="hidden min-h-screen w-72 shrink-0 border-r border-slate-200 bg-white p-5 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 lg:block">
-        <div className="mb-10">
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200 bg-white/95 p-5 text-slate-900 shadow-[10px_0_30px_rgba(15,23,42,0.03)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 lg:flex lg:flex-col">
+        <div className="mb-9">
           <Brand />
           <RoleBadge role={role} />
         </div>
 
-        <MenuList menus={menus} pathname={pathname} />
-
-        <div className="mt-6">
-          <ThemeToggle />
+        <div className="min-h-0 flex-1">
+          <MenuList menus={menus} pathname={pathname} />
         </div>
 
-        <LogoutButton />
+        <div className="mt-6 space-y-3">
+          <ThemeToggle />
+          <LogoutButton />
+        </div>
       </aside>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-slate-600 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-300 lg:hidden">
@@ -248,8 +249,8 @@ export default function Sidebar({ role }: SidebarProps) {
               href={menu.href}
               className={
                 active
-                  ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-teal-700 dark:text-teal-300"
-                  : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl transition hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                  ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl bg-teal-50 text-teal-700 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300"
+                  : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl transition duration-200 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98] dark:hover:bg-slate-900 dark:hover:text-slate-100"
               }
             >
               <Icon className="h-5 w-5" />
@@ -264,8 +265,8 @@ export default function Sidebar({ role }: SidebarProps) {
           onClick={() => setDrawerOpen(true)}
           className={
             moreActive
-              ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-teal-700 dark:text-teal-300"
-              : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl transition hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+              ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl bg-teal-50 text-teal-700 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300"
+              : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl transition duration-200 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98] dark:hover:bg-slate-900 dark:hover:text-slate-100"
           }
           aria-label="Buka menu lainnya"
         >
