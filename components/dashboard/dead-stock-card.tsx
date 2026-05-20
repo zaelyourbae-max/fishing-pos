@@ -95,7 +95,7 @@ export default function DeadStockCard({
           className={
             dark
               ? "mt-4 space-y-3"
-              : "mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2"
+              : "mt-4 space-y-2.5"
           }
         >
           {items.length === 0 ? (
@@ -103,7 +103,7 @@ export default function DeadStockCard({
               className={
                 dark
                   ? "rounded-2xl border border-dashed border-slate-700 p-5 text-sm text-slate-400"
-                  : "rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400 sm:col-span-2 xl:col-span-1 2xl:col-span-2"
+                  : "rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400"
               }
             >
               Tidak ada dead stock untuk periode ini.
@@ -118,10 +118,10 @@ export default function DeadStockCard({
               className={
                 dark
                   ? "surface-panel-soft flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl p-4 text-left transition-colors hover:bg-slate-800"
-                  : "flex min-h-16 w-full items-start justify-between gap-3 rounded-2xl border border-slate-100 p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:bg-amber-50/40 hover:shadow-sm active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-amber-100 dark:border-slate-800 dark:hover:border-amber-500/30 dark:hover:bg-amber-500/10 dark:focus:ring-amber-500/10"
+                  : "flex min-h-[76px] w-full items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 text-left transition duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:bg-amber-50/40 hover:shadow-sm active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-amber-100 dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-amber-500/30 dark:hover:bg-amber-500/10 dark:focus:ring-amber-500/10"
               }
             >
-              <span className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="flex min-w-0 flex-1 items-start gap-3">
                 <span
                   className={
                     dark
@@ -131,12 +131,12 @@ export default function DeadStockCard({
                 >
                   <PackageX className="h-5 w-5" />
                 </span>
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span
                     className={
                       dark
-                        ? "block truncate font-semibold text-white"
-                        : "block truncate text-sm font-bold text-slate-950 dark:text-white"
+                        ? "block break-words font-semibold leading-snug text-white"
+                        : "block break-words text-sm font-bold leading-snug text-slate-950 dark:text-white"
                     }
                   >
                     {item.name}
@@ -144,11 +144,12 @@ export default function DeadStockCard({
                   <span
                     className={
                       dark
-                        ? "mt-1 block line-clamp-1 text-sm text-slate-500"
-                        : "mt-1 block line-clamp-1 text-xs text-slate-500"
+                        ? "mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500"
+                        : "mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500"
                     }
                   >
-                    {item.sku ?? "-"} - Stok {item.stock}
+                    <span className="break-all">{item.sku ?? "-"}</span>
+                    <span className="whitespace-nowrap">Stok {item.stock}</span>
                   </span>
                 </span>
               </span>

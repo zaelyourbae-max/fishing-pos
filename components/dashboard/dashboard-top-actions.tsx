@@ -135,7 +135,7 @@ export default function DashboardTopActions({
 
   return (
     <>
-      <div className="grid w-full grid-cols-[44px_minmax(0,1fr)_44px] gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 xl:justify-end">
+      <div className="grid w-full grid-cols-[minmax(120px,0.8fr)_minmax(0,1.2fr)_44px] gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 xl:justify-end">
         <div className="relative col-start-1 row-start-1 flex shrink-0 justify-end">
           <button
             type="button"
@@ -183,7 +183,7 @@ export default function DashboardTopActions({
           </label>
           <button
             type="submit"
-            className="col-start-1 row-start-2 inline-flex h-11 min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+            className="col-span-1 col-start-1 row-start-2 inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:min-w-0 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           >
             Terapkan
           </button>
