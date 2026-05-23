@@ -1,4 +1,5 @@
 import { requireOwner } from "@/lib/auth-session";
+import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import {
   getOwnerReportSummary,
   getOwnerReportTransactions,
@@ -26,10 +27,7 @@ const SOFT_AMBER = "#FFFBEB";
 const BUSINESS_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function escapeText(value: string) {
@@ -143,6 +141,83 @@ function parseBusinessDate(value: string | null, end = false) {
   return date;
 }
 
+function startOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+
+  return next;
+}
+
+function endOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(23, 59, 59, 999);
+
+  return next;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+
+  return next;
+}
+
+function filenameDateRange(from?: Date, to?: Date) {
+  if (!from && !to) {
+    return reportDateStamp();
+  }
+
+  const fromKey = from ? reportDateStamp(from) : reportDateStamp(to);
+  const toKey = to ? reportDateStamp(to) : fromKey;
+
+  return fromKey === toKey ? fromKey : `${fromKey}-to-${toKey}`;
+}
+
+function resolvePresetRange(preset: string | null) {
+  const today = startOfDay(new Date());
+
+  if (preset === "today") {
+    return { from: today, to: endOfDay(today) } satisfies OwnerReportRange;
+  }
+
+  if (preset === "7d") {
+    return { from: addDays(today, -6), to: endOfDay(today) } satisfies OwnerReportRange;
+  }
+
+  if (preset === "30d") {
+    return { from: addDays(today, -29), to: endOfDay(today) } satisfies OwnerReportRange;
+  }
+
+  if (preset === "this-month" || preset === "month") {
+    const from = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    return { from, to: endOfDay(today) } satisfies OwnerReportRange;
+  }
+
+  if (preset === "last-month" || preset === "yesterday") {
+    const from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const to = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    return { from, to: endOfDay(to) } satisfies OwnerReportRange;
+  }
+
+  if (preset === "this-year") {
+    const from = new Date(today.getFullYear(), 0, 1);
+    const to = new Date(today.getFullYear(), 11, 31);
+
+    return { from, to: endOfDay(to) } satisfies OwnerReportRange;
+  }
+
+  if (preset === "last-year") {
+    const from = new Date(today.getFullYear() - 1, 0, 1);
+    const to = new Date(today.getFullYear() - 1, 11, 31);
+
+    return { from, to: endOfDay(to) } satisfies OwnerReportRange;
+  }
+
+  return null;
+}
+
 function resolveExportDate(searchParams: URLSearchParams) {
   const selectedDate = searchParams.get("date");
 
@@ -172,6 +247,25 @@ function resolveExportDate(searchParams: URLSearchParams) {
   };
   const periodLabel =
     from || to ? `${formatDate(from)} - ${formatDate(to)}` : "Bulan ini";
+
+  if (from || to) {
+    return {
+      range,
+      periodLabel,
+      filenameDate: filenameDateRange(from, to),
+    };
+  }
+
+  const presetRange = resolvePresetRange(searchParams.get("preset"));
+
+  if (presetRange) {
+    return {
+      range: presetRange,
+      periodLabel: `${formatDate(presetRange.from)} - ${formatDate(presetRange.to)}`,
+      filenameDate: filenameDateRange(presetRange.from, presetRange.to),
+    };
+  }
+
   return {
     range,
     periodLabel,
@@ -184,11 +278,7 @@ function formatDate(date?: Date) {
     return "-";
   }
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDateID(date);
 }
 
 function tableHeader(

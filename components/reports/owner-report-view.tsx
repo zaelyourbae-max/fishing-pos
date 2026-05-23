@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
 import { downloadOwnerReportPdf } from "@/components/reports/download-owner-report-pdf";
+import { formatDateID, parseIDDateInput } from "@/lib/date-format";
 import { operatorLabel, transactionIdentityLabel } from "@/lib/transaction-identity";
 
 type KpiTone = "emerald" | "rose" | "blue" | "violet" | "amber";
@@ -246,8 +247,10 @@ const presets = [
   { key: "today", label: "Hari Ini" },
   { key: "7d", label: "7 Hari" },
   { key: "30d", label: "30 Hari" },
-  { key: "month", label: "Bulan Ini" },
-  { key: "yesterday", label: "Bulan Lalu" },
+  { key: "this-month", label: "Bulan Ini" },
+  { key: "last-month", label: "Bulan Lalu" },
+  { key: "this-year", label: "Tahun Ini" },
+  { key: "last-year", label: "Tahun Lalu" },
   { key: "custom", label: "Custom" },
 ];
 
@@ -337,6 +340,101 @@ function rupiahCompact(value: number) {
   if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(1)}jt`;
   if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}rb`;
   return `Rp ${value}`;
+}
+
+function ownerReportPdfFilename(period: OwnerReportViewData["period"]) {
+  return period.from === period.to
+    ? `owner-report-${period.from}.pdf`
+    : `owner-report-${period.from}-to-${period.to}.pdf`;
+}
+
+function compareIsoDate(from: string, to: string) {
+  return from.localeCompare(to);
+}
+
+function ReportPeriodFilter({
+  from,
+  to,
+  onSubmit,
+}: {
+  from: string;
+  to: string;
+  onSubmit: (range: { from: string; to: string }) => void;
+}) {
+  const [fromInput, setFromInput] = useState(formatDateID(from));
+  const [toInput, setToInput] = useState(formatDateID(to));
+  const [error, setError] = useState<string | null>(null);
+
+  function submitCustom(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsedFrom = parseIDDateInput(fromInput);
+    const parsedTo = parseIDDateInput(toInput);
+
+    if (!parsedFrom || !parsedTo) {
+      setError("Tanggal custom wajib memakai format dd/mm/yyyy, contoh 15/05/2026.");
+      return;
+    }
+
+    if (compareIsoDate(parsedFrom, parsedTo) > 0) {
+      setError("Tanggal awal tidak boleh lebih besar dari tanggal akhir.");
+      return;
+    }
+
+    setError(null);
+    setFromInput(formatDateID(parsedFrom));
+    setToInput(formatDateID(parsedTo));
+    onSubmit({ from: parsedFrom, to: parsedTo });
+  }
+
+  return (
+    <form onSubmit={submitCustom} className="min-w-0 space-y-2">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,150px)_minmax(0,150px)_auto]">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={fromInput}
+          onChange={(event) => {
+            setFromInput(event.target.value);
+            setError(null);
+          }}
+          onBlur={() => {
+            const parsed = parseIDDateInput(fromInput);
+            if (parsed) setFromInput(formatDateID(parsed));
+          }}
+          placeholder="dd/mm/yyyy"
+          aria-label="Tanggal awal laporan"
+          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+        />
+        <input
+          type="text"
+          inputMode="numeric"
+          value={toInput}
+          onChange={(event) => {
+            setToInput(event.target.value);
+            setError(null);
+          }}
+          onBlur={() => {
+            const parsed = parseIDDateInput(toInput);
+            if (parsed) setToInput(formatDateID(parsed));
+          }}
+          placeholder="dd/mm/yyyy"
+          aria-label="Tanggal akhir laporan"
+          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+        />
+        <button
+          type="submit"
+          className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-extrabold text-[#fff] transition hover:bg-blue-700 active:scale-95"
+        >
+          Terapkan
+        </button>
+      </div>
+      {error ? (
+        <p className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+          {error}
+        </p>
+      ) : null}
+    </form>
+  );
 }
 
 function paymentBadgeClass(method: string) {
@@ -1151,8 +1249,6 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [exporting, setExporting] = useState(false);
-  const [from, setFrom] = useState(data.period.from);
-  const [to, setTo] = useState(data.period.to);
   const [query, setQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [cashierFilter, setCashierFilter] = useState("all");
@@ -1215,13 +1311,16 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
     );
   }, [data.transactions, selectedPaymentMethod]);
 
-  function applyPreset(preset: string) {
+  function applyPreset(
+    preset: string,
+    customRange?: { from: string; to: string },
+  ) {
     const params = new URLSearchParams();
     params.set("preset", preset);
 
     if (preset === "custom") {
-      params.set("from", from);
-      params.set("to", to);
+      params.set("from", customRange?.from ?? data.period.from);
+      params.set("to", customRange?.to ?? data.period.to);
     }
 
     startTransition(() => {
@@ -1229,9 +1328,8 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
     });
   }
 
-  function submitCustom(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    applyPreset("custom");
+  function submitCustom(range: { from: string; to: string }) {
+    applyPreset("custom", range);
     setShowMobileFilters(false);
   }
 
@@ -1241,7 +1339,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
     try {
       await downloadOwnerReportPdf(
         data.exportHref,
-        `owner-report-${data.period.from}.pdf`,
+        ownerReportPdfFilename(data.period),
       );
     } catch (error) {
       window.alert(
@@ -1257,26 +1355,12 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
   }
 
   const filterForm = (
-    <form onSubmit={submitCustom} className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,150px)_minmax(0,150px)_auto]">
-      <input
-        type="date"
-        value={from}
-        onChange={(event) => setFrom(event.target.value)}
-        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-      />
-      <input
-        type="date"
-        value={to}
-        onChange={(event) => setTo(event.target.value)}
-        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-      />
-      <button
-        type="submit"
-        className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-extrabold text-[#fff] transition hover:bg-blue-700 active:scale-95"
-      >
-        Terapkan
-      </button>
-    </form>
+    <ReportPeriodFilter
+      key={`${data.period.from}-${data.period.to}`}
+      from={data.period.from}
+      to={data.period.to}
+      onSubmit={submitCustom}
+    />
   );
 
   const transactionFilters = (
@@ -2806,8 +2890,8 @@ function ProfitDetailContent({
     to: initialPeriod.to,
     label: initialPeriod.label,
   });
-  const [draftFrom, setDraftFrom] = useState(initialPeriod.from);
-  const [draftTo, setDraftTo] = useState(initialPeriod.to);
+  const [draftFrom, setDraftFrom] = useState(formatDateID(initialPeriod.from));
+  const [draftTo, setDraftTo] = useState(formatDateID(initialPeriod.to));
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProfitStatusFilter>("Semua");
@@ -2847,16 +2931,29 @@ function ProfitDetailContent({
   );
 
   async function handleApplyPeriod() {
+    const parsedFrom = parseIDDateInput(draftFrom);
+    const parsedTo = parseIDDateInput(draftTo);
+
+    if (!parsedFrom || !parsedTo) {
+      setError("Periode wajib memakai format dd/mm/yyyy, contoh 15/05/2026.");
+      return;
+    }
+
+    if (compareIsoDate(parsedFrom, parsedTo) > 0) {
+      setError("Tanggal awal tidak boleh lebih besar dari tanggal akhir.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSelectedProduct(null);
 
     try {
-      const payload = await fetchProfitDetail(draftFrom, draftTo);
+      const payload = await fetchProfitDetail(parsedFrom, parsedTo);
       setSummary(payload.profitSummary);
       setPeriod(payload.period);
-      setDraftFrom(payload.period.from);
-      setDraftTo(payload.period.to);
+      setDraftFrom(formatDateID(payload.period.from));
+      setDraftTo(formatDateID(payload.period.to));
       setPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat detail laba & margin.");
@@ -2895,18 +2992,30 @@ function ProfitDetailContent({
           <label className="min-w-0 flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
             Periode dari
             <input
-              type="date"
+              type="text"
+              inputMode="numeric"
               value={draftFrom}
               onChange={(event) => setDraftFrom(event.target.value)}
+              onBlur={() => {
+                const parsed = parseIDDateInput(draftFrom);
+                if (parsed) setDraftFrom(formatDateID(parsed));
+              }}
+              placeholder="dd/mm/yyyy"
               className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
           <label className="min-w-0 flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
             Periode sampai
             <input
-              type="date"
+              type="text"
+              inputMode="numeric"
               value={draftTo}
               onChange={(event) => setDraftTo(event.target.value)}
+              onBlur={() => {
+                const parsed = parseIDDateInput(draftTo);
+                if (parsed) setDraftTo(formatDateID(parsed));
+              }}
+              placeholder="dd/mm/yyyy"
               className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>

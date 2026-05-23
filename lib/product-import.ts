@@ -2,43 +2,62 @@ import { prisma } from "@/lib/prisma";
 
 export const PRODUCT_IMPORT_HEADERS = [
   "sku",
+  "barcode",
   "name",
   "category",
+  "brand",
+  "type",
+  "size",
+  "variant",
   "supplier",
+  "rackLocation",
+  "unit",
   "costPrice",
   "sellPrice",
   "stock",
   "minStock",
-  "unit",
   "notes",
 ] as const;
 
 export const PRODUCT_IMPORT_MAX_ROWS = 5000;
+export const PRODUCT_IMPORT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 export type ProductImportInput = {
   sku?: unknown;
+  barcode?: unknown;
   name?: unknown;
   category?: unknown;
+  brand?: unknown;
+  type?: unknown;
+  size?: unknown;
+  variant?: unknown;
   supplier?: unknown;
+  rackLocation?: unknown;
+  unit?: unknown;
   costPrice?: unknown;
   sellPrice?: unknown;
   stock?: unknown;
   minStock?: unknown;
-  unit?: unknown;
   notes?: unknown;
 };
 
 export type ProductImportNormalizedRow = {
   rowNumber: number;
   sku: string;
+  barcode: string;
   name: string;
   category: string;
+  brand: string;
+  type: string;
+  size: string;
+  variant: string;
   supplier: string;
+  rackLocation: string;
+  unit: string;
   costPrice: number;
   sellPrice: number;
   stock: number;
   minStock: number;
-  unit: string;
   notes: string;
   status: "valid" | "warning" | "error";
   errors: string[];
@@ -95,56 +114,76 @@ export function normalizeImportRow(
   rowNumber: number,
 ): Omit<ProductImportNormalizedRow, "status" | "warnings" | "willUpdate"> {
   const sku = normalizeText(input.sku).toUpperCase();
+  const barcode = normalizeText(input.barcode).toUpperCase();
   const name = normalizeText(input.name);
   const category = normalizeText(input.category);
+  const brand = normalizeText(input.brand);
+  const type = normalizeText(input.type);
+  const size = normalizeText(input.size);
+  const variant = normalizeText(input.variant);
   const supplier = normalizeText(input.supplier);
-  const unit = normalizeText(input.unit) || "pcs";
+  const rackLocation = normalizeText(input.rackLocation);
+  const unit = normalizeText(input.unit);
   const notes = normalizeText(input.notes);
-  const costPrice = parseMoney(input.costPrice, 0);
+  const costPrice = parseMoney(input.costPrice, null);
   const sellPrice = parseMoney(input.sellPrice, null);
-  const stock = parseInteger(input.stock, 0);
-  const minStock = parseInteger(input.minStock, 0);
+  const stock = parseInteger(input.stock, Number.NaN);
+  const minStock = parseInteger(input.minStock, Number.NaN);
   const errors: string[] = [];
 
   if (!name) {
-    errors.push("Nama produk wajib diisi");
+    errors.push("[name] Nama produk wajib diisi");
+  }
+
+  if (!category) {
+    errors.push("[category] Kategori wajib diisi");
+  }
+
+  if (!unit) {
+    errors.push("[unit] Satuan utama wajib diisi");
   }
 
   if (sellPrice === null || !Number.isFinite(sellPrice)) {
-    errors.push("Harga jual harus angka");
+    errors.push("[sellPrice] Harga jual harus angka");
   } else if (sellPrice < 0) {
-    errors.push("Harga jual harus >= 0");
+    errors.push("[sellPrice] Harga jual harus >= 0");
   }
 
   if (costPrice === null || !Number.isFinite(costPrice)) {
-    errors.push("Harga modal/HPP harus angka");
+    errors.push("[costPrice] Harga modal/HPP harus angka");
   } else if (costPrice < 0) {
-    errors.push("Harga modal/HPP harus >= 0");
+    errors.push("[costPrice] Harga modal/HPP harus >= 0");
   }
 
   if (!Number.isInteger(stock)) {
-    errors.push("Stok harus angka bulat");
+    errors.push("[stock] Stok harus angka bulat");
   } else if (stock < 0) {
-    errors.push("Stok tidak boleh negatif");
+    errors.push("[stock] Stok tidak boleh negatif");
   }
 
   if (!Number.isInteger(minStock)) {
-    errors.push("Min stok harus angka bulat");
+    errors.push("[minStock] Min stok harus angka bulat");
   } else if (minStock < 0) {
-    errors.push("Min stok tidak boleh negatif");
+    errors.push("[minStock] Min stok tidak boleh negatif");
   }
 
   return {
     rowNumber,
     sku,
+    barcode,
     name,
     category,
+    brand,
+    type,
+    size,
+    variant,
     supplier,
+    rackLocation,
+    unit,
     costPrice: costPrice ?? 0,
     sellPrice: sellPrice ?? 0,
     stock,
     minStock,
-    unit,
     notes,
     errors,
   };
@@ -161,27 +200,44 @@ export async function buildProductImportPreview(rows: ProductImportInput[]) {
 
   const normalized = rows.map((row, index) => normalizeImportRow(row, index + 2));
   const skuCounts = new Map<string, number>();
+  const barcodeCounts = new Map<string, number>();
 
   for (const row of normalized) {
     if (row.sku) {
       skuCounts.set(row.sku, (skuCounts.get(row.sku) ?? 0) + 1);
     }
+
+    if (row.barcode) {
+      barcodeCounts.set(row.barcode, (barcodeCounts.get(row.barcode) ?? 0) + 1);
+    }
   }
 
   for (const row of normalized) {
     if (row.sku && (skuCounts.get(row.sku) ?? 0) > 1) {
-      row.errors.push("SKU duplikat di file");
+      row.errors.push("[sku] SKU duplikat di file");
+    }
+
+    if (row.barcode && (barcodeCounts.get(row.barcode) ?? 0) > 1) {
+      row.errors.push("[barcode] Barcode duplikat di file");
     }
   }
 
   const skus = [...new Set(normalized.map((row) => row.sku).filter(Boolean))];
+  const barcodes = [
+    ...new Set(normalized.map((row) => row.barcode).filter(Boolean)),
+  ];
   const supplierNames = [
     ...new Set(normalized.map((row) => row.supplier).filter(Boolean)),
   ];
   const categories = [
     ...new Set(normalized.map((row) => row.category).filter(Boolean)),
   ];
-  const [existingProducts, existingSuppliers, existingCategories] =
+  const [
+    existingProducts,
+    existingBarcodeProducts,
+    existingSuppliers,
+    existingCategories,
+  ] =
     await Promise.all([
       skus.length
         ? prisma.product.findMany({
@@ -191,8 +247,24 @@ export async function buildProductImportPreview(rows: ProductImportInput[]) {
               },
             },
             select: {
+              id: true,
               sku: true,
+              barcode: true,
               isActive: true,
+            },
+          })
+        : [],
+      barcodes.length
+        ? prisma.product.findMany({
+            where: {
+              barcode: {
+                in: barcodes,
+              },
+            },
+            select: {
+              id: true,
+              sku: true,
+              barcode: true,
             },
           })
         : [],
@@ -224,15 +296,35 @@ export async function buildProductImportPreview(rows: ProductImportInput[]) {
           })
         : [],
     ]);
-  const existingSkuMap = new Map(
-    existingProducts
-      .map((product) =>
-        product.sku
-          ? [product.sku.toUpperCase(), product.isActive] as const
-          : null,
-      )
-      .filter((entry): entry is readonly [string, boolean] => Boolean(entry)),
-  );
+  const existingSkuMap = new Map<
+    string,
+    { id: number; barcode: string | null; isActive: boolean }
+  >();
+
+  for (const product of existingProducts) {
+    if (!product.sku) {
+      continue;
+    }
+
+    existingSkuMap.set(product.sku.toUpperCase(), {
+      id: product.id,
+      barcode: product.barcode,
+      isActive: product.isActive,
+    });
+  }
+
+  const existingBarcodeMap = new Map<string, { id: number; sku: string | null }>();
+
+  for (const product of existingBarcodeProducts) {
+    if (!product.barcode) {
+      continue;
+    }
+
+    existingBarcodeMap.set(product.barcode.toUpperCase(), {
+      id: product.id,
+      sku: product.sku,
+    });
+  }
   const supplierSet = new Set(
     existingSuppliers.map((supplier) => supplier.name.toLowerCase()),
   );
@@ -244,19 +336,36 @@ export async function buildProductImportPreview(rows: ProductImportInput[]) {
 
   const preview: ProductImportNormalizedRow[] = normalized.map((row) => {
     const warnings: string[] = [];
-    const existingProductIsActive = row.sku
-      ? existingSkuMap.get(row.sku)
+    const existingBySku = row.sku ? existingSkuMap.get(row.sku) : undefined;
+    const existingByBarcode = row.barcode
+      ? existingBarcodeMap.get(row.barcode)
       : undefined;
-    const willUpdate = existingProductIsActive !== undefined;
+    const willUpdate = existingBySku !== undefined;
 
     if (!row.sku) {
       warnings.push("SKU kosong, akan dibuat otomatis");
-    } else if (willUpdate && existingProductIsActive === false) {
+    } else if (willUpdate && !existingBySku.isActive) {
       warnings.push(
         "SKU ditemukan pada produk inactive, produk akan diaktifkan kembali dan diperbarui.",
       );
     } else if (willUpdate) {
       warnings.push("SKU sudah ada, produk akan diperbarui");
+    }
+
+    if (row.barcode && existingByBarcode) {
+      if (!existingBySku || existingBySku.id !== existingByBarcode.id) {
+        row.errors.push(
+          "[barcode] Barcode sudah terdaftar di produk lain di database",
+        );
+      }
+    }
+
+    if (row.sku && row.barcode && existingBySku?.barcode) {
+      if (existingBySku.barcode.toUpperCase() !== row.barcode) {
+        row.errors.push(
+          "[sku/barcode] SKU sudah ada dengan barcode yang berbeda di database",
+        );
+      }
     }
 
     if (row.supplier && !supplierSet.has(row.supplier.toLowerCase())) {

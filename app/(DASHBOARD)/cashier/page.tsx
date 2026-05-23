@@ -4,6 +4,7 @@ import { ArrowRight, Boxes, ReceiptText, ShoppingCart } from "lucide-react";
 import DeadStockCard, {
   type DeadStockCardItem,
 } from "@/components/dashboard/dead-stock-card";
+import { formatDateTimeID } from "@/lib/date-format";
 import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireCashierPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
@@ -23,10 +24,7 @@ function rupiah(amount: number) {
 }
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function EmptyState({ label }: { label: string }) {

@@ -1,4 +1,5 @@
 import { requireOwner } from "@/lib/auth-session";
+import { formatDateID } from "@/lib/date-format";
 import { serializeProfitSummary } from "@/lib/report-profit-detail";
 import { getOwnerReportSummary, type OwnerReportRange } from "@/lib/reports";
 import { NextResponse } from "next/server";
@@ -41,11 +42,7 @@ function dateInputValue(date: Date) {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDateID(date);
 }
 
 function todayRange(): OwnerReportRange {

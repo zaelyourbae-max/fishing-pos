@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
+import { formatDateTimeID } from "@/lib/date-format";
 
 type RoleSlug = "owner" | "cashier" | "developer";
 type StatusFilter = "all" | "active" | "inactive";
@@ -106,13 +107,7 @@ function avatarClass(slug: string) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return formatDateTimeID(value);
 }
 
 export default function UserManager({ users }: UserManagerProps) {

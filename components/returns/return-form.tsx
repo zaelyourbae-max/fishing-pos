@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 
+import { formatDateTimeID } from "@/lib/date-format";
 import { RETURN_REASON_LABELS, RETURN_REASONS, rupiah } from "@/lib/returns";
 import { operatorLabel } from "@/lib/transaction-identity";
 
@@ -41,10 +42,7 @@ type SaleSearchItem = {
 type QtyMap = Record<string, string>;
 
 function formatDate(date: string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(date));
+  return formatDateTimeID(date);
 }
 
 export default function ReturnForm() {

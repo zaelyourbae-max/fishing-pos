@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { isOwnerRole } from "@/lib/permissions";
+import { formatDateTimeID } from "@/lib/date-format";
 import { requireCustomersPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
@@ -38,13 +39,7 @@ function rupiah(amount: number) {
 }
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 export default async function CustomerDetailPage({

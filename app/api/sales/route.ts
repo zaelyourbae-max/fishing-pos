@@ -14,8 +14,10 @@ import {
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE, resolveSaleStatuses } from "@/lib/sale-status";
-import { Prisma, SaleItemDiscountType } from "@prisma/client";
+import { PaymentStatus, Prisma, SaleItemDiscountType, TransactionStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
+
+const PENDING_PAYMENT_EXPIRE_MINUTES = 15;
 
 type SaleItemInput = {
   product_id: number;
@@ -48,6 +50,35 @@ function saleNumber() {
     .slice(0, 14);
 
   return `SL-${stamp}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function pendingPaymentExpiredAt(createdAt = new Date()) {
+  const expiredAt = new Date(createdAt);
+  expiredAt.setMinutes(expiredAt.getMinutes() + PENDING_PAYMENT_EXPIRE_MINUTES);
+
+  return expiredAt;
+}
+
+function shouldExpirePendingPayment(statuses: {
+  transactionStatus: TransactionStatus;
+  paymentStatus: PaymentStatus;
+}) {
+  return (
+    statuses.transactionStatus === TransactionStatus.PENDING &&
+    (statuses.paymentStatus === PaymentStatus.WAITING_PROOF ||
+      statuses.paymentStatus === PaymentStatus.UNPAID)
+  );
+}
+
+function isMissingExpiredAtMigration(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  return (
+    message.includes("expired_at") &&
+    (message.includes("does not exist") ||
+      message.includes("column") ||
+      message.includes("Unknown argument"))
+  );
 }
 
 function normalizeDiscountType(value: unknown) {
@@ -299,10 +330,40 @@ export async function GET(req: Request) {
       ...saleAccessWhere(auth.session.role, auth.session.sub),
       transactionStatus: "PENDING",
       paymentStatus: "WAITING_PROOF",
-      paymentMethod: {
-        contains: "QRIS",
-        mode: "insensitive",
-      },
+      OR: [
+        {
+          paymentMethod: {
+            contains: "QRIS",
+            mode: "insensitive",
+          },
+        },
+        {
+          paymentMethod: {
+            contains: "TRANSFER",
+            mode: "insensitive",
+          },
+        },
+        {
+          paymentMethod: {
+            contains: "BANK",
+            mode: "insensitive",
+          },
+        },
+      ],
+      AND: [
+        {
+          OR: [
+            {
+              expiredAt: null,
+            },
+            {
+              expiredAt: {
+                gt: new Date(),
+              },
+            },
+          ],
+        },
+      ],
     },
     orderBy: {
       createdAt: "desc",
@@ -315,6 +376,7 @@ export async function GET(req: Request) {
       transactionStatus: true,
       paymentStatus: true,
       paymentProofUrl: true,
+      expiredAt: true,
       createdAt: true,
     },
   });
@@ -330,6 +392,7 @@ export async function GET(req: Request) {
           transaction_status: sale.transactionStatus,
           payment_status: sale.paymentStatus,
           payment_proof_url: sale.paymentProofUrl,
+          expired_at: sale.expiredAt,
           created_at: sale.createdAt,
         }
       : null,
@@ -667,6 +730,10 @@ export async function POST(req: Request) {
             : paidAmountInput;
         const invoiceNumber = saleNumber();
         const saleStatuses = resolveSaleStatuses(paymentMethod);
+        const createdAt = new Date();
+        const expiredAt = shouldExpirePendingPayment(saleStatuses)
+          ? pendingPaymentExpiredAt(createdAt)
+          : null;
 
         const createdSale = await tx.sale.create({
           data: {
@@ -683,6 +750,8 @@ export async function POST(req: Request) {
             paymentMethod,
             transactionStatus: saleStatuses.transactionStatus,
             paymentStatus: saleStatuses.paymentStatus,
+            expiredAt,
+            createdAt,
             cashierId: session.sub,
             customerId: saleCustomerId,
           },
@@ -781,6 +850,7 @@ export async function POST(req: Request) {
           transaction_status: createdSale.transactionStatus,
           payment_status: createdSale.paymentStatus,
           payment_proof_url: createdSale.paymentProofUrl,
+          expired_at: createdSale.expiredAt,
           payment_method: createdSale.paymentMethod,
           subtotal: subtotalBeforeLoyalty,
           subtotal_before_loyalty: subtotalBeforeLoyalty,
@@ -963,6 +1033,20 @@ export async function POST(req: Request) {
         },
         {
           status: 422,
+        },
+      );
+    }
+
+    if (isMissingExpiredAtMigration(error)) {
+      console.error(error);
+
+      return NextResponse.json(
+        {
+          message:
+            "Kolom expired_at belum tersedia di database. Jalankan migration terbaru sebelum membuat transaksi pending.",
+        },
+        {
+          status: 500,
         },
       );
     }

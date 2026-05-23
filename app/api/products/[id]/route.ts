@@ -16,6 +16,53 @@ function readImageUrl(value: unknown) {
   return imageUrl.startsWith("/uploads/products/") ? imageUrl : null;
 }
 
+function readOptionalText(value: unknown) {
+  const text = String(value ?? "").trim();
+
+  return text ? text : null;
+}
+
+function supplierCode() {
+  return `SUP-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+}
+
+async function resolveSupplierId(name: string | null) {
+  if (!name) {
+    return null;
+  }
+
+  const existing = await prisma.supplier.findFirst({
+    where: {
+      name: {
+        equals: name,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existing) {
+    return existing.id;
+  }
+
+  const created = await prisma.supplier.create({
+    data: {
+      code: supplierCode(),
+      name,
+      type: "SUPPLIER",
+      isActive: true,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return created.id;
+}
+
 export async function PATCH(
   request: Request,
   context: {
@@ -37,20 +84,32 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const name = String(body.name ?? "").trim();
+    const name = readOptionalText(body.name);
+    const category = readOptionalText(body.category);
+    const unit = readOptionalText(body.unit);
     const price = positiveInteger(body.price);
     const stock = positiveInteger(body.stock);
     const costPrice = positiveInteger(body.costPrice ?? 0);
     const minStock = positiveInteger(body.minStock ?? 0);
+    const supplierName = readOptionalText(body.supplier);
     const imageUrl =
       body.imageUrl === undefined
         ? undefined
         : readImageUrl(body.imageUrl);
 
-    if (!name || price === null || stock === null || costPrice === null || minStock === null) {
+    if (
+      !name ||
+      !category ||
+      !unit ||
+      price === null ||
+      stock === null ||
+      costPrice === null ||
+      minStock === null
+    ) {
       return NextResponse.json(
         {
-          message: "Nama, harga, stok, harga modal/HPP, dan min stok harus valid.",
+          message:
+            "Field wajib: nama, kategori, unit, harga jual, HPP, stok, dan min stok harus valid.",
         },
         {
           status: 422,
@@ -58,6 +117,7 @@ export async function PATCH(
       );
     }
 
+    const supplierId = await resolveSupplierId(supplierName);
     const result = await prisma.$transaction(
       async (tx) => {
         const existing = await tx.product.findUnique({
@@ -82,13 +142,19 @@ export async function PATCH(
             sku: body.sku ? String(body.sku).trim().toUpperCase() : null,
             barcode: body.barcode ? String(body.barcode).trim().toUpperCase() : null,
             name,
-            description: body.description ? String(body.description).trim() : null,
+            category,
+            brand: readOptionalText(body.brand),
+            type: readOptionalText(body.type),
+            size: readOptionalText(body.size),
+            variant: readOptionalText(body.variant),
+            rackLocation: readOptionalText(body.rackLocation),
+            description: readOptionalText(body.description),
             price,
             costPrice,
             stock,
             minStock,
-            unit: body.unit ? String(body.unit).trim() : "pcs",
-            category: body.category ? String(body.category).trim() : null,
+            unit,
+            supplierId,
             ...(imageUrl !== undefined ? { imageUrl } : {}),
           },
         });
@@ -124,6 +190,29 @@ export async function PATCH(
       data: result,
     });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const target = Array.isArray(error.meta?.target)
+        ? error.meta.target.join(",")
+        : String(error.meta?.target ?? "");
+
+      if (target.includes("sku")) {
+        return NextResponse.json(
+          { message: "SKU sudah dipakai produk lain." },
+          { status: 422 },
+        );
+      }
+
+      if (target.includes("barcode")) {
+        return NextResponse.json(
+          { message: "Barcode sudah dipakai produk lain." },
+          { status: 422 },
+        );
+      }
+    }
+
     if (error instanceof Error && error.message === "PRODUCT_NOT_FOUND") {
       return NextResponse.json({ message: "Produk tidak ditemukan." }, { status: 404 });
     }

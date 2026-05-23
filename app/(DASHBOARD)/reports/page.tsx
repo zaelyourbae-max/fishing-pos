@@ -9,6 +9,7 @@ import {
   rupiah,
   type OwnerReportRange,
 } from "@/lib/reports";
+import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { serializeProfitSummary } from "@/lib/report-profit-detail";
 
 type ReportsPageProps = {
@@ -59,29 +60,8 @@ function parseInputDate(value: string | undefined, fallback: Date) {
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 function formatMonthYear(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  return formatDateID(date).slice(3);
 }
 
 function formatPercent(value: number) {
@@ -101,13 +81,46 @@ function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
     };
   }
 
-  if (preset === "yesterday") {
-    const yesterday = addDays(today, -1);
+  if (preset === "this-month" || preset === "month") {
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    return {
+      preset: "this-month",
+      from: monthStart,
+      to: endOfDay(today),
+    };
+  }
+
+  if (preset === "last-month" || preset === "yesterday") {
+    const monthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    return {
+      preset: "last-month",
+      from: monthStart,
+      to: endOfDay(monthEnd),
+    };
+  }
+
+  if (preset === "this-year") {
+    const yearStart = new Date(today.getFullYear(), 0, 1);
+    const yearEnd = new Date(today.getFullYear(), 11, 31);
 
     return {
       preset,
-      from: yesterday,
-      to: endOfDay(yesterday),
+      from: yearStart,
+      to: endOfDay(yearEnd),
+    };
+  }
+
+  if (preset === "last-year") {
+    const yearStart = new Date(today.getFullYear() - 1, 0, 1);
+    const yearEnd = new Date(today.getFullYear() - 1, 11, 31);
+
+    return {
+      preset,
+      from: yearStart,
+      to: endOfDay(yearEnd),
     };
   }
 
@@ -115,17 +128,6 @@ function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
     return {
       preset,
       from: addDays(today, -6),
-      to: endOfDay(today),
-    };
-  }
-
-  if (preset === "month") {
-    const monthStart = new Date(today);
-    monthStart.setDate(1);
-
-    return {
-      preset,
-      from: monthStart,
       to: endOfDay(today),
     };
   }
@@ -166,10 +168,7 @@ function buildTrend(
     const key = dateInputValue(cursor);
     days.push({
       key,
-      label: new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "short",
-      }).format(cursor),
+      label: formatDateID(cursor),
       omzet: 0,
       transactions: 0,
     });
@@ -214,7 +213,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   );
   const purchaseTotal = report.inventoryReturns.totalPurchaseMonth;
   const supplierReturn = report.inventoryReturns.monthValue;
-  const periodLabel = `${formatDate(rangeParams.from)} - ${formatDate(rangeParams.to)}`;
+  const periodLabel = `${formatDateID(rangeParams.from)} - ${formatDateID(rangeParams.to)}`;
   const exportParams = new URLSearchParams({
     preset: rangeParams.preset,
     from: dateInputValue(rangeParams.from),
@@ -226,7 +225,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       from: dateInputValue(rangeParams.from),
       to: dateInputValue(rangeParams.to),
       label: periodLabel,
-      updatedAt: formatDateTime(new Date()),
+      updatedAt: formatDateTimeID(new Date()),
     },
     exportHref: `/api/reports/export/pdf?${exportParams.toString()}`,
     kpis: [
@@ -381,14 +380,14 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       recentCustomer: report.returns.recent.map((item) => ({
         id: item.id,
         number: item.sale.invoiceNumber,
-        date: formatDate(item.createdAt),
+        date: formatDateID(item.createdAt),
         reason: item.reasonLabel,
         total: rupiah(item.totalRefund ?? 0),
       })),
       recentSupplier: report.inventoryReturns.recent.map((item) => ({
         id: item.id,
         number: item.returnNumber,
-        date: formatDate(item.createdAt),
+        date: formatDateID(item.createdAt),
         supplier: item.supplier.name,
         supplierType: item.supplier.type,
         reason: item.reason,
@@ -405,7 +404,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     recentPurchases: report.recentPurchases.map((purchase) => ({
       id: purchase.id,
       number: purchase.purchaseNumber,
-      date: formatDate(purchase.createdAt),
+      date: formatDateID(purchase.createdAt),
       supplier: purchase.supplier.name,
       itemCount: purchase.items.length,
       totalQty: purchase.items.reduce((total, item) => total + item.qty, 0),
@@ -445,7 +444,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       id: sale.id,
       invoiceNumber: sale.invoiceNumber,
       createdAt: sale.createdAt.toISOString(),
-      createdAtLabel: formatDateTime(sale.createdAt),
+      createdAtLabel: formatDateTimeID(sale.createdAt),
       cashierName: sale.cashier.name,
       cashierRoleName: sale.cashier.role?.name ?? null,
       cashierRoleSlug: sale.cashier.role?.slug ?? null,

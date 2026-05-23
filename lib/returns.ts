@@ -1,3 +1,5 @@
+import { formatDateTimeID } from "@/lib/date-format";
+
 export const RETURN_REASONS = [
   "BARANG_RUSAK",
   "BARANG_CACAT",
@@ -29,8 +31,5 @@ export function rupiah(amount: number) {
 }
 
 export function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeID(date);
 }

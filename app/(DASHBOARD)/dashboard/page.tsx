@@ -25,6 +25,7 @@ import OperationalAlerts, {
   type OperationalAlert,
 } from "@/components/dashboard/operational-alerts";
 import TransactionPaymentPanel from "@/components/dashboard/transaction-payment-panel";
+import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireOwnerPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
@@ -115,39 +116,19 @@ function previousMonthEnd(date: Date) {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDateID(date);
 }
 
 function formatHeaderDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    weekday: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function formatMonthYear(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  return formatDateID(date).slice(3);
 }
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function reasonLabel(reason: string) {

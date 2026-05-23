@@ -197,6 +197,13 @@ export default async function ProductsPage({
         },
         skip: (currentPage - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
+        include: {
+          supplier: {
+            select: {
+              name: true,
+            },
+          },
+        },
       }),
       prisma.product.count({
         where,
@@ -472,7 +479,13 @@ export default async function ProductsPage({
                   {canViewCost ? (
                     <>
                       <td className="whitespace-nowrap px-5 py-4 font-semibold tabular-nums text-slate-950 dark:text-white">
-                        {product.costPrice > 0 ? rupiah(product.costPrice) : "-"}
+                        {product.costPrice > 0 ? (
+                          rupiah(product.costPrice)
+                        ) : (
+                          <span className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                            HPP belum lengkap
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <span
@@ -517,12 +530,18 @@ export default async function ProductsPage({
                             sku: product.sku,
                             barcode: product.barcode,
                             name: product.name,
+                            brand: product.brand,
+                            type: product.type,
+                            size: product.size,
+                            variant: product.variant,
                             price: product.price,
                             costPrice: product.costPrice,
                             stock: product.stock,
                             minStock: product.minStock,
                             unit: product.unit,
                             category: product.category,
+                            supplierName: product.supplier?.name ?? null,
+                            rackLocation: product.rackLocation,
                             description: product.description,
                             imageUrl: product.imageUrl,
                           }}
@@ -581,7 +600,10 @@ export default async function ProductsPage({
                     {canViewCost ? (
                       <>
                         <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                          HPP {product.costPrice > 0 ? rupiah(product.costPrice) : "-"}
+                          HPP{" "}
+                          {product.costPrice > 0
+                            ? rupiah(product.costPrice)
+                            : "belum lengkap"}
                         </span>
                         <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold tabular-nums text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                           Margin {marginLabel(product.price, product.costPrice)}
@@ -604,12 +626,18 @@ export default async function ProductsPage({
                       sku: product.sku,
                       barcode: product.barcode,
                       name: product.name,
+                      brand: product.brand,
+                      type: product.type,
+                      size: product.size,
+                      variant: product.variant,
                       price: product.price,
                       costPrice: product.costPrice,
                       stock: product.stock,
                       minStock: product.minStock,
                       unit: product.unit,
                       category: product.category,
+                      supplierName: product.supplier?.name ?? null,
+                      rackLocation: product.rackLocation,
                       description: product.description,
                       imageUrl: product.imageUrl,
                     }}

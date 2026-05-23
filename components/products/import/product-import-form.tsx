@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 type PreviewRow = {
   rowNumber: number;
   sku: string;
+  barcode: string;
   name: string;
   category: string;
+  brand: string;
+  type: string;
+  size: string;
+  variant: string;
   supplier: string;
+  rackLocation: string;
+  unit: string;
   costPrice: number;
   sellPrice: number;
   stock: number;
   minStock: number;
-  unit: string;
   notes: string;
   status: "valid" | "warning" | "error";
   errors: string[];
@@ -49,7 +55,37 @@ function statusClass(status: PreviewRow["status"]) {
   return "bg-emerald-500/15 text-emerald-300";
 }
 
+function ValidationNotes({ row }: { row: PreviewRow }) {
+  if (row.errors.length === 0 && row.warnings.length === 0) {
+    return <span>-</span>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {row.errors.length > 0 ? (
+        <ul className="list-disc space-y-1 pl-4 text-rose-300">
+          {row.errors.map((entry) => (
+            <li key={`${row.rowNumber}-error-${entry}`}>{entry}</li>
+          ))}
+        </ul>
+      ) : null}
+      {row.warnings.length > 0 ? (
+        <ul className="list-disc space-y-1 pl-4 text-amber-200">
+          {row.warnings.map((entry) => (
+            <li key={`${row.rowNumber}-warning-${entry}`}>{entry}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ProductImportForm() {
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -61,6 +97,31 @@ export default function ProductImportForm() {
     () => Boolean(preview && preview.summary.errorRows === 0 && preview.rows.length > 0),
     [preview],
   );
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h1 className="page-title">Import Produk</h1>
+            <p className="mt-3 text-slate-400">
+              Upload Excel produk, preview validasi, lalu import ke PostgreSQL.
+            </p>
+          </div>
+        </div>
+        <section className="surface-panel rounded-3xl p-5 sm:p-6">
+          <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            Memuat form import...
+          </div>
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto] lg:items-end">
+            <div className="h-14 rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+            <div className="h-14 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800" />
+            <div className="h-14 rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800" />
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   async function handlePreview() {
     if (!file) {
@@ -152,6 +213,14 @@ export default function ProductImportForm() {
       </div>
 
       <section className="surface-panel rounded-3xl p-5 sm:p-6">
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+          <p className="font-medium text-slate-800 dark:text-slate-100">Petunjuk cepat import:</p>
+          <ul className="mt-2 list-disc space-y-1 pl-4">
+            <li>Kolom wajib: <code>name</code>, <code>category</code>, <code>unit</code>, <code>costPrice</code>, <code>sellPrice</code>, <code>stock</code>, <code>minStock</code>.</li>
+            <li><code>sku</code> boleh kosong (akan auto-generate), <code>barcode</code> boleh kosong.</li>
+            <li>Gunakan nilai biasa, jangan formula Excel.</li>
+          </ul>
+        </div>
         <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto] lg:items-end">
           <div>
             <label className="text-sm font-medium text-slate-300">
@@ -234,15 +303,20 @@ export default function ProductImportForm() {
 
           <div className="hidden lg:block">
           <div className="table-scroll">
-            <table className="w-full min-w-[1100px] text-sm">
+            <table className="w-full min-w-[1450px] text-sm">
               <thead>
                 <tr>
                   <th className="p-4 text-left">Row</th>
                   <th className="p-4 text-left">Status</th>
                   <th className="p-4 text-left">SKU</th>
+                  <th className="p-4 text-left">Barcode</th>
                   <th className="p-4 text-left">Nama</th>
                   <th className="p-4 text-left">Kategori</th>
+                  <th className="p-4 text-left">Brand / Type</th>
+                  <th className="p-4 text-left">Size / Variant</th>
                   <th className="p-4 text-left">Supplier</th>
+                  <th className="p-4 text-left">Lokasi Rak</th>
+                  <th className="p-4 text-left">Unit</th>
                   <th className="p-4 text-right">Modal/HPP</th>
                   <th className="p-4 text-right">Harga Jual</th>
                   <th className="p-4 text-right">Stok</th>
@@ -263,9 +337,18 @@ export default function ProductImportForm() {
                       </span>
                     </td>
                     <td className="p-4 text-slate-700 dark:text-white">{row.sku || "Auto"}</td>
+                    <td className="p-4 text-slate-300">{row.barcode || "-"}</td>
                     <td className="p-4 font-semibold text-slate-950 dark:text-white">{row.name || "-"}</td>
                     <td className="p-4 text-slate-300">{row.category || "-"}</td>
+                    <td className="p-4 text-slate-300">
+                      {[row.brand, row.type].filter(Boolean).join(" / ") || "-"}
+                    </td>
+                    <td className="p-4 text-slate-300">
+                      {[row.size, row.variant].filter(Boolean).join(" / ") || "-"}
+                    </td>
                     <td className="p-4 text-slate-300">{row.supplier || "-"}</td>
+                    <td className="p-4 text-slate-300">{row.rackLocation || "-"}</td>
+                    <td className="p-4 text-slate-300">{row.unit || "-"}</td>
                     <td className="p-4 text-right tabular-nums text-slate-300">
                       {row.costPrice.toLocaleString("id-ID")}
                     </td>
@@ -274,7 +357,7 @@ export default function ProductImportForm() {
                     </td>
                     <td className="p-4 text-right tabular-nums text-slate-300">{row.stock}</td>
                     <td className="max-w-sm p-4 text-slate-300">
-                      {[...row.errors, ...row.warnings].join("; ") || "-"}
+                      <ValidationNotes row={row} />
                     </td>
                   </tr>
                 ))}
@@ -297,6 +380,9 @@ export default function ProductImportForm() {
                     <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
                       SKU: {row.sku || "Auto"}
                     </p>
+                    <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
+                      Barcode: {row.barcode || "-"}
+                    </p>
                   </div>
                   <span
                     className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusClass(
@@ -315,9 +401,21 @@ export default function ProductImportForm() {
                   </p>
                   <p className="min-w-0">
                     <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Unit
+                    </span>
+                    <span className="break-words">{row.unit || "-"}</span>
+                  </p>
+                  <p className="min-w-0">
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
                       Supplier
                     </span>
                     <span className="break-words">{row.supplier || "-"}</span>
+                  </p>
+                  <p className="min-w-0">
+                    <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Lokasi Rak
+                    </span>
+                    <span className="break-words">{row.rackLocation || "-"}</span>
                   </p>
                   <p>
                     <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -348,9 +446,9 @@ export default function ProductImportForm() {
                     <span className="font-semibold tabular-nums">{row.minStock}</span>
                   </p>
                 </div>
-                <p className="mt-4 break-words rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                  {[...row.errors, ...row.warnings].join("; ") || "-"}
-                </p>
+                <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                  <ValidationNotes row={row} />
+                </div>
               </article>
             ))}
           </div>

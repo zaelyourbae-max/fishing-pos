@@ -1,6 +1,7 @@
 import PurchaseForm from "@/components/purchases/purchase-form";
 import LiveSearchInput from "@/components/search/live-search-input";
 import PaginationLinks from "@/components/ui/pagination-links";
+import { formatDateID } from "@/lib/date-format";
 import { requireOwnerPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 
@@ -180,7 +181,7 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
                   Rp {purchase.total.toLocaleString("id-ID")}
                 </td>
                 <td className="p-4 text-slate-400">
-                  {purchase.createdAt.toLocaleDateString("id-ID")}
+                  {formatDateID(purchase.createdAt)}
                 </td>
               </tr>
             ))}
@@ -221,7 +222,7 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
                   <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
                     Tanggal
                   </span>
-                  {purchase.createdAt.toLocaleDateString("id-ID")}
+                  {formatDateID(purchase.createdAt)}
                 </p>
               </div>
             </article>

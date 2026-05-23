@@ -1,4 +1,5 @@
 import { requireOwner } from "@/lib/auth-session";
+import { formatDateTimeID } from "@/lib/date-format";
 import {
   getOwnerReportReturns,
   getOwnerReportSummary,
@@ -27,10 +28,7 @@ function reasonLabel(reason: string) {
 }
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function setCellStyle(

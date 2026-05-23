@@ -2,15 +2,13 @@ import Link from "next/link";
 
 import SupplierReturnForm from "@/components/returns/supplier-return-form";
 import LiveSearchInput from "@/components/search/live-search-input";
+import { formatDateTimeID } from "@/lib/date-format";
 import { requireOwnerPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { rupiah } from "@/lib/returns";
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 type SupplierReturnPageProps = {

@@ -18,6 +18,9 @@ import { prisma } from "@/lib/prisma";
 import LiveSearchInput from "@/components/search/live-search-input";
 import CancelSaleButton from "@/components/sales/cancel-sale-button";
 import PaymentProofActionButton from "@/components/sales/payment-proof-action-button";
+import PendingExpiryCountdown from "@/components/sales/pending-expiry-countdown";
+import SalesDateFilterFields from "@/components/sales/sales-date-filter-fields";
+import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { operatorLabel } from "@/lib/transaction-identity";
 
@@ -39,13 +42,7 @@ function rupiah(amount: number) {
 }
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function dateRange(from?: string, to?: string) {
@@ -67,11 +64,7 @@ function displayDate(value?: string) {
     return "";
   }
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+  return formatDateID(value);
 }
 
 function paymentIcon(paymentMethod: string) {
@@ -155,8 +148,12 @@ function isPendingQrisSale(sale: {
   transactionStatus: string;
   paymentStatus: string;
 }) {
+  const method = sale.paymentMethod.toUpperCase();
+
   return (
-    sale.paymentMethod.toUpperCase().includes("QRIS") &&
+    (method.includes("QRIS") ||
+      method.includes("TRANSFER") ||
+      method.includes("BANK")) &&
     sale.transactionStatus === "PENDING" &&
     sale.paymentStatus === "WAITING_PROOF"
   );
@@ -231,6 +228,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           transactionStatus: true,
           paymentStatus: true,
           paymentProofUrl: true,
+          expiredAt: true,
           cancelReason: true,
           cancelledAt: true,
           loyaltyApplied: true,
@@ -369,29 +367,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
       <form className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[180px_180px_1fr_1fr_1.2fr_160px]">
-          <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Tanggal Mulai
-            </span>
-            <input
-              type="date"
-              name="from"
-              defaultValue={params.from ?? ""}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
-            />
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Tanggal Akhir
-            </span>
-            <input
-              type="date"
-              name="to"
-              defaultValue={params.to ?? ""}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
-            />
-          </label>
+          <SalesDateFilterFields from={params.from} to={params.to} />
 
           {session.role !== "cashier" ? (
             <label className="space-y-2">
@@ -549,6 +525,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                           <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
                             Dibatalkan
                           </span>
+                        ) : null}
+                        {isPendingQris ? (
+                          <PendingExpiryCountdown
+                            expiredAt={sale.expiredAt?.toISOString() ?? null}
+                          />
                         ) : null}
                       </div>
                       {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
@@ -712,6 +693,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
                         Dibatalkan
                       </span>
+                    ) : null}
+                    {isPendingQris ? (
+                      <PendingExpiryCountdown
+                        expiredAt={sale.expiredAt?.toISOString() ?? null}
+                      />
                     ) : null}
                     </div>
                   </div>

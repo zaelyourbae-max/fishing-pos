@@ -5,11 +5,75 @@ import {
 } from "@/lib/auth-session";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 function readImageUrl(value: unknown) {
   const imageUrl = String(value ?? "").trim();
 
   return imageUrl.startsWith("/uploads/products/") ? imageUrl : null;
+}
+
+function readOptionalText(value: unknown) {
+  const text = String(value ?? "").trim();
+
+  return text ? text : null;
+}
+
+function readRequiredText(value: unknown) {
+  const text = String(value ?? "").trim();
+
+  return text ? text : null;
+}
+
+function parseNonNegativeInteger(value: unknown) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || !Number.isInteger(number) || number < 0) {
+    return null;
+  }
+
+  return number;
+}
+
+function supplierCode() {
+  return `SUP-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+}
+
+async function resolveSupplierId(name: string | null) {
+  if (!name) {
+    return null;
+  }
+
+  const existing = await prisma.supplier.findFirst({
+    where: {
+      name: {
+        equals: name,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existing) {
+    return existing.id;
+  }
+
+  const created = await prisma.supplier.create({
+    data: {
+      code: supplierCode(),
+      name,
+      type: "SUPPLIER",
+      isActive: true,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return created.id;
 }
 
 export async function GET(req: Request) {
@@ -103,6 +167,14 @@ export async function GET(req: Request) {
       },
       skip: (page - 1) * perPage,
       take: perPage,
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     }),
     prisma.product.count({ where }),
   ]);
@@ -115,9 +187,15 @@ export async function GET(req: Request) {
       sku: product.sku,
       barcode: product.barcode,
       name: product.name,
+      brand: product.brand,
+      type: product.type,
+      size: product.size,
+      variant: product.variant,
       description: product.description,
       image_url: product.imageUrl,
       imageUrl: product.imageUrl,
+      rack_location: product.rackLocation,
+      rackLocation: product.rackLocation,
       unit: product.unit,
       ...(canViewCost ? { cost_price: product.costPrice } : {}),
       selling_price: product.price,
@@ -130,7 +208,12 @@ export async function GET(req: Request) {
             name: product.category,
           }
         : null,
-      supplier: null,
+      supplier: product.supplier
+        ? {
+            id: product.supplier.id,
+            name: product.supplier.name,
+          }
+        : null,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
     })),
@@ -152,30 +235,54 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
+    const name = readRequiredText(body.name);
+    const category = readRequiredText(body.category);
+    const unit = readRequiredText(body.unit);
+    const price = parseNonNegativeInteger(body.price);
+    const costPrice = parseNonNegativeInteger(body.costPrice ?? 0);
+    const stock = parseNonNegativeInteger(body.stock);
+    const minStock = parseNonNegativeInteger(body.minStock ?? 0);
+    const supplierName = readOptionalText(body.supplier);
 
-    if (!body.name || body.price === undefined || body.stock === undefined) {
+    if (
+      !name ||
+      !category ||
+      !unit ||
+      price === null ||
+      costPrice === null ||
+      stock === null ||
+      minStock === null
+    ) {
       return NextResponse.json(
         {
-          error: "Semua field wajib diisi",
+          message:
+            "Field wajib: nama, kategori, unit, harga jual, HPP, stok, dan min stok harus valid.",
         },
         {
-          status: 400,
+          status: 422,
         }
       );
     }
 
+    const supplierId = await resolveSupplierId(supplierName);
     const product = await prisma.product.create({
       data: {
-        sku: body.sku ? String(body.sku).trim().toUpperCase() : undefined,
-        barcode: body.barcode ? String(body.barcode).trim().toUpperCase() : undefined,
-        name: String(body.name).trim(),
-        description: body.description ? String(body.description).trim() : null,
-        price: Number(body.price),
-        costPrice: Number(body.costPrice ?? 0),
-        stock: Number(body.stock),
-        minStock: Number(body.minStock ?? 5),
-        unit: body.unit ? String(body.unit).trim() : "pcs",
-        category: body.category ? String(body.category).trim() : null,
+        sku: readOptionalText(body.sku)?.toUpperCase() ?? undefined,
+        barcode: readOptionalText(body.barcode)?.toUpperCase() ?? undefined,
+        name,
+        category,
+        brand: readOptionalText(body.brand),
+        type: readOptionalText(body.type),
+        size: readOptionalText(body.size),
+        variant: readOptionalText(body.variant),
+        rackLocation: readOptionalText(body.rackLocation),
+        description: readOptionalText(body.description),
+        price,
+        costPrice,
+        stock,
+        minStock,
+        unit,
+        supplierId,
         imageUrl: readImageUrl(body.imageUrl),
         isActive: true,
       },
@@ -183,11 +290,34 @@ export async function POST(req: Request) {
 
     return NextResponse.json(product);
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const target = Array.isArray(error.meta?.target)
+        ? error.meta.target.join(",")
+        : String(error.meta?.target ?? "");
+
+      if (target.includes("sku")) {
+        return NextResponse.json(
+          { message: "SKU sudah dipakai produk lain." },
+          { status: 422 },
+        );
+      }
+
+      if (target.includes("barcode")) {
+        return NextResponse.json(
+          { message: "Barcode sudah dipakai produk lain." },
+          { status: 422 },
+        );
+      }
+    }
+
     console.log(error);
 
     return NextResponse.json(
       {
-        error: "Server error",
+        message: "Server error",
       },
       {
         status: 500,

@@ -1,6 +1,7 @@
 import { requireOwner } from "@/lib/auth-session";
 import {
   buildProductImportPreview,
+  PRODUCT_IMPORT_MAX_FILE_SIZE_BYTES,
   PRODUCT_IMPORT_HEADERS,
   type ProductImportInput,
 } from "@/lib/product-import";
@@ -35,6 +36,28 @@ function cellText(value: ExcelJS.CellValue) {
   return String(value).trim();
 }
 
+function hasFormula(value: ExcelJS.CellValue) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "formula" in value &&
+    Boolean(value.formula)
+  );
+}
+
+function excelColumnName(index: number) {
+  let value = index;
+  let name = "";
+
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    value = Math.floor((value - 1) / 26);
+  }
+
+  return name;
+}
+
 function parseProductsSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.getWorksheet("Products");
 
@@ -59,10 +82,17 @@ function parseProductsSheet(workbook: ExcelJS.Workbook) {
       return;
     }
 
-    const values = PRODUCT_IMPORT_HEADERS.map((header, index) => [
-      header,
-      cellText(row.getCell(index + 1).value),
-    ]);
+    const values = PRODUCT_IMPORT_HEADERS.map((header, index) => {
+      const cellValue = row.getCell(index + 1).value;
+
+      if (hasFormula(cellValue)) {
+        throw new Error(
+          `FORMULA_NOT_ALLOWED:${rowNumber}:${excelColumnName(index + 1)}`,
+        );
+      }
+
+      return [header, cellText(cellValue)];
+    });
     const hasValue = values.some(([, value]) => String(value).trim() !== "");
 
     if (hasValue) {
@@ -105,6 +135,16 @@ export async function POST(req: Request) {
       );
     }
 
+    if (file.size > PRODUCT_IMPORT_MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        {
+          message:
+            "Ukuran file terlalu besar. Maksimal 10 MB untuk import produk.",
+        },
+        { status: 422 },
+      );
+    }
+
     const workbook = new ExcelJS.Workbook();
     const buffer = await file.arrayBuffer();
     await workbook.xlsx.load(buffer);
@@ -138,6 +178,20 @@ export async function POST(req: Request) {
       if (error.message === "TOO_MANY_ROWS") {
         return NextResponse.json(
           { message: "Maksimal import 5.000 row." },
+          { status: 422 },
+        );
+      }
+
+      if (error.message.startsWith("FORMULA_NOT_ALLOWED")) {
+        const [, row, column] = error.message.split(":");
+
+        return NextResponse.json(
+          {
+            message:
+              row && column
+                ? `Template import tidak boleh memakai formula Excel. Ditemukan di sel ${column}${row}.`
+                : "Template import tidak boleh memakai formula Excel.",
+          },
           { status: 422 },
         );
       }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Banknote,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { downloadOwnerReportPdf } from "@/components/reports/download-owner-report-pdf";
+import { formatDateID, formatDateTimeID, parseIDDateInput } from "@/lib/date-format";
 
 type PaymentClosingRow = {
   method: string;
@@ -78,6 +80,87 @@ type ClosingRecord = {
     userName: string | null;
   }[];
 };
+
+function DashboardDateFilter({
+  selectedDateInput,
+}: {
+  selectedDateInput: string;
+}) {
+  const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const [dateText, setDateText] = useState(formatDateID(selectedDateInput));
+  const [error, setError] = useState("");
+
+  function normalizeDateInput(value: string) {
+    const parsed = parseIDDateInput(value);
+
+    if (!parsed) {
+      setError("Tanggal wajib memakai format dd/mm/yyyy.");
+      return null;
+    }
+
+    setError("");
+    setDateText(formatDateID(parsed));
+
+    if (hiddenInputRef.current) {
+      hiddenInputRef.current.value = parsed;
+    }
+
+    return parsed;
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const parsed = normalizeDateInput(dateText);
+
+    if (!parsed) {
+      event.preventDefault();
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="contents sm:flex sm:min-w-0 sm:flex-none sm:items-center sm:gap-2"
+    >
+      <input
+        ref={hiddenInputRef}
+        type="hidden"
+        name="date"
+        defaultValue={selectedDateInput}
+      />
+      <div className="relative col-start-2 row-start-1 min-w-0 sm:flex-none">
+        <label className="sr-only" htmlFor="dashboard-date-filter">
+          Pilih tanggal dashboard
+        </label>
+        <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <input
+          id="dashboard-date-filter"
+          type="text"
+          inputMode="numeric"
+          placeholder="dd/mm/yyyy"
+          value={dateText}
+          onChange={(event) => {
+            setDateText(event.target.value);
+            setError("");
+          }}
+          onBlur={(event) => normalizeDateInput(event.target.value)}
+          className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-52 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-blue-500/10"
+          title="Pilih tanggal dashboard"
+        />
+        {error ? (
+          <p className="absolute left-0 top-full z-20 mt-2 w-64 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 shadow-sm dark:border-rose-500/30 dark:bg-slate-950 dark:text-rose-300">
+            {error}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="submit"
+        className="col-span-1 col-start-1 row-start-2 inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:min-w-0 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+      >
+        Terapkan
+      </button>
+    </form>
+  );
+}
 
 export default function DashboardTopActions({
   selectedDateInput,
@@ -170,24 +253,10 @@ export default function DashboardTopActions({
           ) : null}
         </div>
 
-        <form className="contents sm:flex sm:min-w-0 sm:flex-none sm:items-center sm:gap-2">
-          <label className="relative col-start-2 row-start-1 min-w-0 sm:flex-none">
-            <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              type="date"
-              name="date"
-              defaultValue={selectedDateInput}
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-52 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:focus:ring-blue-500/10"
-              title="Pilih tanggal dashboard"
-            />
-          </label>
-          <button
-            type="submit"
-            className="col-span-1 col-start-1 row-start-2 inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:min-w-0 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
-          >
-            Terapkan
-          </button>
-        </form>
+        <DashboardDateFilter
+          key={selectedDateInput}
+          selectedDateInput={selectedDateInput}
+        />
 
         <a
           href={`/dashboard?date=${selectedDateInput}`}
@@ -393,10 +462,7 @@ function formatSignedRupiah(value: number) {
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return formatDateTimeID(value);
 }
 
 function useClosingRecord(date: string) {

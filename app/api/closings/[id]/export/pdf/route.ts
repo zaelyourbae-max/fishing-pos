@@ -1,5 +1,6 @@
 import { requireOwner } from "@/lib/auth-session";
 import { dateInputValue, getDailyClosing } from "@/lib/daily-closing";
+import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { NextResponse } from "next/server";
@@ -29,11 +30,7 @@ function formatRupiah(value: number) {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDateID(date);
 }
 
 function formatDateTime(date?: Date | null) {
@@ -41,10 +38,7 @@ function formatDateTime(date?: Date | null) {
     return "-";
   }
 
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function objectValue(value: unknown, key: string) {

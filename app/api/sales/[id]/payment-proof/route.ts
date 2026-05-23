@@ -126,6 +126,7 @@ export async function POST(
       paymentMethod: true,
       transactionStatus: true,
       paymentStatus: true,
+      expiredAt: true,
     },
   });
 
@@ -160,6 +161,16 @@ export async function POST(
     );
   }
 
+  if (sale.expiredAt && sale.expiredAt.getTime() <= Date.now()) {
+    return NextResponse.json(
+      {
+        message:
+          "Transaksi pending sudah melewati batas 15 menit. Jalankan auto-expire atau buat transaksi baru.",
+      },
+      { status: 409 },
+    );
+  }
+
   const imageBuffer = Buffer.from(await file.arrayBuffer());
   const proofDataUrl = `data:${file.type};base64,${imageBuffer.toString("base64")}`;
   const proofUrl = paymentProofEndpoint(sale.id, randomUUID());
@@ -189,6 +200,7 @@ export async function POST(
           paymentProofUploadedById: auth.session.sub,
           paymentStatus: PaymentStatus.PAID,
           transactionStatus: TransactionStatus.SUCCESS,
+          expiredAt: null,
         },
         select: {
           id: true,

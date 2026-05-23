@@ -22,10 +22,12 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
+import PendingExpiryCountdown from "@/components/sales/pending-expiry-countdown";
 import PaymentConfirmationModal from "@/components/pos/payment-confirmation-modal";
 import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
+import { formatDateTimeID } from "@/lib/date-format";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,7 @@ type Product = {
   price: number;
   costPrice?: number | null;
   stock: number;
+  unit: string;
 };
 
 type ApiProduct = {
@@ -57,12 +60,14 @@ type ApiProduct = {
   cost_price?: number | string;
   selling_price: number | string;
   current_stock: number | string;
+  unit?: string | null;
 };
 
 type DiscountType = "NONE" | "FIXED" | "PERCENT";
 
 type CartItem = Product & {
   qty: number;
+  qtyInput: string;
   discountType: DiscountType;
   discountValue: number;
   discountReason: string;
@@ -120,6 +125,7 @@ type CheckoutSuccess = {
   transactionStatus: string;
   paymentStatus: string;
   paymentProofUrl?: string | null;
+  expiredAt?: string | null;
 };
 
 type PaymentMethod = {
@@ -253,10 +259,7 @@ function cartLineDiscountLabel(item: CartItem) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  return formatDateTimeID(value);
 }
 
 function statusBadgeClass(status: string) {
@@ -534,6 +537,7 @@ export default function PosApp({
         costPrice:
           product.cost_price === undefined ? null : Number(product.cost_price),
         stock: Number(product.current_stock),
+        unit: product.unit?.trim() || "pcs",
       }));
 
       setProducts(mappedProducts);
@@ -584,10 +588,11 @@ export default function PosApp({
         transactionStatus: String(sale.transaction_status ?? "PENDING"),
         paymentStatus: String(sale.payment_status ?? "WAITING_PROOF"),
         paymentProofUrl: sale.payment_proof_url ?? null,
+        expiredAt: sale.expired_at ?? null,
       });
       setLastSaleId(String(sale.id ?? ""));
       setSuccessMessage(
-        `Transaksi QRIS pending masih menunggu bukti - ${
+        `Transaksi manual pending masih menunggu bukti - ${
           sale.sale_number ?? sale.invoice_number ?? ""
         }`,
       );
@@ -969,6 +974,7 @@ export default function PosApp({
             ? {
                 ...item,
                 qty: Math.min(item.qty + 1, product.stock),
+                qtyInput: String(Math.min(item.qty + 1, product.stock)),
               }
             : item,
         );
@@ -979,6 +985,7 @@ export default function PosApp({
         {
           ...product,
           qty: 1,
+          qtyInput: "1",
           discountType: "NONE",
           discountValue: 0,
           discountReason: "",
@@ -1099,6 +1106,27 @@ export default function PosApp({
     return "";
   }
 
+  function validateCartQuantities() {
+    for (const item of cart) {
+      const rawQty = item.qtyInput.trim();
+      const qty = Number(rawQty);
+
+      if (!rawQty) {
+        return `Qty ${item.name} wajib diisi.`;
+      }
+
+      if (!Number.isInteger(qty) || qty <= 0) {
+        return `Qty ${item.name} harus angka bulat lebih dari 0.`;
+      }
+
+      if (qty > item.stock) {
+        return `Qty ${item.name} melebihi stok. Tersedia ${item.stock} ${item.unit}.`;
+      }
+    }
+
+    return "";
+  }
+
   function validateLoyaltyDraft() {
     if (!eligibleLoyaltyMilestone) {
       return "";
@@ -1164,6 +1192,7 @@ export default function PosApp({
           ? {
               ...item,
               qty: Math.min(item.qty + 1, item.stock),
+              qtyInput: String(Math.min(item.qty + 1, item.stock)),
             }
           : item,
       ),
@@ -1178,11 +1207,66 @@ export default function PosApp({
             ? {
                 ...item,
                 qty: item.qty - 1,
+                qtyInput: String(item.qty - 1),
               }
             : item,
         )
         .filter((item) => item.qty > 0),
     );
+  }
+
+  function removeCartItem(id: number) {
+    setCart((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function applyManualQty(id: number, value: string, showError = false) {
+    const trimmedValue = value.trim();
+    const parsedQty = Number(trimmedValue);
+    let nextError = "";
+
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        if (!trimmedValue) {
+          nextError = `Qty ${item.name} wajib diisi.`;
+          return {
+            ...item,
+            qtyInput: value,
+          };
+        }
+
+        if (!Number.isInteger(parsedQty) || parsedQty <= 0) {
+          nextError = `Qty ${item.name} harus angka bulat lebih dari 0.`;
+          return {
+            ...item,
+            qtyInput: value,
+          };
+        }
+
+        if (parsedQty > item.stock) {
+          nextError = `Qty ${item.name} melebihi stok. Tersedia ${item.stock} ${item.unit}.`;
+          return {
+            ...item,
+            qtyInput: value,
+          };
+        }
+
+        return {
+          ...item,
+          qty: parsedQty,
+          qtyInput: String(parsedQty),
+        };
+      }),
+    );
+
+    if (showError && nextError) {
+      setErrorMessage(nextError);
+    } else if (!nextError) {
+      setErrorMessage("");
+    }
   }
 
   function checkoutPaidAmount() {
@@ -1211,6 +1295,13 @@ export default function PosApp({
   function initiateCheckout() {
     if (cart.length === 0) {
       setErrorMessage("Cart kosong");
+      return;
+    }
+
+    const qtyError = validateCartQuantities();
+
+    if (qtyError) {
+      setErrorMessage(qtyError);
       return;
     }
 
@@ -1262,7 +1353,13 @@ export default function PosApp({
     }
 
     const paid = checkoutPaidAmount();
+    const qtyError = validateCartQuantities();
     const discountError = validateCartDiscounts();
+
+    if (qtyError) {
+      setErrorMessage(qtyError);
+      return;
+    }
 
     if (discountError) {
       setErrorMessage(discountError);
@@ -1346,7 +1443,7 @@ export default function PosApp({
 
       setSuccessMessage(
         responsePaymentStatus === "WAITING_PROOF"
-          ? `Transaksi QRIS tersimpan pending - ${saleNumber}`
+          ? `Transaksi manual tersimpan pending - ${saleNumber}`
           : `Transaksi berhasil - ${saleNumber}`,
       );
       setLastSaleId(response.data?.id ?? "");
@@ -1358,6 +1455,7 @@ export default function PosApp({
         transactionStatus: responseTransactionStatus,
         paymentStatus: responsePaymentStatus,
         paymentProofUrl: response.data?.payment_proof_url ?? null,
+        expiredAt: response.data?.expired_at ?? null,
       });
       setProofFile(null);
       setProofMessage("");
@@ -1427,6 +1525,7 @@ export default function PosApp({
               paymentStatus: response.data?.payment_status ?? current.paymentStatus,
               paymentProofUrl:
                 response.data?.payment_proof_url ?? current.paymentProofUrl,
+              expiredAt: null,
             }
           : current,
       );
@@ -1761,6 +1860,15 @@ export default function PosApp({
                   {checkoutSuccess.paymentStatus}
                 </span>
               </div>
+              {checkoutSuccess.paymentStatus === "WAITING_PROOF" &&
+              checkoutSuccess.expiredAt ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <PendingExpiryCountdown expiredAt={checkoutSuccess.expiredAt} />
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Batas: {formatDate(checkoutSuccess.expiredAt)}
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -1948,14 +2056,14 @@ export default function PosApp({
 
                     <div className="mt-auto pt-4">
                       <p className="metric-value text-base">
-                        {rupiah(product.price)}
+                        {rupiah(product.price)} / {product.unit}
                       </p>
                       <div className="mt-3 flex items-center justify-between gap-3">
                         <span className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                           {product.category}
                         </span>
                         <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                          Stok {product.stock}
+                          Stok {product.stock} {product.unit}
                         </span>
                       </div>
                     </div>
@@ -2315,8 +2423,19 @@ export default function PosApp({
                       <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
                         {item.sku}
                       </p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {rupiah(item.price)} / {item.unit} - Stok {item.stock} {item.unit}
+                      </p>
                     </div>
                     <div className="shrink-0 text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeCartItem(item.id)}
+                        className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-200"
+                        aria-label={`Hapus ${item.name} dari keranjang`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                       <p className="font-bold tabular-nums text-slate-950 dark:text-slate-50">
                         {rupiah(cartLineTotal(item))}
                       </p>
@@ -2328,24 +2447,52 @@ export default function PosApp({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => decreaseQty(item.id)}
                       className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-lg font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                       type="button"
+                      aria-label={`Kurangi qty ${item.name}`}
                     >
                       -
                     </button>
-                    <span className="min-w-8 text-center font-bold tabular-nums">
-                      {item.qty}
-                    </span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max={item.stock}
+                      value={item.qtyInput}
+                      onChange={(event) =>
+                        applyManualQty(item.id, event.target.value)
+                      }
+                      onBlur={(event) =>
+                        applyManualQty(item.id, event.target.value, true)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          applyManualQty(
+                            item.id,
+                            event.currentTarget.value,
+                            true,
+                          );
+                          event.currentTarget.blur();
+                        }
+                      }}
+                      className="h-9 w-20 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm font-bold tabular-nums text-slate-950 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                      aria-label={`Qty ${item.name}`}
+                    />
                     <button
                       onClick={() => increaseQty(item.id)}
                       className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-lg font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                       type="button"
+                      aria-label={`Tambah qty ${item.name}`}
                     >
                       +
                     </button>
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                      {item.unit}
+                    </span>
                   </div>
 
                   <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/60">

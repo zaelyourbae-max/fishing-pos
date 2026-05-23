@@ -3,6 +3,7 @@ import { ArrowUpRight, History, MapPin, Search, Users } from "lucide-react";
 import { Prisma } from "@prisma/client";
 
 import LiveSearchInput from "@/components/search/live-search-input";
+import { formatDateID } from "@/lib/date-format";
 import { isOwnerRole } from "@/lib/permissions";
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { requireCustomersPage } from "@/lib/page-guards";
@@ -24,11 +25,7 @@ function rupiah(amount: number) {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDateID(date);
 }
 
 function customerWhere(q: string): Prisma.CustomerWhereInput {

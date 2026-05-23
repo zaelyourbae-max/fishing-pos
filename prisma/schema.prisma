@@ -33,6 +33,11 @@ model Product {
   name                String
   sku                 String?              @unique
   barcode             String?              @unique
+  brand               String?
+  type                String?
+  size                String?
+  variant             String?
+  rackLocation        String?              @map("rack_location")
   description         String?
   price               Int
   costPrice           Int                  @default(0)
@@ -74,6 +79,7 @@ model Sale {
   paymentProofUrl          String?           @map("payment_proof_url")
   paymentProofUploadedAt   DateTime?         @map("payment_proof_uploaded_at")
   paymentProofUploadedById Int?              @map("payment_proof_uploaded_by_id")
+  expiredAt                DateTime?         @map("expired_at")
   cancelReason             String?           @map("cancel_reason")
   cancelledAt              DateTime?         @map("cancelled_at")
   cancelledById            Int?              @map("cancelled_by_id")
@@ -94,6 +100,7 @@ model Sale {
   @@index([transactionStatus, paymentStatus, createdAt])
   @@index([customerId, loyaltyMilestone, loyaltyApplied])
   @@index([paymentProofUploadedById, paymentProofUploadedAt])
+  @@index([transactionStatus, paymentStatus, expiredAt])
   @@index([cancelledById, cancelledAt])
   @@map("sales")
 }

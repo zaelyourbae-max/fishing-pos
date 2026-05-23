@@ -3,6 +3,7 @@ import PaymentProofImage from "@/components/invoices/payment-proof-image";
 import PrintInvoiceButton from "@/components/invoice/print-invoice-button";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import { requireProtectedPage } from "@/lib/page-guards";
+import { formatDateTimeID } from "@/lib/date-format";
 import { paymentProofEndpoint } from "@/lib/payment-proof-assets";
 import { isOwnerRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -29,10 +30,7 @@ function moneyNumber(amount: unknown) {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 function returnReasonLabel(reason: string) {

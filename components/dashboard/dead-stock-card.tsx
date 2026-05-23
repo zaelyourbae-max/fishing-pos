@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowUpRight, PackageX, X } from "lucide-react";
+import { formatDateID } from "@/lib/date-format";
 
 export type DeadStockCardItem = {
   id: number;
@@ -27,11 +28,7 @@ function formatDate(value: string | null) {
     return "Belum pernah terjual";
   }
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
+  return formatDateID(value);
 }
 
 function reasonLabel(reason: DeadStockCardItem["reason"], thresholdDays: number) {

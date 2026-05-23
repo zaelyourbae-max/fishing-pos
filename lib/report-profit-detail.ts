@@ -1,3 +1,4 @@
+import { formatDateTimeID } from "@/lib/date-format";
 import { rupiah } from "@/lib/reports";
 
 export const PROFIT_STATUS_OPTIONS = [
@@ -73,13 +74,7 @@ export function formatProfitPercent(value: number) {
 }
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatDateTimeID(date);
 }
 
 export function profitStatus(item: {

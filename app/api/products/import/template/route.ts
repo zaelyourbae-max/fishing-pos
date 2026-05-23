@@ -8,38 +8,56 @@ export const runtime = "nodejs";
 const examples = [
   {
     sku: "HOOK-001",
+    barcode: "899100100001",
     name: "Kail Carbon No. 3",
     category: "Kail",
+    brand: "HookMaster",
+    type: "Carbon",
+    size: "No. 3",
+    variant: "Hitam",
     supplier: "Supplier Utama",
+    rackLocation: "A-01",
+    unit: "pack",
     costPrice: 8000,
     sellPrice: 12000,
     stock: 50,
     minStock: 10,
-    unit: "pack",
     notes: "Isi 10 pcs",
   },
   {
     sku: "LINE-010",
+    barcode: "899100100002",
     name: "Senar Nylon 100m",
     category: "Senar",
+    brand: "RiverLine",
+    type: "Nylon",
+    size: "0.30 mm",
+    variant: "Bening",
     supplier: "Supplier Utama",
+    rackLocation: "B-04",
+    unit: "roll",
     costPrice: 18000,
     sellPrice: 25000,
     stock: 20,
     minStock: 5,
-    unit: "roll",
     notes: "Ukuran 0.30 mm",
   },
   {
     sku: "",
+    barcode: "",
     name: "Pelampung Kayu",
     category: "Aksesoris",
+    brand: "",
+    type: "Pelampung",
+    size: "M",
+    variant: "",
     supplier: "",
+    rackLocation: "C-02",
+    unit: "pcs",
     costPrice: 3000,
     sellPrice: 5000,
     stock: 30,
     minStock: 8,
-    unit: "pcs",
     notes: "SKU otomatis jika kosong",
   },
 ];
@@ -91,6 +109,39 @@ export async function GET(req: Request) {
       };
     });
   }
+
+  const guideSheet = workbook.addWorksheet("Panduan");
+  guideSheet.columns = [
+    { header: "Kolom", key: "column", width: 24 },
+    { header: "Status", key: "status", width: 14 },
+    { header: "Aturan", key: "rules", width: 70 },
+  ];
+  guideSheet.getRow(1).eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF0F172A" },
+    };
+    cell.alignment = { vertical: "middle" };
+  });
+  guideSheet.addRows([
+    { column: "name", status: "WAJIB", rules: "Nama produk wajib diisi." },
+    { column: "category", status: "WAJIB", rules: "Kategori/laci wajib diisi." },
+    { column: "unit", status: "WAJIB", rules: "Gunakan 1 satuan utama produk, contoh: pcs, meter, gram, kg, pack." },
+    { column: "costPrice", status: "WAJIB", rules: "Angka >= 0 (HPP per unit utama)." },
+    { column: "sellPrice", status: "WAJIB", rules: "Angka >= 0 (harga jual per unit utama)." },
+    { column: "stock", status: "WAJIB", rules: "Angka bulat >= 0." },
+    { column: "minStock", status: "WAJIB", rules: "Angka bulat >= 0." },
+    { column: "sku", status: "OPSIONAL", rules: "Jika kosong, sistem akan generate SKU otomatis." },
+    { column: "barcode", status: "OPSIONAL", rules: "Jika diisi harus unik dan tidak boleh duplikat." },
+    { column: "brand/type/size/variant", status: "OPSIONAL", rules: "Isi sesuai kebutuhan master data." },
+    { column: "supplier", status: "OPSIONAL", rules: "Jika belum ada di database, supplier baru akan dibuat saat commit." },
+    { column: "rackLocation", status: "OPSIONAL", rules: "Contoh: A-01, B-04." },
+    { column: "notes", status: "OPSIONAL", rules: "Catatan produk." },
+    { column: "Formula Excel", status: "DILARANG", rules: "Jangan gunakan formula. Gunakan nilai final biasa." },
+  ]);
+  guideSheet.views = [{ state: "frozen", ySplit: 1 }];
 
   const buffer = await workbook.xlsx.writeBuffer();
 

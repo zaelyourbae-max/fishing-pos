@@ -10,12 +10,18 @@ type ProductEditButtonProps = {
     sku: string | null;
     barcode: string | null;
     name: string;
+    brand: string | null;
+    type: string | null;
+    size: string | null;
+    variant: string | null;
     price: number;
     costPrice: number;
     stock: number;
     minStock: number;
     unit: string;
     category: string | null;
+    supplierName: string | null;
+    rackLocation: string | null;
     description: string | null;
     imageUrl: string | null;
   };
@@ -50,12 +56,18 @@ export default function ProductEditButton({
     sku: product.sku ?? "",
     barcode: product.barcode ?? "",
     name: product.name,
+    brand: product.brand ?? "",
+    type: product.type ?? "",
+    size: product.size ?? "",
+    variant: product.variant ?? "",
     price: String(product.price),
     costPrice: String(product.costPrice),
     stock: String(product.stock),
     minStock: String(product.minStock),
     unit: product.unit,
     category: product.category ?? "",
+    supplier: product.supplierName ?? "",
+    rackLocation: product.rackLocation ?? "",
     description: product.description ?? "",
     imageUrl: product.imageUrl ?? "",
   });
@@ -135,96 +147,150 @@ export default function ProductEditButton({
           >
             <div className="mb-5">
               <h2 className="text-xl font-semibold">Edit Produk</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Kategori/laci baru bisa langsung diketik.
-              </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <input
-                value={form.sku}
-                onChange={(event) => updateForm("sku", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="SKU"
-              />
-              <input
-                value={form.barcode}
-                onChange={(event) => updateForm("barcode", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Barcode"
-              />
-              <input
-                value={form.name}
-                onChange={(event) => updateForm("name", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Nama produk"
-              />
-              <input
-                type="number"
-                min="0"
-                value={form.price}
-                onChange={(event) => updateForm("price", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Harga jual"
-              />
-              <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Harga Modal / HPP
-                </span>
+            <section className="space-y-4">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                Identitas
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <input
-                  type="number"
-                  min="0"
-                  value={form.costPrice}
-                  onChange={(event) => updateForm("costPrice", event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                  placeholder="Harga modal / HPP"
+                  value={form.name}
+                  onChange={(event) => updateForm("name", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Nama produk"
                 />
-                <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  Digunakan untuk menghitung laba dan margin. Tidak ditampilkan ke kasir.
-                </span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={form.stock}
-                onChange={(event) => updateForm("stock", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Stok"
-              />
-              <input
-                type="number"
-                min="0"
-                value={form.minStock}
-                onChange={(event) => updateForm("minStock", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Min stok"
-              />
-              <input
-                value={form.unit}
-                onChange={(event) => updateForm("unit", event.target.value)}
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Unit"
-              />
-              <input
-                value={form.category}
-                onChange={(event) => updateForm("category", event.target.value)}
-                list="product-categories"
-                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-                placeholder="Kategori / laci"
-              />
+                <input
+                  value={form.category}
+                  onChange={(event) => updateForm("category", event.target.value)}
+                  list="product-categories"
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Kategori / laci"
+                />
+                <input
+                  value={form.sku}
+                  onChange={(event) => updateForm("sku", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="SKU"
+                />
+                <input
+                  value={form.barcode}
+                  onChange={(event) => updateForm("barcode", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Barcode"
+                />
+                <input
+                  value={form.brand}
+                  onChange={(event) => updateForm("brand", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Brand"
+                />
+                <input
+                  value={form.type}
+                  onChange={(event) => updateForm("type", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Type"
+                />
+                <input
+                  value={form.size}
+                  onChange={(event) => updateForm("size", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Size"
+                />
+                <input
+                  value={form.variant}
+                  onChange={(event) => updateForm("variant", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Variant"
+                />
+                <input
+                  value={form.supplier}
+                  onChange={(event) => updateForm("supplier", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Supplier"
+                />
+                <input
+                  value={form.rackLocation}
+                  onChange={(event) => updateForm("rackLocation", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Lokasi rak"
+                />
+              </div>
               <datalist id="product-categories">
                 {categories.map((category) => (
                   <option key={category} value={category} />
                 ))}
               </datalist>
-            </div>
+            </section>
 
-            <textarea
-              value={form.description}
-              onChange={(event) => updateForm("description", event.target.value)}
-              className="mt-4 min-h-24 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
-              placeholder="Catatan produk"
-            />
+            <section className="mt-5 space-y-4">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                Harga &amp; Stok
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <input
+                  value={form.unit}
+                  onChange={(event) => updateForm("unit", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Unit utama (pcs, meter, gram, dll)"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={form.price}
+                  onChange={(event) => updateForm("price", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Harga jual / sellPrice"
+                />
+                <label className="space-y-2">
+                  <span className="block text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Harga Modal / HPP
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.costPrice}
+                    onChange={(event) => updateForm("costPrice", event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                    placeholder="Harga modal / HPP"
+                  />
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                    Digunakan untuk menghitung laba dan margin. Tidak ditampilkan ke kasir.
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.stock}
+                  onChange={(event) => updateForm("stock", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Stok"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={form.minStock}
+                  onChange={(event) => updateForm("minStock", event.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                  placeholder="Min stok"
+                />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Gunakan 1 satuan utama per produk. Contoh: joran = pcs, tali = meter, timah = gram, PE = pack.
+              </p>
+            </section>
+
+            <section className="mt-5 space-y-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                Opsional
+              </h3>
+              <textarea
+                value={form.description}
+                onChange={(event) => updateForm("description", event.target.value)}
+                className="min-h-24 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950"
+                placeholder="Catatan produk"
+              />
+            </section>
 
             <div className="mt-4">
               <label className="text-sm font-medium text-slate-500 dark:text-slate-400">
