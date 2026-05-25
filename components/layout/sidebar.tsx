@@ -94,10 +94,10 @@ function buildMenus(role: RoleSlug): MenuItem[] {
 function Brand() {
   return (
     <div>
-      <h1 className="font-sans text-[26px] font-extrabold leading-none tracking-wide text-teal-700 dark:text-teal-400 md:text-[30px]">
+      <h1 className="font-sans text-[23px] font-extrabold leading-none tracking-wide text-teal-700 dark:text-teal-400 sm:text-[26px] md:text-[30px]">
         MEIJRVERSE°
       </h1>
-      <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <p className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
         Retail System
       </p>
     </div>
@@ -164,7 +164,7 @@ export default function Sidebar({ role }: SidebarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 p-4 text-slate-900 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 lg:hidden">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 p-3 text-slate-900 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 sm:p-4 lg:hidden">
         <div className="min-w-0">
           <Brand />
         </div>
@@ -173,7 +173,7 @@ export default function Sidebar({ role }: SidebarProps) {
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-teal-500/10"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-teal-500/10 sm:h-11 sm:w-11 sm:rounded-2xl"
             aria-label="Buka menu"
           >
             <Menu className="h-5 w-5" />
@@ -189,8 +189,8 @@ export default function Sidebar({ role }: SidebarProps) {
             onClick={() => setDrawerOpen(false)}
             aria-label="Tutup menu"
           />
-          <aside className="relative flex h-dvh w-[min(86vw,320px)] flex-col border-r border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-            <div className="mb-6 flex shrink-0 items-start justify-between gap-4">
+          <aside className="relative flex h-dvh w-[min(86vw,320px)] flex-col border-r border-slate-200 bg-white p-4 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 sm:p-5">
+            <div className="mb-5 flex shrink-0 items-start justify-between gap-4 sm:mb-6">
               <div>
                 <Brand />
                 <div className="mt-4">
@@ -236,7 +236,7 @@ export default function Sidebar({ role }: SidebarProps) {
         </div>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-slate-600 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-300 lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 text-slate-600 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-300 sm:px-2 sm:pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pt-2 lg:hidden">
         {mobileMenus.map((menu) => {
           const Icon = menu.icon;
           const active =
@@ -249,12 +249,12 @@ export default function Sidebar({ role }: SidebarProps) {
               href={menu.href}
               className={
                 active
-                  ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl bg-teal-50 text-teal-700 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300"
-                  : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl transition duration-200 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98] dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                  ? "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl bg-teal-50 text-teal-700 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300 sm:min-h-12 sm:gap-1 sm:rounded-2xl"
+                  : "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl transition duration-200 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98] dark:hover:bg-slate-900 dark:hover:text-slate-100 sm:min-h-12 sm:gap-1 sm:rounded-2xl"
               }
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-[11px] font-bold leading-none">
+              <Icon className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+              <span className="text-[10px] font-bold leading-none sm:text-[11px]">
                 {menu.name}
               </span>
             </Link>
@@ -265,13 +265,13 @@ export default function Sidebar({ role }: SidebarProps) {
           onClick={() => setDrawerOpen(true)}
           className={
             moreActive
-              ? "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl bg-teal-50 text-teal-700 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300"
-              : "flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl transition duration-200 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98] dark:hover:bg-slate-900 dark:hover:text-slate-100"
+              ? "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl bg-teal-50 text-teal-700 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300 sm:min-h-12 sm:gap-1 sm:rounded-2xl"
+              : "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl transition duration-200 hover:bg-slate-100 hover:text-slate-950 active:scale-[0.98] dark:hover:bg-slate-900 dark:hover:text-slate-100 sm:min-h-12 sm:gap-1 sm:rounded-2xl"
           }
           aria-label="Buka menu lainnya"
         >
-          <MoreHorizontal className="h-5 w-5" />
-          <span className="text-[11px] font-bold leading-none">Lainnya</span>
+          <MoreHorizontal className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+          <span className="text-[10px] font-bold leading-none sm:text-[11px]">Lainnya</span>
         </button>
       </nav>
     </>

@@ -15,8 +15,8 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f8fb] px-4 py-8 text-slate-950 sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md items-center">
+    <main className="min-h-screen bg-[#f6f8fb] px-3 py-6 text-slate-950 sm:px-6 sm:py-8">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-md items-center sm:min-h-[calc(100vh-4rem)]">
         <LoginForm />
       </div>
     </main>

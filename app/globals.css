@@ -141,7 +141,7 @@
   }
 
   .page-title {
-    @apply text-2xl font-extrabold tracking-tight text-slate-950 dark:text-slate-100 sm:text-3xl;
+    @apply text-[1.375rem] font-extrabold leading-tight tracking-tight text-slate-950 dark:text-slate-100 sm:text-3xl;
   }
 
   .table-scroll {
@@ -166,7 +166,7 @@
   }
 
   .mobile-data-card {
-    @apply min-w-0 p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70;
+    @apply min-w-0 p-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70 sm:p-4;
   }
 
   .responsive-action-row {
@@ -271,5 +271,102 @@
     border-color: rgb(51 65 85) !important;
     background-color: rgb(15 23 42);
     color: rgb(148 163 184);
+  }
+
+  @media (max-width: 640px) {
+    .owner-shell,
+    .cashier-shell {
+      font-size: 0.9375rem;
+    }
+
+    .owner-shell .surface-panel,
+    .cashier-shell .surface-panel {
+      border-radius: 1.25rem;
+      box-shadow: 0 10px 28px rgb(15 23 42 / 0.04);
+    }
+
+    .owner-shell .surface-panel-soft,
+    .cashier-shell .surface-panel-soft {
+      border-radius: 1rem;
+    }
+
+    .owner-shell :where(input, select, textarea),
+    .cashier-shell :where(input, select, textarea) {
+      min-height: 2.75rem;
+      font-size: 0.875rem;
+      line-height: 1.35;
+    }
+
+    .owner-shell :where(.h-10),
+    .cashier-shell :where(.h-10),
+    .owner-shell :where(.h-11),
+    .cashier-shell :where(.h-11),
+    .owner-shell :where(.h-12),
+    .cashier-shell :where(.h-12) {
+      height: 2.75rem;
+    }
+
+    .owner-shell :where(.min-h-10),
+    .cashier-shell :where(.min-h-10),
+    .owner-shell :where(.min-h-11),
+    .cashier-shell :where(.min-h-11),
+    .owner-shell :where(.min-h-12),
+    .cashier-shell :where(.min-h-12) {
+      min-height: 2.75rem;
+    }
+
+    .owner-shell :where(.min-h-32),
+    .cashier-shell :where(.min-h-32) {
+      min-height: 7rem;
+    }
+
+    .owner-shell :where(.w-10),
+    .cashier-shell :where(.w-10),
+    .owner-shell :where(.w-11),
+    .cashier-shell :where(.w-11),
+    .owner-shell :where(.w-12),
+    .cashier-shell :where(.w-12) {
+      width: 2.75rem;
+    }
+
+    .owner-shell :where(.rounded-3xl),
+    .cashier-shell :where(.rounded-3xl) {
+      border-radius: 1.25rem;
+    }
+
+    .owner-shell :where(.p-6),
+    .cashier-shell :where(.p-6),
+    .owner-shell :where(.p-5),
+    .cashier-shell :where(.p-5) {
+      padding: 1rem;
+    }
+
+    .owner-shell :where(.px-6),
+    .cashier-shell :where(.px-6),
+    .owner-shell :where(.px-5),
+    .cashier-shell :where(.px-5) {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .owner-shell :where(.py-6),
+    .cashier-shell :where(.py-6),
+    .owner-shell :where(.py-5),
+    .cashier-shell :where(.py-5) {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    .owner-shell :where(.gap-6),
+    .cashier-shell :where(.gap-6) {
+      gap: 1rem;
+    }
+
+    .owner-shell :where(.space-y-6) > :not([hidden]) ~ :not([hidden]),
+    .cashier-shell :where(.space-y-6) > :not([hidden]) ~ :not([hidden]) {
+      --tw-space-y-reverse: 0;
+      margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+      margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+    }
   }
 }

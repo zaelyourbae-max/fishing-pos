@@ -72,13 +72,13 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={login}
-      className="w-full rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:p-8"
+      className="w-full rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_18px_52px_rgba(15,23,42,0.07)] sm:p-8"
     >
-      <div className="mb-7">
+      <div className="mb-5 sm:mb-7">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">
           MEIJRVERSE Retail System
         </p>
-        <h1 className="mt-3 font-sans text-3xl font-extrabold tracking-tight text-slate-950">
+        <h1 className="mt-2.5 font-sans text-2xl font-extrabold tracking-tight text-slate-950 sm:mt-3 sm:text-3xl">
           Fishing POS
         </h1>
         <p className="mt-2 text-sm font-medium text-slate-500">
@@ -92,14 +92,14 @@ export default function LoginForm() {
         </div>
       ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-3.5 sm:space-y-4">
         <div>
           <label className="mb-2 block text-sm font-bold text-slate-700">Email</label>
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15"
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-base"
           />
         </div>
 
@@ -109,14 +109,14 @@ export default function LoginForm() {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15"
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-base"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="min-h-12 w-full rounded-2xl bg-teal-600 py-3 font-bold text-white shadow-lg shadow-teal-900/10 transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-h-11 w-full rounded-xl bg-teal-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-teal-900/10 transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:rounded-2xl sm:py-3 sm:text-base"
         >
           {loading ? "Login..." : "Login"}
         </button>
