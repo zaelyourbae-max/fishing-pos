@@ -674,6 +674,8 @@ export default function PosApp({
     value: "0",
     note: "",
   });
+  const mobileOverlayOpen =
+    mobileCartOpen || paymentModalOpen || summaryDetail !== null;
 
   const request = useCallback(
     async (url: string, init: RequestInit = {}) => {
@@ -911,6 +913,46 @@ export default function PosApp({
 
     return () => window.removeEventListener("resize", updateProductPageSize);
   }, []);
+
+  useEffect(() => {
+    if (!mobileOverlayOpen) {
+      return;
+    }
+
+    const scrollY = window.scrollY;
+    const { body, documentElement } = document;
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      overscrollBehavior: body.style.overscrollBehavior,
+    };
+    const previousHtmlOverscroll = documentElement.style.overscrollBehavior;
+
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    documentElement.style.overscrollBehavior = "none";
+
+    return () => {
+      body.style.position = previousBodyStyles.position;
+      body.style.top = previousBodyStyles.top;
+      body.style.left = previousBodyStyles.left;
+      body.style.right = previousBodyStyles.right;
+      body.style.width = previousBodyStyles.width;
+      body.style.overflow = previousBodyStyles.overflow;
+      body.style.overscrollBehavior = previousBodyStyles.overscrollBehavior;
+      documentElement.style.overscrollBehavior = previousHtmlOverscroll;
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileOverlayOpen]);
 
   useEffect(() => {
     if (!customerSuggestionOpen) {
@@ -2055,7 +2097,7 @@ export default function PosApp({
       </Dialog>
 
       {summaryDetail ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-slate-950/50 p-0 sm:items-center sm:p-4">
           <div className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-950 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 sm:max-h-[86vh] sm:rounded-xl">
             <div className="sticky top-0 z-10 mb-0 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <div className="min-w-0">
@@ -2073,7 +2115,7 @@ export default function PosApp({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 [-webkit-overflow-scrolling:touch]">
             {summaryDetail.total !== undefined ? (
               <div className="mb-4 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800">
                 <span className="text-slate-500 dark:text-slate-400">
@@ -2350,7 +2392,7 @@ export default function PosApp({
           type="button"
           aria-label="Tutup keranjang"
           onClick={() => setMobileCartOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/45 xl:hidden"
+          className="fixed inset-0 z-40 touch-none overscroll-contain bg-slate-950/45 xl:hidden"
         />
       ) : null}
 
@@ -2724,7 +2766,7 @@ export default function PosApp({
         </div>
 
         <aside
-          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2.5 overflow-y-auto rounded-t-[24px] border-t border-slate-200 bg-[#f6f8fb] p-2.5 shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
+          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2.5 overflow-y-auto overscroll-contain rounded-t-[24px] border-t border-slate-200 bg-[#f6f8fb] p-2.5 shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
             mobileCartOpen
               ? "translate-y-0 pointer-events-auto"
               : "translate-y-full pointer-events-none xl:pointer-events-auto"
@@ -2939,7 +2981,7 @@ export default function PosApp({
               </span>
             </div>
 
-            <div className="mx-2.5 mt-2.5 max-h-[32dvh] min-h-[96px] space-y-1.5 overflow-y-auto rounded-xl bg-slate-50/70 p-1.5 dark:bg-slate-950/50 sm:mx-3 sm:mt-3 sm:max-h-[40dvh] sm:min-h-[118px] sm:space-y-2 sm:rounded-2xl sm:p-2 xl:max-h-[360px]">
+            <div className="mx-2.5 mt-2.5 min-h-[96px] space-y-1.5 overflow-visible rounded-xl bg-slate-50/70 p-1.5 dark:bg-slate-950/50 sm:mx-3 sm:mt-3 sm:min-h-[118px] sm:space-y-2 sm:rounded-2xl sm:p-2 xl:max-h-[360px] xl:overflow-y-auto xl:overscroll-contain xl:[-webkit-overflow-scrolling:touch]">
               {cart.length === 0 ? (
                 <div className="flex min-h-[92px] flex-col items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400 sm:min-h-[108px]">
                   <ShoppingCart className="mb-1.5 h-7 w-7 text-slate-300 dark:text-slate-600 sm:mb-2 sm:h-8 sm:w-8" />
