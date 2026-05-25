@@ -1,6 +1,14 @@
 import "./globals.css";
+import type { Viewport } from "next";
 import { Inter } from "next/font/google";
 import ThemeInitializer from "@/components/layout/theme-initializer";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-visual",
+};
 
 const inter = Inter({
   subsets: ["latin"],

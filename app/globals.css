@@ -108,6 +108,8 @@
 
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     max-width: 100%;
     overflow-x: hidden;
   }
@@ -274,6 +276,10 @@
   }
 
   @media (max-width: 640px) {
+    html {
+      font-size: 15px;
+    }
+
     .owner-shell,
     .cashier-shell {
       font-size: 0.9375rem;
@@ -292,7 +298,7 @@
 
     .owner-shell :where(input, select, textarea),
     .cashier-shell :where(input, select, textarea) {
-      min-height: 2.75rem;
+      min-height: 44px;
       font-size: 0.875rem;
       line-height: 1.35;
     }
@@ -303,7 +309,7 @@
     .cashier-shell :where(.h-11),
     .owner-shell :where(.h-12),
     .cashier-shell :where(.h-12) {
-      height: 2.75rem;
+      height: 44px;
     }
 
     .owner-shell :where(.min-h-10),
@@ -312,7 +318,7 @@
     .cashier-shell :where(.min-h-11),
     .owner-shell :where(.min-h-12),
     .cashier-shell :where(.min-h-12) {
-      min-height: 2.75rem;
+      min-height: 44px;
     }
 
     .owner-shell :where(.min-h-32),
@@ -326,7 +332,7 @@
     .cashier-shell :where(.w-11),
     .owner-shell :where(.w-12),
     .cashier-shell :where(.w-12) {
-      width: 2.75rem;
+      width: 44px;
     }
 
     .owner-shell :where(.rounded-3xl),
