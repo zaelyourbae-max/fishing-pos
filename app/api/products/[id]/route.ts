@@ -117,7 +117,6 @@ export async function PATCH(
       );
     }
 
-    const supplierId = await resolveSupplierId(supplierName);
     const result = await prisma.$transaction(
       async (tx) => {
         const existing = await tx.product.findUnique({
@@ -127,12 +126,34 @@ export async function PATCH(
           select: {
             id: true,
             stock: true,
+            _count: {
+              select: {
+                purchaseItems: true,
+                saleItems: true,
+                saleReturnItems: true,
+                stockMovements: true,
+                supplierReturnItems: true,
+              },
+            },
           },
         });
 
         if (!existing) {
           throw new Error("PRODUCT_NOT_FOUND");
         }
+
+        const hasStockHistory =
+          existing._count.purchaseItems > 0 ||
+          existing._count.saleItems > 0 ||
+          existing._count.saleReturnItems > 0 ||
+          existing._count.stockMovements > 0 ||
+          existing._count.supplierReturnItems > 0;
+
+        if (hasStockHistory && existing.stock !== stock) {
+          throw new Error("PRODUCT_STOCK_LOCKED");
+        }
+
+        const supplierId = await resolveSupplierId(supplierName);
 
         const product = await tx.product.update({
           where: {
@@ -151,7 +172,7 @@ export async function PATCH(
             description: readOptionalText(body.description),
             price,
             costPrice,
-            stock,
+            stock: hasStockHistory ? existing.stock : stock,
             minStock,
             unit,
             supplierId,
@@ -215,6 +236,16 @@ export async function PATCH(
 
     if (error instanceof Error && error.message === "PRODUCT_NOT_FOUND") {
       return NextResponse.json({ message: "Produk tidak ditemukan." }, { status: 404 });
+    }
+
+    if (error instanceof Error && error.message === "PRODUCT_STOCK_LOCKED") {
+      return NextResponse.json(
+        {
+          message:
+            "Stok produk lama tidak bisa diubah dari menu Produk. Gunakan menu Pembelian untuk tambah stok barang.",
+        },
+        { status: 422 },
+      );
     }
 
     console.error(error);

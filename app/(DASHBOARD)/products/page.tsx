@@ -11,6 +11,7 @@ import {
 
 import ProductEditButton from "@/components/products/product-edit-button";
 import ProductStatusActionButton from "@/components/products/product-status-action-button";
+import StockCorrectionButton from "@/components/products/stock-correction-button";
 import LiveSearchInput from "@/components/search/live-search-input";
 import PaginationLinks from "@/components/ui/pagination-links";
 import { canManageProducts, canViewCostPrice } from "@/lib/auth-session";
@@ -41,6 +42,34 @@ function marginLabel(price: number, costPrice: number) {
   const percentage = price > 0 ? Math.round((margin / price) * 100) : 0;
 
   return `${rupiah(margin)} (${percentage}%)`;
+}
+
+function compactProductValues(values: Array<string | null | undefined>) {
+  return values.map((value) => value?.trim()).filter(Boolean).join(" / ");
+}
+
+function productIdentityMeta(product: {
+  brand: string | null;
+  type: string | null;
+  size: string | null;
+  variant: string | null;
+}) {
+  return compactProductValues([
+    product.brand,
+    product.type,
+    product.size,
+    product.variant,
+  ]);
+}
+
+function productCategoryLocationMeta(product: {
+  category: string | null;
+  rackLocation: string | null;
+}) {
+  return compactProductValues([
+    product.category ?? "Tanpa kategori",
+    product.rackLocation ? `Rak ${product.rackLocation}` : null,
+  ]);
 }
 
 function statusHref(
@@ -103,14 +132,16 @@ function pageHref(
 function ProductImage({
   imageUrl,
   name,
+  className = "h-12 w-12 rounded-xl",
 }: {
   imageUrl: string | null;
   name: string;
+  className?: string;
 }) {
   if (imageUrl) {
     return (
       <span
-        className="block h-12 w-12 shrink-0 rounded-xl border border-slate-200 bg-cover bg-center dark:border-slate-800"
+        className={`block shrink-0 border border-slate-200 bg-cover bg-center dark:border-slate-800 ${className}`}
         style={{ backgroundImage: `url("${imageUrl}")` }}
         aria-label={name}
       />
@@ -118,8 +149,8 @@ function ProductImage({
   }
 
   return (
-    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-      <Package className="h-6 w-6" />
+    <span className={`flex shrink-0 items-center justify-center bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300 ${className}`}>
+      <Package className="h-5 w-5 sm:h-6 sm:w-6" />
     </span>
   );
 }
@@ -201,6 +232,15 @@ export default async function ProductsPage({
           supplier: {
             select: {
               name: true,
+            },
+          },
+          _count: {
+            select: {
+              purchaseItems: true,
+              saleItems: true,
+              saleReturnItems: true,
+              stockMovements: true,
+              supplierReturnItems: true,
             },
           },
         },
@@ -428,19 +468,19 @@ export default async function ProductsPage({
           <table className="w-full table-fixed text-left">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
               <tr>
-                <th className="w-[18%] px-5 py-4">Nama Produk</th>
-                <th className="w-[14%] px-5 py-4">SKU / Kategori</th>
-                <th className="w-[11%] px-5 py-4">Harga Jual</th>
+                <th className="w-[21%] px-4 py-3">Nama Produk</th>
+                <th className="w-[16%] px-4 py-3">SKU / Kategori</th>
+                <th className="w-[10%] px-4 py-3 text-right">Harga Jual</th>
                 {canViewCost ? (
                   <>
-                    <th className="w-[12%] px-5 py-4">Harga Modal / HPP</th>
-                    <th className="w-[12%] px-5 py-4">Margin Est.</th>
+                    <th className="w-[11%] px-4 py-3 text-right">HPP</th>
+                    <th className="w-[11%] px-4 py-3 text-right">Margin</th>
                   </>
                 ) : null}
-                <th className="w-[6%] px-5 py-4">Stok</th>
-                <th className="w-[7%] px-5 py-4">Status</th>
+                <th className="w-[10%] px-4 py-3 text-right">Stok</th>
+                <th className="w-[7%] px-4 py-3">Status</th>
                 {canManage ? (
-                  <th className="w-[20%] px-5 py-4 text-right">Aksi</th>
+                  <th className="w-[14%] px-4 py-3 text-right">Aksi</th>
                 ) : null}
               </tr>
             </thead>
@@ -457,42 +497,56 @@ export default async function ProductsPage({
                   key={product.id}
                   className="text-sm transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50"
                 >
-                  <td className="px-5 py-4">
-                    <div className="flex min-w-0 items-center gap-4">
+                  <td className="px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <ProductImage imageUrl={product.imageUrl} name={product.name} />
-                      <span className="min-w-0 truncate font-bold text-slate-950 dark:text-white">
-                        {product.name}
-                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-950 dark:text-white">
+                          {product.name}
+                        </p>
+                        {productIdentityMeta(product) ? (
+                          <p className="mt-0.5 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {productIdentityMeta(product)}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4">
-                    <p className="truncate font-bold text-slate-950 dark:text-white">
+                  <td className="px-4 py-3">
+                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                       {product.sku ?? product.barcode ?? "-"}
                     </p>
-                    <p className="mt-1 truncate text-slate-500 dark:text-slate-400">
-                      {product.category ?? "Tanpa kategori"}
+                    <p className="mt-0.5 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {productCategoryLocationMeta(product)}
                     </p>
                   </td>
-                  <td className="whitespace-nowrap px-5 py-4 font-semibold tabular-nums text-slate-950 dark:text-white">
-                    {rupiah(product.price)}
+                  <td className="px-4 py-3 text-right">
+                    <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-950 dark:text-white">
+                      {rupiah(product.price)}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      / {product.unit}
+                    </p>
                   </td>
                   {canViewCost ? (
                     <>
-                      <td className="whitespace-nowrap px-5 py-4 font-semibold tabular-nums text-slate-950 dark:text-white">
+                      <td className="px-4 py-3 text-right">
                         {product.costPrice > 0 ? (
-                          rupiah(product.costPrice)
+                          <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-100">
+                            {rupiah(product.costPrice)}
+                          </span>
                         ) : (
-                          <span className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
-                            HPP belum lengkap
+                          <span className="text-xs font-semibold text-amber-700 dark:text-amber-200">
+                            Belum lengkap
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3 text-right">
                         <span
                           className={
                             product.costPrice > 0 && product.price - product.costPrice >= 0
-                              ? "rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold tabular-nums text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
-                              : "rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              ? "whitespace-nowrap text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
+                              : "whitespace-nowrap text-xs font-semibold text-slate-500 dark:text-slate-400"
                           }
                         >
                           {marginLabel(product.price, product.costPrice)}
@@ -500,30 +554,37 @@ export default async function ProductsPage({
                       </td>
                     </>
                   ) : null}
-                  <td className="px-5 py-4">
-                    <span className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1 text-sm font-bold tabular-nums text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200">
-                      {product.stock}
-                    </span>
+                  <td className="px-4 py-3 text-right">
+                    <div className="min-w-[78px]">
+                      <p
+                        className={
+                          product.stock <= product.minStock
+                            ? "whitespace-nowrap text-sm font-bold tabular-nums text-amber-700 dark:text-amber-200"
+                            : "whitespace-nowrap text-sm font-bold tabular-nums text-slate-950 dark:text-white"
+                        }
+                      >
+                        {product.stock} {product.unit}
+                      </p>
+                      <p className="mt-0.5 whitespace-nowrap text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                        Min {product.minStock}
+                      </p>
+                    </div>
                   </td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={
-                        product.isActive
-                          ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
-                          : "rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                      }
-                    >
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      <span
+                        className={
+                          product.isActive
+                            ? "h-2 w-2 rounded-full bg-emerald-500"
+                            : "h-2 w-2 rounded-full bg-slate-400"
+                        }
+                      />
                       {product.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
                   {canManage ? (
-                    <td className="px-5 py-4">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <ProductStatusActionButton
-                          productId={product.id}
-                          productName={product.name}
-                          isActive={product.isActive}
-                        />
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
                         <ProductEditButton
                           product={{
                             id: product.id,
@@ -544,8 +605,30 @@ export default async function ProductsPage({
                             rackLocation: product.rackLocation,
                             description: product.description,
                             imageUrl: product.imageUrl,
+                            hasStockHistory:
+                              product._count.purchaseItems > 0 ||
+                              product._count.saleItems > 0 ||
+                              product._count.saleReturnItems > 0 ||
+                              product._count.stockMovements > 0 ||
+                              product._count.supplierReturnItems > 0,
                           }}
                           categories={categoryOptions}
+                        />
+                        <ProductStatusActionButton
+                          productId={product.id}
+                          productName={product.name}
+                          isActive={product.isActive}
+                          compact
+                        />
+                        <StockCorrectionButton
+                          product={{
+                            id: product.id,
+                            name: product.name,
+                            sku: product.sku,
+                            category: product.category,
+                            stock: product.stock,
+                          }}
+                          compact
                         />
                       </div>
                     </td>
@@ -556,7 +639,7 @@ export default async function ProductsPage({
           </table>
         </div>
 
-        <div className="space-y-3 bg-slate-50/70 p-4 lg:hidden dark:bg-slate-900/30">
+        <div className="space-y-2 bg-slate-50/70 p-2.5 sm:space-y-3 sm:p-4 lg:hidden dark:bg-slate-900/30">
           {products.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950">
               Tidak ada produk pada filter ini.
@@ -565,84 +648,147 @@ export default async function ProductsPage({
           {products.map((product) => (
             <div
               key={product.id}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-4"
             >
-              <div className="flex min-w-0 items-start gap-4">
-                <ProductImage imageUrl={product.imageUrl} name={product.name} />
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                <ProductImage
+                  imageUrl={product.imageUrl}
+                  name={product.name}
+                  className="h-10 w-10 rounded-xl sm:h-12 sm:w-12"
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="line-clamp-2 break-words font-bold text-slate-950 dark:text-white">
+                      <p className="line-clamp-2 break-words text-sm font-bold leading-snug text-slate-950 dark:text-white">
                         {product.name}
                       </p>
-                      <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">
+                      {productIdentityMeta(product) ? (
+                        <p className="mt-0.5 line-clamp-1 break-words text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:text-xs">
+                          {productIdentityMeta(product)}
+                        </p>
+                      ) : null}
+                      <p className="mt-0.5 line-clamp-1 break-words text-xs text-slate-500 dark:text-slate-400">
                         {product.sku ?? product.barcode ?? "-"} -{" "}
-                        {product.category ?? "Tanpa kategori"}
+                        {productCategoryLocationMeta(product)}
                       </p>
                     </div>
-                    <span className="w-fit break-words text-sm font-extrabold tabular-nums text-slate-950 dark:text-white sm:shrink-0 sm:whitespace-nowrap">
+                    <span className="shrink-0 text-right text-sm font-extrabold tabular-nums text-slate-950 dark:text-white sm:whitespace-nowrap">
                       {rupiah(product.price)}
+                      <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        / {product.unit}
+                      </span>
                     </span>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200">
-                      Stok {product.stock}
-                    </span>
-                    <span
-                      className={
-                        product.isActive
-                          ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
-                          : "rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                      }
-                    >
-                      {product.isActive ? "Active" : "Inactive"}
-                    </span>
+                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px] sm:mt-3 sm:gap-2 sm:text-xs">
+                    <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900 sm:px-3 sm:py-2">
+                      <p className="font-medium text-slate-500 dark:text-slate-400">
+                        Stok
+                      </p>
+                      <p
+                        className={
+                          product.stock <= product.minStock
+                            ? "mt-0.5 font-bold tabular-nums text-amber-700 dark:text-amber-200"
+                            : "mt-0.5 font-bold tabular-nums text-slate-900 dark:text-slate-100"
+                        }
+                      >
+                        {product.stock} {product.unit}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900 sm:px-3 sm:py-2">
+                      <p className="font-medium text-slate-500 dark:text-slate-400">
+                        Min
+                      </p>
+                      <p className="mt-0.5 font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                        {product.minStock}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900 sm:px-3 sm:py-2">
+                      <p className="font-medium text-slate-500 dark:text-slate-400">
+                        Status
+                      </p>
+                      <p
+                        className={
+                          product.isActive
+                            ? "mt-0.5 font-bold text-emerald-700 dark:text-emerald-300"
+                            : "mt-0.5 font-bold text-slate-600 dark:text-slate-300"
+                        }
+                      >
+                        {product.isActive ? "Active" : "Inactive"}
+                      </p>
+                    </div>
                     {canViewCost ? (
-                      <>
-                        <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      <div className="col-span-3 grid grid-cols-2 gap-1.5 sm:gap-2">
+                        <span className="rounded-xl bg-slate-50 px-2 py-1.5 font-bold tabular-nums text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:px-3 sm:py-2">
                           HPP{" "}
                           {product.costPrice > 0
                             ? rupiah(product.costPrice)
                             : "belum lengkap"}
                         </span>
-                        <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold tabular-nums text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                        <span className="rounded-xl bg-slate-50 px-2 py-1.5 font-bold tabular-nums text-emerald-700 dark:bg-slate-900 dark:text-emerald-300 sm:px-3 sm:py-2">
                           Margin {marginLabel(product.price, product.costPrice)}
                         </span>
-                      </>
+                      </div>
                     ) : null}
                   </div>
                 </div>
               </div>
               {canManage ? (
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <ProductStatusActionButton
-                    productId={product.id}
-                    productName={product.name}
-                    isActive={product.isActive}
-                  />
-                  <ProductEditButton
-                    product={{
-                      id: product.id,
-                      sku: product.sku,
-                      barcode: product.barcode,
-                      name: product.name,
-                      brand: product.brand,
-                      type: product.type,
-                      size: product.size,
-                      variant: product.variant,
-                      price: product.price,
-                      costPrice: product.costPrice,
-                      stock: product.stock,
-                      minStock: product.minStock,
-                      unit: product.unit,
-                      category: product.category,
-                      supplierName: product.supplier?.name ?? null,
-                      rackLocation: product.rackLocation,
-                      description: product.description,
-                      imageUrl: product.imageUrl,
-                    }}
-                    categories={categoryOptions}
-                  />
+                <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Aksi Produk
+                    </p>
+                    <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                      Edit data berbeda dari koreksi stok
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <ProductEditButton
+                      product={{
+                        id: product.id,
+                        sku: product.sku,
+                        barcode: product.barcode,
+                        name: product.name,
+                        brand: product.brand,
+                        type: product.type,
+                        size: product.size,
+                        variant: product.variant,
+                        price: product.price,
+                        costPrice: product.costPrice,
+                        stock: product.stock,
+                        minStock: product.minStock,
+                        unit: product.unit,
+                        category: product.category,
+                        supplierName: product.supplier?.name ?? null,
+                        rackLocation: product.rackLocation,
+                        description: product.description,
+                        imageUrl: product.imageUrl,
+                        hasStockHistory:
+                          product._count.purchaseItems > 0 ||
+                          product._count.saleItems > 0 ||
+                          product._count.saleReturnItems > 0 ||
+                          product._count.stockMovements > 0 ||
+                          product._count.supplierReturnItems > 0,
+                      }}
+                      categories={categoryOptions}
+                    />
+                    <StockCorrectionButton
+                      product={{
+                        id: product.id,
+                        name: product.name,
+                        sku: product.sku,
+                        category: product.category,
+                        stock: product.stock,
+                      }}
+                    />
+                    <div className="col-span-2 sm:col-span-1">
+                      <ProductStatusActionButton
+                        productId={product.id}
+                        productName={product.name}
+                        isActive={product.isActive}
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </div>

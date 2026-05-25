@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, MoreHorizontal, RotateCcw } from "lucide-react";
+import { Archive, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -19,7 +19,7 @@ export default function ProductStatusActionButton({
 }: ProductStatusActionButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const Icon = compact ? MoreHorizontal : isActive ? Archive : RotateCcw;
+  const Icon = isActive ? Archive : RotateCcw;
 
   async function handleAction() {
     if (loading) {
@@ -64,6 +64,7 @@ export default function ProductStatusActionButton({
       type="button"
       onClick={handleAction}
       disabled={loading}
+      title={isActive ? "Nonaktifkan produk" : "Aktifkan produk"}
       className={
         compact
           ? "inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-teal-300 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-teal-500/60 dark:hover:text-teal-200"
