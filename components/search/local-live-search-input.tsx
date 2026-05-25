@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type FocusEventHandler, useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 
 type LocalLiveSearchInputProps = {
@@ -9,6 +9,8 @@ type LocalLiveSearchInputProps = {
   placeholder: string;
   debounceMs?: number;
   className?: string;
+  onFocus?: FocusEventHandler<HTMLInputElement>;
+  onBlur?: FocusEventHandler<HTMLInputElement>;
 };
 
 export default function LocalLiveSearchInput({
@@ -17,6 +19,8 @@ export default function LocalLiveSearchInput({
   placeholder,
   debounceMs = 180,
   className = "",
+  onFocus,
+  onBlur,
 }: LocalLiveSearchInputProps) {
   const [draft, setDraft] = useState(value);
 
@@ -46,6 +50,8 @@ export default function LocalLiveSearchInput({
       <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
       <input
         value={draft}
+        onFocus={onFocus}
+        onBlur={onBlur}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Escape") {

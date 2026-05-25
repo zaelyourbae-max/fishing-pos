@@ -592,6 +592,7 @@ export default function PosApp({
   );
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
+  const [productSearchFocused, setProductSearchFocused] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [productPage, setProductPage] = useState(1);
   const [productPageSize, setProductPageSize] = useState(
@@ -2375,7 +2376,11 @@ export default function PosApp({
         <button
           type="button"
           onClick={() => setMobileCartOpen(true)}
-          className="fixed inset-x-3 bottom-16 z-30 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden"
+          className={`fixed inset-x-3 bottom-16 z-30 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 transition duration-200 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden ${
+            productSearchFocused
+              ? "pointer-events-none translate-y-24 opacity-0"
+              : "translate-y-0 opacity-100"
+          }`}
         >
           <span className="min-w-0">
             <span className="block truncate">Lihat keranjang</span>
@@ -2414,69 +2419,66 @@ export default function PosApp({
             </div>
 
             <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-950/50 sm:mb-4 sm:p-3">
-              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_210px]">
+              <div className="grid gap-2">
                 <LocalLiveSearchInput
                   value={search}
                   onSearch={handleProductSearch}
                   placeholder="Cari produk, SKU, barcode, brand..."
+                  className="min-w-0"
+                  onFocus={() => setProductSearchFocused(true)}
+                  onBlur={() => setProductSearchFocused(false)}
                 />
 
-                <label className="relative block">
-                  <select
-                    value={selectedCategory}
-                    onChange={(event) => {
-                      setSelectedCategory(event.target.value);
-                      setProductPage(1);
-                    }}
-                    className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-700 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:min-h-11 sm:rounded-2xl sm:px-4 sm:py-2.5 sm:pr-10"
-                  >
-                    <option value="Semua">Semua Kategori</option>
-                    {categoryOptions.map((category) => (
-                      <option key={category.key} value={category.key}>
-                        {category.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-4" />
-                </label>
-              </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_144px] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,210px)_180px] lg:justify-end">
+                  <label className="relative block min-w-0">
+                    <select
+                      value={selectedCategory}
+                      onChange={(event) => {
+                        setSelectedCategory(event.target.value);
+                        setProductPage(1);
+                      }}
+                      className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-xs font-semibold text-slate-700 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:min-h-11 sm:rounded-2xl sm:px-4 sm:py-2.5 sm:pr-10 sm:text-sm"
+                    >
+                      <option value="Semua">Semua Kategori</option>
+                      {categoryOptions.map((category) => (
+                        <option key={category.key} value={category.key}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-4" />
+                  </label>
 
-              <div className="mt-2 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
-                    Tampilan produk
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    Grid lebih ringkas, List lebih lega.
-                  </p>
-                </div>
-                <div className="grid min-h-10 grid-cols-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-900 sm:min-w-48">
-                  <button
-                    type="button"
-                    onClick={() => setProductView("grid")}
-                    aria-pressed={productView === "grid"}
-                    className={
-                      productView === "grid"
-                        ? "inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-sm font-bold text-white shadow-sm dark:bg-teal-500 dark:text-slate-950"
-                        : "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-800"
-                    }
-                  >
-                    <Grid2X2 className="h-4 w-4" />
-                    Grid
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProductView("list")}
-                    aria-pressed={productView === "list"}
-                    className={
-                      productView === "list"
-                        ? "inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-sm font-bold text-white shadow-sm dark:bg-teal-500 dark:text-slate-950"
-                        : "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-800"
-                    }
-                  >
-                    <List className="h-4 w-4" />
-                    List
-                  </button>
+                  <div className="grid min-h-10 grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-950 sm:min-h-11">
+                    <button
+                      type="button"
+                      onClick={() => setProductView("grid")}
+                      aria-label="Tampilkan produk dalam mode Grid"
+                      aria-pressed={productView === "grid"}
+                      className={
+                        productView === "grid"
+                          ? "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg bg-slate-950 px-2 py-2 text-xs font-extrabold text-white shadow-sm ring-2 ring-teal-200 dark:bg-teal-300 dark:text-slate-950 dark:ring-teal-500/30 sm:gap-1.5 sm:px-3 sm:text-sm"
+                          : "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:text-slate-300 dark:hover:bg-slate-800 sm:gap-1.5 sm:px-3 sm:text-sm"
+                      }
+                    >
+                      <Grid2X2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                      <span>Grid</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductView("list")}
+                      aria-label="Tampilkan produk dalam mode List"
+                      aria-pressed={productView === "list"}
+                      className={
+                        productView === "list"
+                          ? "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg bg-slate-950 px-2 py-2 text-xs font-extrabold text-white shadow-sm ring-2 ring-teal-200 dark:bg-teal-300 dark:text-slate-950 dark:ring-teal-500/30 sm:gap-1.5 sm:px-3 sm:text-sm"
+                          : "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:text-slate-300 dark:hover:bg-slate-800 sm:gap-1.5 sm:px-3 sm:text-sm"
+                      }
+                    >
+                      <List className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                      <span>List</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
