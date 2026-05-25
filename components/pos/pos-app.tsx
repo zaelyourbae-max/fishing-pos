@@ -1930,7 +1930,7 @@ export default function PosApp({
   }
 
   return (
-    <main className="w-full min-w-0 pb-28 text-slate-950 dark:text-slate-50 xl:pb-6">
+    <main className="w-full min-w-0 pb-24 text-slate-950 dark:text-slate-50 sm:pb-28 xl:pb-6">
       <PaymentConfirmationModal
         open={paymentModalOpen}
         paymentMethod={selectedPaymentMethod}
@@ -2169,9 +2169,9 @@ export default function PosApp({
         </div>
       ) : null}
 
-      <header className="mb-5 flex flex-col gap-3 px-1 py-1 sm:flex-row sm:items-center sm:justify-between">
+      <header className="mb-3 flex flex-col gap-2 px-1 py-0.5 sm:mb-5 sm:gap-3 sm:py-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="font-sans text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
+          <h1 className="font-sans text-xl font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
             Fishing POS
           </h1>
           <p className="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
@@ -2333,7 +2333,7 @@ export default function PosApp({
         <button
           type="button"
           onClick={() => setMobileCartOpen(true)}
-          className="fixed inset-x-4 bottom-20 z-30 flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 xl:hidden"
+          className="fixed inset-x-3 bottom-16 z-30 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden"
         >
           <span className="min-w-0">
             <span className="block truncate">Lihat keranjang</span>
@@ -2354,24 +2354,24 @@ export default function PosApp({
         />
       ) : null}
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(440px,480px)] 2xl:grid-cols-[minmax(0,1fr)_500px]">
-        <div className="min-w-0 space-y-4">
-          <section className="min-w-0 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4">
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(440px,480px)] 2xl:grid-cols-[minmax(0,1fr)_500px]">
+        <div className="min-w-0 space-y-3 sm:space-y-4">
+          <section className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-3xl sm:p-4">
+            <div className="mb-2.5 flex flex-col gap-1.5 sm:mb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-2">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
                   Area Produk
                 </p>
-                <h2 className="mt-0.5 text-xl font-bold text-slate-950 dark:text-slate-50">
+                <h2 className="mt-0.5 text-lg font-bold text-slate-950 dark:text-slate-50 sm:text-xl">
                   Produk
                 </h2>
               </div>
-              <p className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <p className="w-fit shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300 sm:px-3 sm:py-1 sm:text-xs">
                 {filteredProducts.length} produk ditemukan
               </p>
             </div>
 
-            <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5 dark:border-slate-800 dark:bg-slate-950/50 sm:p-3">
+            <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-950/50 sm:mb-4 sm:p-3">
               <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_210px_44px]">
                 <LocalLiveSearchInput
                   value={search}
@@ -2386,7 +2386,7 @@ export default function PosApp({
                       setSelectedCategory(event.target.value);
                       setProductPage(1);
                     }}
-                    className="min-h-11 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-700 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                    className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-700 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:min-h-11 sm:rounded-2xl sm:px-4 sm:py-2.5 sm:pr-10"
                   >
                     <option value="Semua">Semua Kategori</option>
                     {categoryOptions.map((category) => (
@@ -2395,7 +2395,7 @@ export default function PosApp({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-4" />
                 </label>
 
                 <button
@@ -2422,16 +2422,16 @@ export default function PosApp({
                 </button>
               </div>
 
-              <div className="mt-3 border-t border-slate-200/80 pt-3 dark:border-slate-800">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <div className="mt-2 border-t border-slate-200/80 pt-2 dark:border-slate-800 sm:mt-3 sm:pt-3">
+                <div className="mb-1.5 flex items-center justify-between gap-3 sm:mb-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
                     Kategori cepat
                   </p>
                   <p className="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">
                     Aktif: {selectedCategory === "Semua" ? "Semua" : selectedCategory}
                   </p>
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 [&::-webkit-scrollbar]:hidden">
                   {[{ key: "Semua", label: "Semua" }, ...categoryOptions].map((category) => {
                     const active = selectedCategory === category.key;
 
@@ -2444,15 +2444,15 @@ export default function PosApp({
                         }}
                         className={
                           active
-                            ? "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-bold text-teal-700 shadow-sm dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200"
-                            : "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-white dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                            ? "inline-flex min-h-7 shrink-0 items-center gap-1 rounded-full border border-teal-200 bg-white px-2.5 py-0.5 text-[11px] font-bold text-teal-700 shadow-sm dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200 sm:min-h-8 sm:gap-1.5 sm:px-3 sm:py-1 sm:text-xs"
+                            : "inline-flex min-h-7 shrink-0 items-center gap-1 rounded-full border border-transparent bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-white dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 sm:min-h-8 sm:gap-1.5 sm:px-3 sm:py-1 sm:text-xs"
                         }
                         type="button"
                       >
                         {category.key === "Semua" ? (
-                          <PackageSearch className="h-3.5 w-3.5" />
+                          <PackageSearch className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         ) : (
-                          categoryIconElement(category.label)
+                          categoryIconElement(category.label, "h-3 w-3 sm:h-3.5 sm:w-3.5")
                         )}
                         {category.label}
                       </button>
@@ -2477,8 +2477,8 @@ export default function PosApp({
             <div
               className={
                 productView === "grid"
-                  ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
-                  : "grid gap-3"
+                  ? "grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 2xl:grid-cols-4"
+                  : "grid gap-2.5 sm:gap-3"
               }
             >
               {visibleProducts.map((product) => (
@@ -2498,15 +2498,15 @@ export default function PosApp({
                       setProductDetail(product);
                     }
                   }}
-                  className="group flex min-h-0 min-w-0 cursor-pointer flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-colors duration-200 hover:border-teal-200 hover:bg-teal-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950 sm:min-h-[190px]"
+                  className="group flex min-h-0 min-w-0 cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm transition-colors duration-200 hover:border-teal-200 hover:bg-teal-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950 sm:min-h-[190px] sm:rounded-2xl sm:p-3"
                 >
-                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
-                    <ProductThumb product={product} className="h-11 w-11 rounded-2xl sm:h-12 sm:w-12" />
+                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 sm:gap-3">
+                    <ProductThumb product={product} className="h-10 w-10 rounded-xl sm:h-12 sm:w-12 sm:rounded-2xl" />
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-[11px]">
                         {productCodeLabel(product) || "Tanpa SKU"}
                       </p>
-                      <h3 className="mt-1 line-clamp-2 break-words text-sm font-bold leading-snug text-slate-950 dark:text-slate-50">
+                      <h3 className="mt-0.5 line-clamp-2 break-words text-[13px] font-bold leading-snug text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-sm">
                         {product.name}
                       </h3>
                       {productCompactMeta(product) ? (
@@ -2521,7 +2521,7 @@ export default function PosApp({
                         addToCart(product);
                       }}
                       disabled={product.stock <= 0}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-base font-bold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-base font-bold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400 sm:h-9 sm:w-9 sm:rounded-xl"
                       type="button"
                       aria-label={`Tambah ${product.name}`}
                     >
@@ -2529,26 +2529,26 @@ export default function PosApp({
                     </button>
                   </div>
 
-                  <div className="mt-2 flex min-w-0 flex-1 flex-col justify-end sm:mt-3">
+                  <div className="mt-1.5 flex min-w-0 flex-1 flex-col justify-end sm:mt-3">
                     <div className="rounded-xl border border-transparent bg-transparent p-0 dark:bg-transparent sm:rounded-2xl sm:border-slate-100 sm:bg-slate-50/80 sm:p-3 sm:dark:border-slate-800 sm:dark:bg-slate-900/70">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="hidden text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:block">
                             Harga jual
                           </p>
-                          <p className="metric-value truncate text-base leading-tight sm:mt-1">
+                          <p className="metric-value truncate text-sm leading-tight sm:mt-1 sm:text-base">
                             {rupiah(product.price)}
                           </p>
                         </div>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:bg-white sm:ring-1 sm:ring-slate-200 sm:dark:bg-slate-950 sm:dark:ring-slate-800">
+                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:bg-white sm:px-2.5 sm:py-1 sm:text-xs sm:ring-1 sm:ring-slate-200 sm:dark:bg-slate-950 sm:dark:ring-slate-800">
                           / {product.unit}
                         </span>
                       </div>
-                      <div className="mt-2 flex items-center justify-between gap-3 border-t border-slate-100 pt-2 dark:border-slate-800 sm:mt-3 sm:border-slate-200/80">
-                        <span className="min-w-0 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                      <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-1.5 dark:border-slate-800 sm:mt-3 sm:gap-3 sm:border-slate-200/80 sm:pt-2">
+                        <span className="min-w-0 truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                           {formatCategoryLabel(product.category)}
                         </span>
-                        <span className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                        <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold tabular-nums text-slate-700 dark:text-slate-300 sm:text-xs">
                           Stok {product.stock} {product.unit}
                         </span>
                       </div>
@@ -2564,37 +2564,37 @@ export default function PosApp({
               pageSize={productPageSize}
               onPageChange={handleProductPageChange}
               itemLabel="produk"
-              className="mt-5 -mx-3 -mb-3 rounded-b-3xl sm:-mx-4 sm:-mb-4"
+              className="mt-4 -mx-2.5 -mb-2.5 rounded-b-2xl sm:mt-5 sm:-mx-4 sm:-mb-4 sm:rounded-b-3xl"
             />
           </section>
 
-          <section className="rounded-2xl border border-slate-200/70 bg-white/60 p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-            <div className="mb-2 flex items-center justify-between gap-3 px-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <section className="rounded-2xl border border-slate-200/70 bg-white/60 p-1.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40 sm:p-2">
+            <div className="mb-1.5 flex items-center justify-between gap-3 px-1 sm:mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
                 Ringkasan cepat
               </p>
               <p className="hidden text-xs font-medium text-slate-400 dark:text-slate-500 sm:block">
                 Informasi pendukung shift
               </p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 xl:grid-cols-4">
             {canOpenInventoryDetails ? (
               <button
                 type="button"
                 onClick={() => openSummaryDetail("total-products")}
-                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
+                className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
-                  <Package className="h-4 w-4" />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-9 sm:w-9">
+                  <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                     Total Produk
                   </p>
-                  <p className="metric-value text-base">
+                  <p className="metric-value text-sm sm:text-base">
                     {summary.totalProducts}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
                     {summaryLoading === "total-products"
                       ? "Memuat..."
                       : "Item tersedia"}
@@ -2602,18 +2602,18 @@ export default function PosApp({
                 </div>
               </button>
             ) : (
-              <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
-                  <Package className="h-4 w-4" />
+              <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 sm:gap-3 sm:p-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-9 sm:w-9">
+                  <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                     Total Produk
                   </p>
-                  <p className="metric-value text-base">
+                  <p className="metric-value text-sm sm:text-base">
                     {summary.totalProducts}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
                     Readonly
                   </p>
                 </div>
@@ -2623,17 +2623,17 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("low-stock")}
-              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
+              className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
-                <PackageSearch className="h-4 w-4" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 sm:h-9 sm:w-9">
+                <PackageSearch className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                   Stok Rendah
                 </p>
-                <p className="metric-value text-base">{summary.lowStockCount}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="metric-value text-sm sm:text-base">{summary.lowStockCount}</p>
+                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
                   {summaryLoading === "low-stock"
                     ? "Memuat..."
                     : "Perlu restock"}
@@ -2644,19 +2644,19 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("today-transactions")}
-              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
+              className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
-                <CalendarDays className="h-4 w-4" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200 sm:h-9 sm:w-9">
+                <CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                   Transaksi Hari Ini
                 </p>
-                <p className="metric-value text-base">
+                <p className="metric-value text-sm sm:text-base">
                   {summary.todayTransactions}
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
                   {summaryLoading === "today-transactions"
                     ? "Memuat..."
                     : currentRole === "cashier"
@@ -2669,19 +2669,19 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("total-sales")}
-              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
+              className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200">
-                <Wallet className="h-4 w-4" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200 sm:h-9 sm:w-9">
+                <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                   Total Penjualan
                 </p>
-                <p className="metric-value truncate text-base">
+                <p className="metric-value truncate text-sm sm:text-base">
                   {rupiah(summary.totalSales)}
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
                   {summaryLoading === "total-sales"
                     ? "Memuat..."
                     : currentRole === "cashier"
@@ -2695,26 +2695,26 @@ export default function PosApp({
         </div>
 
         <aside
-          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] min-w-0 flex-col gap-3 overflow-y-auto rounded-t-[28px] border-t border-slate-200 bg-[#f6f8fb] p-3 shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
+          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2.5 overflow-y-auto rounded-t-[24px] border-t border-slate-200 bg-[#f6f8fb] p-2.5 shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
             mobileCartOpen
               ? "translate-y-0 pointer-events-auto"
               : "translate-y-full pointer-events-none xl:pointer-events-auto"
           }`}
         >
-          <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700 xl:hidden" />
-          <div className="mb-4 flex items-center justify-between gap-3 xl:hidden">
+          <div className="mx-auto h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700 sm:h-1.5 sm:w-12 xl:hidden" />
+          <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-4 xl:hidden">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300 sm:text-xs">
                 Transaksi
               </p>
-              <h2 className="mt-1 truncate text-xl font-bold text-slate-950 dark:text-slate-50">
+              <h2 className="mt-0.5 truncate text-lg font-bold text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-xl">
                 Keranjang & Checkout
               </h2>
             </div>
             <button
               type="button"
               onClick={() => setMobileCartOpen(false)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 sm:h-10 sm:w-10 sm:rounded-2xl"
               aria-label="Tutup keranjang"
             >
               <X className="h-5 w-5" />
@@ -2893,27 +2893,27 @@ export default function PosApp({
           </section>
 
           <section id="pos-cart" className="order-1 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:order-2">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800 sm:px-4 sm:py-3">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-slate-700 dark:text-slate-200" />
                 <div>
                   <p className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 xl:block">
                     Transaksi
                   </p>
-                  <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">
+                  <h2 className="text-sm font-bold text-slate-950 dark:text-slate-50 sm:text-base">
                     Keranjang & Pembayaran
                   </h2>
                 </div>
               </div>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-200 sm:py-1 sm:text-xs">
                 {cartItemCount} item
               </span>
             </div>
 
-            <div className="mx-3 mt-3 max-h-[34dvh] min-h-[118px] space-y-2 overflow-y-auto rounded-2xl bg-slate-50/70 p-2 dark:bg-slate-950/50 sm:max-h-[40dvh] xl:max-h-[360px]">
+            <div className="mx-2.5 mt-2.5 max-h-[32dvh] min-h-[96px] space-y-1.5 overflow-y-auto rounded-xl bg-slate-50/70 p-1.5 dark:bg-slate-950/50 sm:mx-3 sm:mt-3 sm:max-h-[40dvh] sm:min-h-[118px] sm:space-y-2 sm:rounded-2xl sm:p-2 xl:max-h-[360px]">
               {cart.length === 0 ? (
-                <div className="flex min-h-[108px] flex-col items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
-                  <ShoppingCart className="mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" />
+                <div className="flex min-h-[92px] flex-col items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400 sm:min-h-[108px]">
+                  <ShoppingCart className="mb-1.5 h-7 w-7 text-slate-300 dark:text-slate-600 sm:mb-2 sm:h-8 sm:w-8" />
                   <p className="font-semibold text-slate-600 dark:text-slate-300">
                     Keranjang masih kosong
                   </p>
@@ -2926,22 +2926,22 @@ export default function PosApp({
               {cart.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900 sm:p-3"
                 >
-                  <div className="mb-2.5 flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 gap-3">
+                  <div className="mb-2 flex items-start justify-between gap-2.5 sm:mb-2.5 sm:gap-3">
+                    <div className="flex min-w-0 gap-2.5 sm:gap-3">
                       <ProductThumb
                         product={item}
-                        className="h-10 w-10 rounded-xl"
+                        className="h-9 w-9 rounded-lg sm:h-10 sm:w-10 sm:rounded-xl"
                       />
                       <div className="min-w-0">
-                        <p className="line-clamp-2 break-words text-sm font-semibold text-slate-950 dark:text-slate-50">
+                        <p className="line-clamp-2 break-words text-[13px] font-semibold text-slate-950 dark:text-slate-50 sm:text-sm">
                           {item.name}
                         </p>
                         <p className="mt-0.5 break-all text-xs text-slate-500 dark:text-slate-400">
                           {item.sku}
                         </p>
-                        <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                           {rupiah(item.price)} / {item.unit} - Stok {item.stock} {item.unit}
                         </p>
                       </div>
@@ -2955,7 +2955,7 @@ export default function PosApp({
                       >
                         <X className="h-4 w-4" />
                       </button>
-                      <p className="text-sm font-bold tabular-nums text-slate-950 dark:text-slate-50">
+                      <p className="text-[13px] font-bold tabular-nums text-slate-950 dark:text-slate-50 sm:text-sm">
                         {rupiah(cartLineTotal(item))}
                       </p>
                       {cartLineDiscountAmount(item) > 0 ? (
@@ -2966,7 +2966,7 @@ export default function PosApp({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     <button
                       onClick={() => decreaseQty(item.id)}
                       className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-base font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
@@ -2998,7 +2998,7 @@ export default function PosApp({
                           event.currentTarget.blur();
                         }
                       }}
-                      className="h-8 w-16 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm font-bold tabular-nums text-slate-950 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                      className="h-8 w-14 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm font-bold tabular-nums text-slate-950 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 sm:w-16"
                       aria-label={`Qty ${item.name}`}
                     />
                     <button
@@ -3014,13 +3014,13 @@ export default function PosApp({
                     </span>
                   </div>
 
-                  <div className="mt-2.5 rounded-lg bg-slate-50 p-3 dark:bg-slate-950/60">
+                  <div className="mt-2 rounded-lg bg-slate-50 p-2.5 dark:bg-slate-950/60 sm:mt-2.5 sm:p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                           Diskon Item
                         </p>
-                        <p className="mt-1 text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                        <p className="mt-0.5 text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100 sm:mt-1">
                           {cartLineDiscountLabel(item)}
                         </p>
                         {cartLineDiscountAmount(item) > 0 &&
@@ -3033,7 +3033,7 @@ export default function PosApp({
                       <button
                         type="button"
                         onClick={() => openDiscountModal(item)}
-                        className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-teal-300 px-3 text-xs font-bold text-teal-700 transition hover:bg-teal-50 dark:border-teal-500/40 dark:text-teal-200 dark:hover:bg-teal-500/10"
+                        className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-lg border border-teal-300 px-2.5 text-[11px] font-bold text-teal-700 transition hover:bg-teal-50 dark:border-teal-500/40 dark:text-teal-200 dark:hover:bg-teal-500/10 sm:min-h-9 sm:px-3 sm:text-xs"
                       >
                         Edit Diskon
                       </button>
@@ -3052,13 +3052,13 @@ export default function PosApp({
               ))}
             </div>
 
-            <div className="mt-3 space-y-3 border-t border-slate-200 px-3 pb-3 pt-3 dark:border-slate-800">
-              <div className="rounded-2xl bg-teal-50 p-4 dark:bg-teal-500/10">
+            <div className="mt-2.5 space-y-2.5 border-t border-slate-200 px-2.5 pb-2.5 pt-2.5 dark:border-slate-800 sm:mt-3 sm:space-y-3 sm:px-3 sm:pb-3 sm:pt-3">
+              <div className="rounded-xl bg-teal-50 p-3 dark:bg-teal-500/10 sm:rounded-2xl sm:p-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold text-teal-800 dark:text-teal-200">
                     Total Bayar
                   </span>
-                  <span className="metric-value text-2xl">{rupiah(grandTotal)}</span>
+                  <span className="metric-value text-xl sm:text-2xl">{rupiah(grandTotal)}</span>
                 </div>
                 <p className="mt-1 text-xs font-medium text-teal-700 dark:text-teal-300">
                   {cartItemCount} item dalam keranjang
@@ -3119,8 +3119,8 @@ export default function PosApp({
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 dark:border-slate-800 dark:bg-slate-950/50 sm:rounded-2xl sm:p-3">
+                <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Pembayaran
                   </p>
@@ -3137,7 +3137,7 @@ export default function PosApp({
                       <select
                         value={paymentMethod}
                         onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                      className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:px-4 sm:pr-10"
                       >
                         {paymentMethods.map((method) => (
                           <option key={method.code} value={method.code}>
@@ -3145,7 +3145,7 @@ export default function PosApp({
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-4" />
                     </label>
                   </div>
 
@@ -3161,13 +3161,13 @@ export default function PosApp({
                       value={formatRupiahIntegerInput(paidAmount)}
                       onChange={handlePaidAmountChange}
                       placeholder={formatRupiahIntegerInput(String(grandTotal))}
-                      className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                      className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-4"
                     />
                   </div>
                 </div>
 
                 {selectedPaymentMethod?.type === "BANK_TRANSFER" ? (
-                  <div className="mt-2 rounded-xl bg-white p-3 text-sm text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800">
+                  <div className="mt-2 rounded-xl bg-white p-2.5 text-sm text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 sm:p-3">
                     <p className="font-semibold">Transfer Bank</p>
                     <p className="mt-1 text-xs">
                       Detail rekening akan tampil jelas di modal checkout.
@@ -3176,7 +3176,7 @@ export default function PosApp({
                 ) : null}
 
                 {selectedPaymentMethod?.type === "QRIS" ? (
-                  <div className="mt-2 rounded-xl bg-white p-3 text-sm text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800">
+                  <div className="mt-2 rounded-xl bg-white p-2.5 text-sm text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 sm:p-3">
                     <p className="font-semibold">QRIS Statis</p>
                     <p className="mt-1 text-xs">
                       QRIS besar akan tampil di modal checkout setelah kasir klik
@@ -3189,7 +3189,7 @@ export default function PosApp({
               <button
                 onClick={initiateCheckout}
                 disabled={loadingCheckout || cart.length === 0}
-                className="inline-flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3"
                 type="button"
               >
                 <span className="inline-flex min-w-0 items-center gap-2">
