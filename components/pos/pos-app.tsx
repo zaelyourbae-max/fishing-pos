@@ -20,7 +20,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import PendingExpiryCountdown from "@/components/sales/pending-expiry-countdown";
 import PaymentConfirmationModal from "@/components/pos/payment-confirmation-modal";
@@ -42,6 +42,12 @@ type Product = {
   name: string;
   sku: string;
   barcode: string;
+  brand?: string | null;
+  type?: string | null;
+  size?: string | null;
+  variant?: string | null;
+  rackLocation?: string | null;
+  description?: string | null;
   category: string;
   imageUrl?: string | null;
   price: number;
@@ -55,6 +61,13 @@ type ApiProduct = {
   name: string;
   sku: string | null;
   barcode?: string | null;
+  brand?: string | null;
+  type?: string | null;
+  size?: string | null;
+  variant?: string | null;
+  rackLocation?: string | null;
+  rack_location?: string | null;
+  description?: string | null;
   category: string | { name?: string | null } | null;
   image_url?: string | null;
   cost_price?: number | string;
@@ -182,10 +195,76 @@ type SummaryDetail = {
 
 const TOKEN_KEY = "fishing_pos_token";
 const USER_KEY = "fishing_pos_user";
-const POS_PRODUCT_PAGE_SIZE = 6;
+const DEFAULT_POS_PRODUCT_PAGE_SIZE = 6;
+
+function resolvePosProductPageSize() {
+  if (typeof window === "undefined") {
+    return DEFAULT_POS_PRODUCT_PAGE_SIZE;
+  }
+
+  if (window.matchMedia("(min-width: 1536px)").matches) {
+    return 8;
+  }
+
+  if (window.matchMedia("(min-width: 1024px)").matches) {
+    return 6;
+  }
+
+  return 4;
+}
 
 function rupiah(amount: number) {
   return `Rp ${amount.toLocaleString("id-ID")}`;
+}
+
+function normalizeRupiahIntegerInput(value: string) {
+  const digitsOnly = value.replace(/\D/g, "");
+
+  if (!digitsOnly) {
+    return "";
+  }
+
+  return digitsOnly.replace(/^0+(?=\d)/, "");
+}
+
+function formatRupiahIntegerInput(value: string) {
+  const normalizedValue = normalizeRupiahIntegerInput(value);
+
+  return normalizedValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function parseRupiahIntegerInput(value: string) {
+  const normalizedValue = normalizeRupiahIntegerInput(value);
+
+  if (!normalizedValue) {
+    return 0;
+  }
+
+  const amount = Number.parseInt(normalizedValue, 10);
+
+  return Number.isSafeInteger(amount) ? amount : Number.NaN;
+}
+
+function formattedRupiahCaretPosition(formattedValue: string, digitCount: number) {
+  if (digitCount <= 0) {
+    return 0;
+  }
+
+  let seenDigits = 0;
+
+  for (let index = 0; index < formattedValue.length; index += 1) {
+    const char = formattedValue[index];
+
+    if (char >= "0" && char <= "9") {
+      seenDigits += 1;
+    }
+
+    if (seenDigits === digitCount) {
+      return index + 1;
+    }
+  }
+
+  return formattedValue.length;
 }
 
 function cartLineSubtotalBeforeDiscount(item: CartItem) {
@@ -284,10 +363,95 @@ function readCategory(category: ApiProduct["category"]) {
   }
 
   if (typeof category === "string") {
-    return category;
+    return formatCategoryLabel(category);
   }
 
-  return category.name ?? "Tanpa kategori";
+  return formatCategoryLabel(category.name ?? "Tanpa kategori");
+}
+
+function normalizeCategoryText(category: string) {
+  return category.trim().replace(/\s+/g, " ");
+}
+
+function categoryFilterKey(category: string) {
+  return normalizeCategoryText(category).toLocaleLowerCase("id-ID");
+}
+
+function formatCategoryLabel(category: string) {
+  const normalized = normalizeCategoryText(category);
+
+  if (!normalized) {
+    return "Tanpa kategori";
+  }
+
+  return normalized
+    .split(" ")
+    .map((word) => {
+      const lower = word.toLocaleLowerCase("id-ID");
+
+      if (lower === "pe") {
+        return "PE";
+      }
+
+      if (word === word.toLocaleUpperCase("id-ID") && /[A-Z]/i.test(word)) {
+        return word;
+      }
+
+      return lower.charAt(0).toLocaleUpperCase("id-ID") + lower.slice(1);
+    })
+    .join(" ");
+}
+
+function compactProductValues(values: Array<string | null | undefined>) {
+  return values.map((value) => value?.trim()).filter(Boolean).join(" / ");
+}
+
+function productCompactMeta(product: Product) {
+  return compactProductValues([
+    product.brand,
+    product.type,
+    product.size,
+    product.variant,
+  ]);
+}
+
+function productCodeLabel(product: Product) {
+  const sku = productSkuLabel(product);
+
+  if (sku) {
+    return sku;
+  }
+
+  return product.barcode.trim();
+}
+
+function productSkuLabel(product: Product) {
+  const sku = product.sku.trim();
+
+  return sku && sku !== "-" ? sku : "";
+}
+
+function productSkuBarcodeLabel(product: Product) {
+  return compactProductValues([productSkuLabel(product), product.barcode]);
+}
+
+function ProductDetailField({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+      <div className="mt-1 break-words text-sm font-bold text-slate-950 dark:text-slate-50">
+        {value}
+      </div>
+    </div>
+  );
 }
 
 function readStoredUser() {
@@ -373,11 +537,20 @@ function categoryIconElement(category: string, className = "h-4 w-4"): ReactNode
   return <Package className={className} />;
 }
 
-function ProductThumb({ product }: { product: Product }) {
+function ProductThumb({
+  product,
+  className = "h-12 w-12 rounded-xl",
+}: {
+  product: Product;
+  className?: string;
+}) {
+  const baseClassName =
+    "flex shrink-0 items-center justify-center bg-slate-50";
+
   if (product.imageUrl) {
     return (
       <div
-        className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-slate-50 bg-contain bg-center bg-no-repeat"
+        className={`${baseClassName} bg-contain bg-center bg-no-repeat ${className}`}
         role="img"
         aria-label={product.name}
         style={{
@@ -390,8 +563,10 @@ function ProductThumb({ product }: { product: Product }) {
   }
 
   return (
-    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300">
-      {categoryIconElement(product.category, "h-9 w-9")}
+    <div
+      className={`flex shrink-0 items-center justify-center border border-teal-100 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300 ${className}`}
+    >
+      {categoryIconElement(product.category, "h-6 w-6")}
     </div>
   );
 }
@@ -419,7 +594,11 @@ export default function PosApp({
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [productPage, setProductPage] = useState(1);
+  const [productPageSize, setProductPageSize] = useState(
+    DEFAULT_POS_PRODUCT_PAGE_SIZE,
+  );
   const [productView, setProductView] = useState<"grid" | "list">("grid");
+  const [productDetail, setProductDetail] = useState<Product | null>(null);
   const productSearchRef = useRef("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [summary, setSummary] = useState<SummaryStats>({
@@ -454,6 +633,8 @@ export default function PosApp({
   const [activeCustomerSuggestionIndex, setActiveCustomerSuggestionIndex] =
     useState(0);
   const customerAutocompleteRef = useRef<HTMLDivElement | null>(null);
+  const customerNameInputRef = useRef<HTMLInputElement | null>(null);
+  const paidAmountInputRef = useRef<HTMLInputElement | null>(null);
   const [normalizedCustomerPhone, setNormalizedCustomerPhone] = useState("");
   const [customerLookupMessage, setCustomerLookupMessage] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
@@ -471,6 +652,7 @@ export default function PosApp({
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -531,6 +713,13 @@ export default function PosApp({
         name: product.name,
         sku: product.sku ?? "-",
         barcode: product.barcode ?? "",
+        brand: product.brand?.trim() || null,
+        type: product.type?.trim() || null,
+        size: product.size?.trim() || null,
+        variant: product.variant?.trim() || null,
+        rackLocation:
+          product.rackLocation?.trim() || product.rack_location?.trim() || null,
+        description: product.description?.trim() || null,
         category: readCategory(product.category),
         imageUrl: product.image_url ?? null,
         price: Number(product.selling_price),
@@ -658,6 +847,17 @@ export default function PosApp({
       return;
     }
 
+    if (
+      event.key === "Enter" &&
+      type === "phone" &&
+      (!customerSuggestionOpen || customerSuggestionType !== type)
+    ) {
+      event.preventDefault();
+      closeCustomerSuggestions();
+      customerNameInputRef.current?.focus();
+      return;
+    }
+
     if (!customerSuggestionOpen || customerSuggestionType !== type) {
       return;
     }
@@ -681,6 +881,13 @@ export default function PosApp({
           Math.min(activeCustomerSuggestionIndex, customerSuggestions.length - 1)
         ],
       );
+      return;
+    }
+
+    if (event.key === "Enter" && type === "phone") {
+      event.preventDefault();
+      closeCustomerSuggestions();
+      customerNameInputRef.current?.focus();
     }
   }
 
@@ -693,6 +900,17 @@ export default function PosApp({
 
     return () => window.clearTimeout(timer);
   }, [fetchActivePendingQris, fetchProducts, fetchSummary]);
+
+  useEffect(() => {
+    function updateProductPageSize() {
+      setProductPageSize(resolvePosProductPageSize());
+    }
+
+    updateProductPageSize();
+    window.addEventListener("resize", updateProductPageSize);
+
+    return () => window.removeEventListener("resize", updateProductPageSize);
+  }, []);
 
   useEffect(() => {
     if (!customerSuggestionOpen) {
@@ -865,8 +1083,19 @@ export default function PosApp({
     return cart.reduce((acc, item) => acc + item.qty, 0);
   }, [cart]);
   const categoryOptions = useMemo(() => {
-    return Array.from(
-      new Set(products.map((product) => product.category).filter(Boolean)),
+    const options = new Map<string, { key: string; label: string }>();
+
+    for (const product of products) {
+      const label = formatCategoryLabel(product.category);
+      const key = categoryFilterKey(label);
+
+      if (!options.has(key)) {
+        options.set(key, { key, label });
+      }
+    }
+
+    return Array.from(options.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, "id-ID"),
     );
   }, [products]);
   const filteredProducts = useMemo(() => {
@@ -874,16 +1103,25 @@ export default function PosApp({
 
     return products.filter((product) => {
       const categoryMatched =
-        selectedCategory === "Semua" || product.category === selectedCategory;
+        selectedCategory === "Semua" ||
+        categoryFilterKey(product.category) === selectedCategory;
       const name = product.name?.toLowerCase() || "";
       const sku = product.sku?.toLowerCase() || "";
       const barcode = product.barcode?.toLowerCase() || "";
-      const category = product.category?.toLowerCase() || "";
+      const brand = product.brand?.toLowerCase() || "";
+      const type = product.type?.toLowerCase() || "";
+      const size = product.size?.toLowerCase() || "";
+      const variant = product.variant?.toLowerCase() || "";
+      const category = categoryFilterKey(product.category);
       const keywordMatched =
         !keyword ||
         name.includes(keyword) ||
         sku.includes(keyword) ||
         barcode.includes(keyword) ||
+        brand.includes(keyword) ||
+        type.includes(keyword) ||
+        size.includes(keyword) ||
+        variant.includes(keyword) ||
         category.includes(keyword);
 
       return categoryMatched && keywordMatched;
@@ -892,16 +1130,16 @@ export default function PosApp({
 
   const productPageCount = Math.max(
     1,
-    Math.ceil(filteredProducts.length / POS_PRODUCT_PAGE_SIZE),
+    Math.ceil(filteredProducts.length / productPageSize),
   );
   const currentProductPage = Math.min(productPage, productPageCount);
   const visibleProducts = useMemo(
     () =>
       filteredProducts.slice(
-        (currentProductPage - 1) * POS_PRODUCT_PAGE_SIZE,
-        currentProductPage * POS_PRODUCT_PAGE_SIZE,
+        (currentProductPage - 1) * productPageSize,
+        currentProductPage * productPageSize,
       ),
-    [currentProductPage, filteredProducts],
+    [currentProductPage, filteredProducts, productPageSize],
   );
   const handleProductSearch = useCallback((value: string) => {
     if (productSearchRef.current === value) {
@@ -992,6 +1230,14 @@ export default function PosApp({
         },
       ];
     });
+  }
+
+  function addProductDetailToCart(product: Product) {
+    addToCart(product);
+
+    if (product.stock > 0) {
+      setProductDetail(null);
+    }
   }
 
   function updateItemDiscount(
@@ -1270,7 +1516,34 @@ export default function PosApp({
   }
 
   function checkoutPaidAmount() {
-    return paidAmount ? Number(paidAmount) : grandTotal;
+    return paidAmount ? parseRupiahIntegerInput(paidAmount) : grandTotal;
+  }
+
+  function handlePaidAmountChange(event: ChangeEvent<HTMLInputElement>) {
+    const rawValue = event.target.value;
+    const selectionStart = event.target.selectionStart ?? rawValue.length;
+    const digitsBeforeCaret = normalizeRupiahIntegerInput(
+      rawValue.slice(0, selectionStart),
+    ).length;
+    const nextPaidAmount = normalizeRupiahIntegerInput(rawValue);
+
+    setPaidAmount(nextPaidAmount);
+
+    window.requestAnimationFrame(() => {
+      const input = paidAmountInputRef.current;
+
+      if (!input) {
+        return;
+      }
+
+      const formattedValue = formatRupiahIntegerInput(nextPaidAmount);
+      const caretPosition = formattedRupiahCaretPosition(
+        formattedValue,
+        digitsBeforeCaret,
+      );
+
+      input.setSelectionRange(caretPosition, caretPosition);
+    });
   }
 
   function paymentSettingsReady() {
@@ -1468,6 +1741,7 @@ export default function PosApp({
         note: "",
       });
       setPaymentModalOpen(false);
+      setMobileCartOpen(false);
       setPaymentMethod(
         paymentMethods.find((method) => method.code === "CASH")?.code ??
           paymentMethods[0]?.code ??
@@ -1604,17 +1878,25 @@ export default function PosApp({
       return null;
     }
 
+    if (
+      type === "phone" &&
+      !customerSuggestionLoading &&
+      customerSuggestions.length === 0
+    ) {
+      return null;
+    }
+
     return (
       <div className="absolute left-0 right-0 top-full z-40 mt-2 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
         {customerSuggestionLoading ? (
           <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
             Mencari customer...
           </div>
-        ) : customerSuggestions.length === 0 ? (
+        ) : customerSuggestions.length === 0 && type === "name" ? (
           <div className="px-3 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
             Tidak ada customer ditemukan
           </div>
-        ) : (
+        ) : customerSuggestions.length === 0 ? null : (
           <div className="space-y-1">
             {customerSuggestions.map((customer, index) => (
               <button
@@ -1648,7 +1930,7 @@ export default function PosApp({
   }
 
   return (
-    <main className="w-full min-w-0 pb-4 text-slate-950 dark:text-slate-50">
+    <main className="w-full min-w-0 pb-28 text-slate-950 dark:text-slate-50 xl:pb-6">
       <PaymentConfirmationModal
         open={paymentModalOpen}
         paymentMethod={selectedPaymentMethod}
@@ -1663,6 +1945,114 @@ export default function PosApp({
           }
         }}
       />
+
+      <Dialog
+        open={Boolean(productDetail)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProductDetail(null);
+          }
+        }}
+      >
+        {productDetail ? (
+          <DialogContent className="bottom-0 left-0 right-0 top-auto max-h-[88dvh] max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-b-none rounded-t-3xl p-0 sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl">
+            <div className="max-h-[88dvh] overflow-y-auto p-5 pb-6 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+              <DialogHeader className="pr-10">
+                <DialogTitle className="text-xl font-extrabold leading-snug text-slate-950 dark:text-slate-50">
+                  {productDetail.name}
+                </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Detail produk {productDetail.name}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-5 flex items-start gap-4">
+                <ProductThumb
+                  product={productDetail}
+                  className="h-20 w-20 rounded-2xl sm:h-24 sm:w-24"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="metric-value text-2xl leading-tight">
+                    {rupiah(productDetail.price)}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    / {productDetail.unit}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                      {formatCategoryLabel(productDetail.category)}
+                    </span>
+                    <span
+                      className={
+                        productDetail.stock <= 0
+                          ? "rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200"
+                          : "rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200"
+                      }
+                    >
+                      Stok {productDetail.stock} {productDetail.unit}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <ProductDetailField
+                  label="SKU / Barcode"
+                  value={productSkuBarcodeLabel(productDetail) || "-"}
+                />
+                <ProductDetailField
+                  label="Kategori"
+                  value={formatCategoryLabel(productDetail.category)}
+                />
+                <ProductDetailField
+                  label="Produk"
+                  value={productCompactMeta(productDetail) || "-"}
+                />
+                <ProductDetailField
+                  label="Satuan"
+                  value={productDetail.unit}
+                />
+                <ProductDetailField
+                  label="Harga"
+                  value={`${rupiah(productDetail.price)} / ${productDetail.unit}`}
+                />
+                <ProductDetailField
+                  label="Stok"
+                  value={`${productDetail.stock} ${productDetail.unit}`}
+                />
+                {productDetail.rackLocation ? (
+                  <ProductDetailField
+                    label="Lokasi Rak"
+                    value={productDetail.rackLocation}
+                  />
+                ) : null}
+              </div>
+
+              {productDetail.description ? (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Deskripsi
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                    {productDetail.description}
+                  </p>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => addProductDetailToCart(productDetail)}
+                disabled={productDetail.stock <= 0}
+                className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-teal-600 px-5 py-3 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+              >
+                {productDetail.stock <= 0
+                  ? "Stok Habis"
+                  : "Tambah ke keranjang"}
+              </button>
+            </div>
+          </DialogContent>
+        ) : null}
+      </Dialog>
 
       {summaryDetail ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4">
@@ -1779,22 +2169,22 @@ export default function PosApp({
         </div>
       ) : null}
 
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-sans text-3xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
+      <header className="mb-5 flex flex-col gap-3 px-1 py-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-sans text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
             Fishing POS
           </h1>
-          <p className="mt-2 text-base text-slate-500 dark:text-slate-400">
+          <p className="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
             Sistem kasir toko pancing
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="hidden flex-wrap items-center justify-end gap-2 sm:flex">
           <ThemeToggle />
           <div className="relative">
             <button
               onClick={() => setNotificationsOpen((open) => !open)}
-              className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800"
+              className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800 dark:hover:bg-slate-800"
               type="button"
               aria-label="Notifikasi"
               aria-expanded={notificationsOpen}
@@ -1809,7 +2199,7 @@ export default function PosApp({
           </div>
           <button
             onClick={logout}
-            className="min-h-11 rounded-xl border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="min-h-12 rounded-2xl border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             type="button"
           >
             Logout
@@ -1834,15 +2224,21 @@ export default function PosApp({
       )}
 
       {checkoutSuccess ? (
-        <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div
+          className={`mb-5 rounded-2xl border p-4 shadow-sm ${
+            checkoutSuccess.paymentStatus === "WAITING_PROOF"
+              ? "border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10"
+              : "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+          }`}
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                 {checkoutSuccess.paymentStatus === "WAITING_PROOF"
-                  ? "QRIS Pending"
-                  : "Checkout Success"}
+                  ? "Transaksi pending - stok sudah direserve"
+                  : "Transaksi selesai"}
               </p>
-              <h2 className="metric-value text-xl">
+              <h2 className="metric-value mt-1 break-all text-2xl">
                 {checkoutSuccess.invoiceNumber}
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
@@ -1862,7 +2258,7 @@ export default function PosApp({
               </div>
               {checkoutSuccess.paymentStatus === "WAITING_PROOF" &&
               checkoutSuccess.expiredAt ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <PendingExpiryCountdown expiredAt={checkoutSuccess.expiredAt} />
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     Batas: {formatDate(checkoutSuccess.expiredAt)}
@@ -1892,9 +2288,12 @@ export default function PosApp({
           </div>
           {checkoutSuccess.paymentMethod.toUpperCase().includes("QRIS") &&
           checkoutSuccess.paymentStatus === "WAITING_PROOF" ? (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/70">
               <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
                 Upload bukti QRIS untuk menyelesaikan transaksi.
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                Transaksi pending akan otomatis expired jika bukti tidak diupload sebelum batas waktu.
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                 <input
@@ -1911,7 +2310,7 @@ export default function PosApp({
                   disabled={uploadingProof || !proofFile}
                   className="min-h-11 rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {uploadingProof ? "Mengupload..." : "Upload Proof"}
+                  {uploadingProof ? "Mengupload..." : "Upload Bukti"}
                 </button>
               </div>
             </div>
@@ -1931,80 +2330,137 @@ export default function PosApp({
       )}
 
       {cart.length > 0 ? (
-        <a
-          href="#pos-cart"
-          className="fixed inset-x-4 bottom-20 z-30 flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 xl:hidden"
+        <button
+          type="button"
+          onClick={() => setMobileCartOpen(true)}
+          className="fixed inset-x-4 bottom-20 z-30 flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 xl:hidden"
         >
           <span className="min-w-0">
             <span className="block truncate">Keranjang {cartItemCount} item</span>
             <span className="block text-xs text-slate-500 dark:text-slate-400">
-              Tap untuk checkout
+              Buka customer, payment, dan checkout
             </span>
           </span>
           <span className="shrink-0 tabular-nums">{rupiah(grandTotal)}</span>
-        </a>
+        </button>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_410px]">
-        <div className="min-w-0 space-y-6">
-          <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">
-                Produk
-              </h2>
+      {mobileCartOpen ? (
+        <button
+          type="button"
+          aria-label="Tutup keranjang"
+          onClick={() => setMobileCartOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/45 xl:hidden"
+        />
+      ) : null}
+
+      <div className="grid grid-cols-1 items-start gap-5 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(440px,480px)] 2xl:grid-cols-[minmax(0,1fr)_500px]">
+        <div className="min-w-0 space-y-4">
+          <section className="min-w-0 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Area Produk
+                </p>
+                <h2 className="mt-0.5 text-xl font-bold text-slate-950 dark:text-slate-50">
+                  Produk
+                </h2>
+              </div>
+              <p className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {filteredProducts.length} produk ditemukan
+              </p>
             </div>
 
-            <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_56px]">
-              <LocalLiveSearchInput
-                value={search}
-                onSearch={handleProductSearch}
-                placeholder="Cari produk, SKU, barcode..."
-              />
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_210px_44px]">
+                <LocalLiveSearchInput
+                  value={search}
+                  onSearch={handleProductSearch}
+                  placeholder="Cari produk, SKU, barcode, brand..."
+                />
 
-              <label className="relative block">
-                <select
-                  value={selectedCategory}
-                  onChange={(event) => {
-                    setSelectedCategory(event.target.value);
-                    setProductPage(1);
-                  }}
-                  className="min-h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                <label className="relative block">
+                  <select
+                    value={selectedCategory}
+                    onChange={(event) => {
+                      setSelectedCategory(event.target.value);
+                      setProductPage(1);
+                    }}
+                    className="min-h-11 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm font-medium text-slate-700 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                  >
+                    <option value="Semua">Semua Kategori</option>
+                    {categoryOptions.map((category) => (
+                      <option key={category.key} value={category.key}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                </label>
+
+                <button
+                  onClick={() =>
+                    setProductView((view) => (view === "grid" ? "list" : "grid"))
+                  }
+                  className={
+                    productView === "grid"
+                      ? "flex min-h-11 items-center justify-center rounded-2xl border border-teal-200 bg-teal-50 text-teal-700 transition-colors hover:bg-teal-100 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200"
+                      : "flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+                  }
+                  type="button"
+                  aria-label={
+                    productView === "grid"
+                      ? "Tampilan grid aktif"
+                      : "Tampilan list aktif"
+                  }
                 >
-                  <option value="Semua">Semua Kategori</option>
-                  {categoryOptions.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              </label>
+                  {productView === "grid" ? (
+                    <Grid2X2 className="h-5 w-5" />
+                  ) : (
+                    <List className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
 
-              <button
-                onClick={() =>
-                  setProductView((view) => (view === "grid" ? "list" : "grid"))
-                }
-                className={
-                  productView === "grid"
-                    ? "flex min-h-12 items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700 transition-colors hover:bg-teal-100 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200"
-                    : "flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
-                }
-                type="button"
-                aria-label={
-                  productView === "grid"
-                    ? "Tampilan grid aktif"
-                    : "Tampilan list aktif"
-                }
-              >
-                {productView === "grid" ? (
-                  <Grid2X2 className="h-5 w-5" />
-                ) : (
-                  <List className="h-5 w-5" />
-                )}
-              </button>
+              <div className="mt-3 border-t border-slate-200/80 pt-3 dark:border-slate-800">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Kategori cepat
+                  </p>
+                  <p className="hidden text-xs font-medium text-slate-500 dark:text-slate-400 sm:block">
+                    Aktif: {selectedCategory === "Semua" ? "Semua" : selectedCategory}
+                  </p>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {[{ key: "Semua", label: "Semua" }, ...categoryOptions].map((category) => {
+                    const active = selectedCategory === category.key;
+
+                    return (
+                      <button
+                        key={category.key}
+                        onClick={() => {
+                          setSelectedCategory(category.key);
+                          setProductPage(1);
+                        }}
+                        className={
+                          active
+                            ? "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-1 text-xs font-bold text-teal-700 shadow-sm dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200"
+                            : "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl border border-transparent bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-white dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                        }
+                        type="button"
+                      >
+                        {category.key === "Semua" ? (
+                          <PackageSearch className="h-3.5 w-3.5" />
+                        ) : (
+                          categoryIconElement(category.label)
+                        )}
+                        {category.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-
-            <div className="mb-5 h-px bg-slate-100 dark:bg-slate-800" />
 
             {loadingProducts ? (
               <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -2021,48 +2477,78 @@ export default function PosApp({
             <div
               className={
                 productView === "grid"
-                  ? "grid gap-4 md:grid-cols-2 min-[1450px]:grid-cols-3"
-                  : "grid gap-4"
+                  ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+                  : "grid gap-3"
               }
             >
               {visibleProducts.map((product) => (
                 <article
                   key={product.id}
-                  className="grid min-h-[146px] grid-cols-[80px_minmax(0,1fr)] gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors duration-200 hover:border-teal-200 hover:bg-teal-50/30 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Lihat detail ${product.name}`}
+                  onClick={() => setProductDetail(product)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) {
+                      return;
+                    }
+
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setProductDetail(product);
+                    }
+                  }}
+                  className="group flex min-h-[190px] min-w-0 cursor-pointer flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-colors duration-200 hover:border-teal-200 hover:bg-teal-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950"
                 >
-                  <ProductThumb product={product} />
-
-                  <div className="flex min-w-0 flex-col">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="line-clamp-2 break-words text-base font-bold leading-snug text-slate-950 dark:text-slate-50">
-                          {product.name}
-                        </h3>
-                        <p className="mt-2 truncate text-sm text-slate-500 dark:text-slate-400">
-                          {product.sku}
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() => addToCart(product)}
-                        disabled={product.stock <= 0}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 text-lg font-bold text-teal-700 transition-colors duration-200 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500/20 dark:text-teal-200 dark:hover:bg-teal-500/30"
-                        type="button"
-                        aria-label={`Tambah ${product.name}`}
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <div className="mt-auto pt-4">
-                      <p className="metric-value text-base">
-                        {rupiah(product.price)} / {product.unit}
+                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+                    <ProductThumb product={product} className="h-12 w-12 rounded-2xl" />
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        {productCodeLabel(product) || "Tanpa SKU"}
                       </p>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <span className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
-                          {product.category}
+                      <h3 className="mt-1 line-clamp-2 break-words text-sm font-bold leading-snug text-slate-950 dark:text-slate-50">
+                        {product.name}
+                      </h3>
+                      {productCompactMeta(product) ? (
+                        <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {productCompactMeta(product)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        addToCart(product);
+                      }}
+                      disabled={product.stock <= 0}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-base font-bold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                      type="button"
+                      aria-label={`Tambah ${product.name}`}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex min-w-0 flex-1 flex-col justify-end">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/70">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            Harga jual
+                          </p>
+                          <p className="metric-value mt-1 truncate text-base leading-tight">
+                            {rupiah(product.price)}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800">
+                          / {product.unit}
                         </span>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-200/80 pt-2 dark:border-slate-800">
+                        <span className="min-w-0 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {formatCategoryLabel(product.category)}
+                        </span>
+                        <span className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
                           Stok {product.stock} {product.unit}
                         </span>
                       </div>
@@ -2075,62 +2561,37 @@ export default function PosApp({
             <ClientPaginationControl
               currentPage={currentProductPage}
               totalItems={filteredProducts.length}
-              pageSize={POS_PRODUCT_PAGE_SIZE}
+              pageSize={productPageSize}
               onPageChange={handleProductPageChange}
               itemLabel="produk"
-              className="mt-5 -mx-5 -mb-5 rounded-b-xl"
+              className="mt-5 -mx-3 -mb-3 rounded-b-3xl sm:-mx-4 sm:-mb-4"
             />
           </section>
 
-          <section>
-            <h2 className="mb-4 text-xl font-bold text-slate-950 dark:text-slate-50">
-              Kategori
-            </h2>
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {["Semua", ...categoryOptions].map((category) => {
-                const active = selectedCategory === category;
-
-                return (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setProductPage(1);
-                    }}
-                    className={
-                      active
-                        ? "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 shadow-sm dark:border-teal-500/40 dark:bg-teal-500/10 dark:text-teal-200"
-                        : "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                    }
-                    type="button"
-                  >
-                    {category === "Semua" ? (
-                      <PackageSearch className="h-4 w-4" />
-                    ) : (
-                      categoryIconElement(category)
-                    )}
-                    {category}
-                  </button>
-                );
-              })}
+          <section className="rounded-2xl border border-slate-200/70 bg-white/60 p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
+            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Ringkasan cepat
+              </p>
+              <p className="hidden text-xs font-medium text-slate-400 dark:text-slate-500 sm:block">
+                Informasi pendukung shift
+              </p>
             </div>
-          </section>
-
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {canOpenInventoryDetails ? (
               <button
                 type="button"
                 onClick={() => openSummaryDetail("total-products")}
-                className="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
+                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200">
-                  <Package className="h-5 w-5" />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+                  <Package className="h-4 w-4" />
                 </span>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     Total Produk
                   </p>
-                  <p className="metric-value text-xl">
+                  <p className="metric-value text-base">
                     {summary.totalProducts}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -2141,15 +2602,15 @@ export default function PosApp({
                 </div>
               </button>
             ) : (
-              <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200">
-                  <Package className="h-5 w-5" />
+              <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+                  <Package className="h-4 w-4" />
                 </span>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     Total Produk
                   </p>
-                  <p className="metric-value text-xl">
+                  <p className="metric-value text-base">
                     {summary.totalProducts}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -2162,16 +2623,16 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("low-stock")}
-              className="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
+              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
-                <PackageSearch className="h-5 w-5" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                <PackageSearch className="h-4 w-4" />
               </span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   Stok Rendah
                 </p>
-                <p className="metric-value text-xl">{summary.lowStockCount}</p>
+                <p className="metric-value text-base">{summary.lowStockCount}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {summaryLoading === "low-stock"
                     ? "Memuat..."
@@ -2183,16 +2644,16 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("today-transactions")}
-              className="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
+              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
-                <CalendarDays className="h-5 w-5" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                <CalendarDays className="h-4 w-4" />
               </span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   Transaksi Hari Ini
                 </p>
-                <p className="metric-value text-xl">
+                <p className="metric-value text-base">
                   {summary.todayTransactions}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -2208,16 +2669,16 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("total-sales")}
-              className="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
+              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">
-                <Wallet className="h-5 w-5" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200">
+                <Wallet className="h-4 w-4" />
               </span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   Total Penjualan
                 </p>
-                <p className="metric-value text-xl">
+                <p className="metric-value truncate text-base">
                   {rupiah(summary.totalSales)}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -2229,26 +2690,63 @@ export default function PosApp({
                 </p>
               </div>
             </button>
+            </div>
           </section>
         </div>
 
-        <aside className="min-w-0 space-y-5 xl:sticky xl:top-6 xl:self-start">
-          <section
-            ref={customerAutocompleteRef}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-          >
-            <div className="mb-5 flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                <User className="h-5 w-5" />
-              </span>
-              <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
-                Customer
+        <aside
+          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-5rem)] min-w-0 flex-col gap-3 overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-[#f6f8fb] p-4 shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
+            mobileCartOpen
+              ? "translate-y-0 pointer-events-auto"
+              : "translate-y-full pointer-events-none xl:pointer-events-auto"
+          }`}
+        >
+          <div className="mb-4 flex items-center justify-between gap-3 xl:hidden">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
+                Transaksi
+              </p>
+              <h2 className="mt-1 truncate text-xl font-bold text-slate-950 dark:text-slate-50">
+                Keranjang & Checkout
               </h2>
             </div>
+            <button
+              type="button"
+              onClick={() => setMobileCartOpen(false)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+              aria-label="Tutup keranjang"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <section
+            ref={customerAutocompleteRef}
+            className="order-1 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <User className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Customer
+                  </p>
+                  <h2 className="truncate text-sm font-bold text-slate-950 dark:text-slate-50">
+                    Data pembeli
+                  </h2>
+                </div>
+              </div>
+              {foundCustomer ? (
+                <span className="shrink-0 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
+                  Terhubung
+                </span>
+              ) : null}
+            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              <div className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
                   Nomor WhatsApp
                 </label>
                 <div className="relative">
@@ -2265,7 +2763,7 @@ export default function PosApp({
                     onKeyDown={(event) =>
                       handleCustomerSuggestionKeyDown(event, "phone")
                     }
-                    className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-11 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                     placeholder="08xxxxxxxxxx"
                   />
                   {renderCustomerSuggestions("phone")}
@@ -2289,13 +2787,22 @@ export default function PosApp({
                     <Users className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   )}
                 </div>
+                {customerPhone &&
+                !loadingCustomer &&
+                !foundCustomer &&
+                customerLookupMessage ? (
+                  <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {customerLookupMessage}
+                  </p>
+                ) : null}
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
                   Nama Customer
                 </label>
                 <input
+                  ref={customerNameInputRef}
                   type="text"
                   value={customerName}
                   onChange={(event) =>
@@ -2308,27 +2815,27 @@ export default function PosApp({
                   onKeyDown={(event) =>
                     handleCustomerSuggestionKeyDown(event, "name")
                   }
-                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                   placeholder="Nama customer (opsional)"
                 />
                 <div className="relative">{renderCustomerSuggestions("name")}</div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
                   Alamat
                 </label>
                 <input
                   type="text"
                   value={customerAddress}
                   onChange={(event) => setCustomerAddress(event.target.value)}
-                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                   placeholder="Opsional"
                 />
               </div>
 
-              {customerPhone ? (
-                <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              {customerPhone && (loadingCustomer || foundCustomer) ? (
+                <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800/70 dark:text-slate-300 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
                   {loadingCustomer
                     ? "Mencari customer..."
                     : customerLookupMessage}
@@ -2384,23 +2891,28 @@ export default function PosApp({
             </div>
           </section>
 
-          <section id="pos-cart" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <ShoppingCart className="h-5 w-5 text-slate-900 dark:text-slate-100" />
-                <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
-                  Keranjang
-                </h2>
+          <section id="pos-cart" className="order-2 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                <div>
+                  <p className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 xl:block">
+                    Transaksi
+                  </p>
+                  <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">
+                    Keranjang & Pembayaran
+                  </h2>
+                </div>
               </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
                 {cartItemCount} item
               </span>
             </div>
 
-            <div className="min-h-[220px] space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+            <div className="mx-3 mt-3 max-h-[42dvh] min-h-[118px] space-y-2 overflow-y-auto rounded-2xl bg-slate-50/70 p-2 dark:bg-slate-950/50 xl:max-h-[360px]">
               {cart.length === 0 ? (
-                <div className="flex min-h-[190px] flex-col items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
-                  <ShoppingCart className="mb-4 h-12 w-12 text-slate-400" />
+                <div className="flex min-h-[108px] flex-col items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
+                  <ShoppingCart className="mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" />
                   <p className="font-semibold text-slate-600 dark:text-slate-300">
                     Keranjang masih kosong
                   </p>
@@ -2413,30 +2925,36 @@ export default function PosApp({
               {cart.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-slate-200 p-3 dark:border-slate-800"
+                  className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
                 >
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 break-words font-semibold text-slate-950 dark:text-slate-50">
-                        {item.name}
-                      </p>
-                      <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
-                        {item.sku}
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                        {rupiah(item.price)} / {item.unit} - Stok {item.stock} {item.unit}
-                      </p>
+                  <div className="mb-2.5 flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 gap-3">
+                      <ProductThumb
+                        product={item}
+                        className="h-10 w-10 rounded-xl"
+                      />
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 break-words text-sm font-semibold text-slate-950 dark:text-slate-50">
+                          {item.name}
+                        </p>
+                        <p className="mt-0.5 break-all text-xs text-slate-500 dark:text-slate-400">
+                          {item.sku}
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {rupiah(item.price)} / {item.unit} - Stok {item.stock} {item.unit}
+                        </p>
+                      </div>
                     </div>
                     <div className="shrink-0 text-right">
                       <button
                         type="button"
                         onClick={() => removeCartItem(item.id)}
-                        className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-200"
+                        className="mb-1 inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-200"
                         aria-label={`Hapus ${item.name} dari keranjang`}
                       >
                         <X className="h-4 w-4" />
                       </button>
-                      <p className="font-bold tabular-nums text-slate-950 dark:text-slate-50">
+                      <p className="text-sm font-bold tabular-nums text-slate-950 dark:text-slate-50">
                         {rupiah(cartLineTotal(item))}
                       </p>
                       {cartLineDiscountAmount(item) > 0 ? (
@@ -2450,7 +2968,7 @@ export default function PosApp({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => decreaseQty(item.id)}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-lg font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-base font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                       type="button"
                       aria-label={`Kurangi qty ${item.name}`}
                     >
@@ -2479,12 +2997,12 @@ export default function PosApp({
                           event.currentTarget.blur();
                         }
                       }}
-                      className="h-9 w-20 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm font-bold tabular-nums text-slate-950 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                      className="h-8 w-16 rounded-lg border border-slate-300 bg-white px-2 text-center text-sm font-bold tabular-nums text-slate-950 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                       aria-label={`Qty ${item.name}`}
                     />
                     <button
                       onClick={() => increaseQty(item.id)}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-lg font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-base font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                       type="button"
                       aria-label={`Tambah qty ${item.name}`}
                     >
@@ -2495,7 +3013,7 @@ export default function PosApp({
                     </span>
                   </div>
 
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/60">
+                  <div className="mt-2.5 rounded-lg bg-slate-50 p-3 dark:bg-slate-950/60">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -2533,12 +3051,17 @@ export default function PosApp({
               ))}
             </div>
 
-            <div className="mt-5 space-y-4 border-t border-slate-200 pt-5 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Subtotal
-                </span>
-                <span className="metric-value text-2xl">{rupiah(subtotal)}</span>
+            <div className="mt-3 space-y-3 border-t border-slate-200 px-3 pb-3 pt-3 dark:border-slate-800">
+              <div className="rounded-2xl bg-teal-50 p-4 dark:bg-teal-500/10">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-teal-800 dark:text-teal-200">
+                    Total Bayar
+                  </span>
+                  <span className="metric-value text-2xl">{rupiah(grandTotal)}</span>
+                </div>
+                <p className="mt-1 text-xs font-medium text-teal-700 dark:text-teal-300">
+                  {cartItemCount} item dalam keranjang
+                </p>
               </div>
               {totalItemDiscount > 0 ? (
                 <div className="space-y-2 rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm dark:border-rose-500/20 dark:bg-rose-500/10">
@@ -2595,66 +3118,86 @@ export default function PosApp({
                 </div>
               ) : null}
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Payment Method
-                </label>
-                <label className="relative block">
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="min-h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  >
-                    {paymentMethods.map((method) => (
-                      <option key={method.code} value={method.code}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                </label>
-              </div>
-
-              {selectedPaymentMethod?.type === "BANK_TRANSFER" ? (
-                <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900 dark:border-teal-800 dark:bg-teal-500/10 dark:text-teal-200">
-                  <p className="font-semibold">Transfer Bank</p>
-                  <p className="mt-1 text-xs">
-                    Detail rekening akan tampil jelas di modal checkout.
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Pembayaran
+                  </p>
+                  <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {selectedPaymentMethod?.name ?? "Metode belum dipilih"}
                   </p>
                 </div>
-              ) : null}
+                <div className="grid gap-2.5">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      Metode Pembayaran
+                    </label>
+                    <label className="relative block">
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2 pr-10 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                      >
+                        {paymentMethods.map((method) => (
+                          <option key={method.code} value={method.code}>
+                            {method.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    </label>
+                  </div>
 
-              {selectedPaymentMethod?.type === "QRIS" ? (
-                <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900 dark:border-teal-800 dark:bg-teal-500/10 dark:text-teal-200">
-                  <p className="font-semibold">QRIS Statis</p>
-                  <p className="mt-1 text-xs">
-                    QRIS besar akan tampil di modal checkout setelah kasir klik
-                    Checkout.
-                  </p>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      Dibayar
+                    </label>
+                    <input
+                      ref={paidAmountInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formatRupiahIntegerInput(paidAmount)}
+                      onChange={handlePaidAmountChange}
+                      placeholder={formatRupiahIntegerInput(String(grandTotal))}
+                      className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    />
+                  </div>
                 </div>
-              ) : null}
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Dibayar
-                </label>
-                <input
-                  type="number"
-                  value={paidAmount}
-                  onChange={(e) => setPaidAmount(e.target.value)}
-                  placeholder={String(grandTotal)}
-                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
-                />
+                {selectedPaymentMethod?.type === "BANK_TRANSFER" ? (
+                  <div className="mt-2 rounded-xl bg-white p-3 text-sm text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800">
+                    <p className="font-semibold">Transfer Bank</p>
+                    <p className="mt-1 text-xs">
+                      Detail rekening akan tampil jelas di modal checkout.
+                    </p>
+                  </div>
+                ) : null}
+
+                {selectedPaymentMethod?.type === "QRIS" ? (
+                  <div className="mt-2 rounded-xl bg-white p-3 text-sm text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-800">
+                    <p className="font-semibold">QRIS Statis</p>
+                    <p className="mt-1 text-xs">
+                      QRIS besar akan tampil di modal checkout setelah kasir klik
+                      Checkout.
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
               <button
                 onClick={initiateCheckout}
                 disabled={loadingCheckout || cart.length === 0}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-600 py-3 text-sm font-bold text-white shadow-sm transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                className="inline-flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
                 type="button"
               >
-                <ShoppingBag className="h-5 w-5" />
-                {loadingCheckout ? "Memproses..." : "Checkout"}
+                <span className="inline-flex min-w-0 items-center gap-2">
+                  <ShoppingBag className="h-5 w-5 shrink-0" />
+                  <span className="truncate">
+                    {loadingCheckout ? "Memproses..." : "Checkout & Konfirmasi"}
+                  </span>
+                </span>
+                <span className="shrink-0 tabular-nums">{rupiah(grandTotal)}</span>
               </button>
             </div>
           </section>
