@@ -2376,7 +2376,7 @@ export default function PosApp({
         <button
           type="button"
           onClick={() => setMobileCartOpen(true)}
-          className={`fixed inset-x-3 bottom-16 z-30 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 transition duration-200 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden ${
+          className={`fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 transition duration-200 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden ${
             productSearchFocused
               ? "pointer-events-none translate-y-24 opacity-0"
               : "translate-y-0 opacity-100"
@@ -2402,9 +2402,9 @@ export default function PosApp({
       ) : null}
 
       <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(440px,480px)] 2xl:grid-cols-[minmax(0,1fr)_500px]">
-        <div className="min-w-0 space-y-3 sm:space-y-4">
-          <section className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-3xl sm:p-4">
-            <div className="mb-2.5 flex flex-col gap-1.5 sm:mb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-2">
+        <div className="min-w-0 space-y-2.5 sm:space-y-4">
+          <section className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:rounded-3xl sm:p-4">
+            <div className="mb-2 flex flex-col gap-1 sm:mb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
                   Area Produk
@@ -2418,7 +2418,7 @@ export default function PosApp({
               </p>
             </div>
 
-            <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-950/50 sm:mb-4 sm:p-3">
+            <div className="mb-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 dark:border-slate-800 dark:bg-slate-950/50 sm:mb-4 sm:p-3">
               <div className="grid gap-2">
                 <LocalLiveSearchInput
                   value={search}
@@ -2429,7 +2429,7 @@ export default function PosApp({
                   onBlur={() => setProductSearchFocused(false)}
                 />
 
-                <div className="grid grid-cols-[minmax(0,1fr)_144px] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,210px)_180px] lg:justify-end">
+                <div className="grid grid-cols-[minmax(0,1fr)_136px] items-center gap-1.5 sm:grid-cols-[minmax(0,1fr)_180px] sm:gap-2 lg:grid-cols-[minmax(0,210px)_180px] lg:justify-end">
                   <label className="relative block min-w-0">
                     <select
                       value={selectedCategory}
@@ -2449,7 +2449,7 @@ export default function PosApp({
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-4" />
                   </label>
 
-                  <div className="grid min-h-10 grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-950 sm:min-h-11">
+                  <div className="grid min-h-10 grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-950 sm:min-h-11 sm:p-1">
                     <button
                       type="button"
                       onClick={() => setProductView("grid")}
@@ -2482,7 +2482,7 @@ export default function PosApp({
                 </div>
               </div>
 
-              <div className="mt-2 border-t border-slate-200/80 pt-2 dark:border-slate-800 sm:mt-3 sm:pt-3">
+              <div className="mt-2 border-t border-slate-200/80 pt-1.5 dark:border-slate-800 sm:mt-3 sm:pt-3">
                 <div className="mb-1.5 flex items-center justify-between gap-3 sm:mb-2">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
                     Kategori cepat
@@ -2538,8 +2538,8 @@ export default function PosApp({
               data-search-results
               className={
                 productView === "grid"
-                  ? "grid scroll-mt-24 grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 2xl:grid-cols-4"
-                  : "grid scroll-mt-24 gap-2.5 sm:gap-3"
+                  ? "grid scroll-mt-24 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 2xl:grid-cols-4"
+                  : "grid scroll-mt-24 gap-2 sm:gap-3"
               }
             >
               {visibleProducts.map((product) => (
@@ -2560,15 +2560,15 @@ export default function PosApp({
                     }
                   }}
                   className={`group flex min-h-0 min-w-0 cursor-pointer flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-200 hover:border-teal-200 hover:bg-teal-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950 sm:min-h-[190px] sm:rounded-2xl sm:p-3 ${
-                    productView === "grid" ? "p-2.5" : "p-3"
+                    productView === "grid" ? "p-2" : "p-2.5"
                   }`}
                 >
-                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 sm:gap-3">
+                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
                     <ProductThumb
                       product={product}
                       className={
                         productView === "grid"
-                          ? "h-10 w-10 rounded-xl sm:h-12 sm:w-12 sm:rounded-2xl"
+                          ? "h-9 w-9 rounded-lg sm:h-12 sm:w-12 sm:rounded-2xl"
                           : "h-12 w-12 rounded-xl sm:rounded-2xl"
                       }
                     />
@@ -2576,7 +2576,7 @@ export default function PosApp({
                       <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-[11px]">
                         {productCodeLabel(product) || "Tanpa SKU"}
                       </p>
-                      <h3 className="mt-0.5 line-clamp-2 break-words text-[13px] font-bold leading-snug text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-sm">
+                      <h3 className="mt-0.5 line-clamp-2 break-words text-[12px] font-bold leading-snug text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-sm">
                         {product.name}
                       </h3>
                       {productCompactMeta(product) ? (
@@ -2603,14 +2603,14 @@ export default function PosApp({
                     </button>
                   </div>
 
-                  <div className="mt-1.5 flex min-w-0 flex-1 flex-col justify-end sm:mt-3">
+                  <div className="mt-1 flex min-w-0 flex-1 flex-col justify-end sm:mt-3">
                     <div className="rounded-xl border border-transparent bg-transparent p-0 dark:bg-transparent sm:rounded-2xl sm:border-slate-100 sm:bg-slate-50/80 sm:p-3 sm:dark:border-slate-800 sm:dark:bg-slate-900/70">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="hidden text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:block">
                             Harga jual
                           </p>
-                          <p className="metric-value truncate text-sm leading-tight sm:mt-1 sm:text-base">
+                          <p className="metric-value truncate text-[13px] leading-tight sm:mt-1 sm:text-base">
                             {rupiah(product.price)}
                           </p>
                         </div>
@@ -2618,7 +2618,7 @@ export default function PosApp({
                           / {product.unit}
                         </span>
                       </div>
-                      <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-1.5 dark:border-slate-800 sm:mt-3 sm:gap-3 sm:border-slate-200/80 sm:pt-2">
+                      <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 pt-1 dark:border-slate-800 sm:mt-3 sm:gap-3 sm:border-slate-200/80 sm:pt-2">
                         <span className="min-w-0 truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
                           {formatCategoryLabel(product.category)}
                         </span>
@@ -2638,7 +2638,7 @@ export default function PosApp({
               pageSize={productPageSize}
               onPageChange={handleProductPageChange}
               itemLabel="produk"
-              className="mt-4 -mx-2.5 -mb-2.5 rounded-b-2xl sm:mt-5 sm:-mx-4 sm:-mb-4 sm:rounded-b-3xl"
+              className="mt-3 -mx-2 -mb-2 rounded-b-2xl sm:mt-5 sm:-mx-4 sm:-mb-4 sm:rounded-b-3xl"
             />
           </section>
 
@@ -2651,7 +2651,7 @@ export default function PosApp({
                 Informasi pendukung shift
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-1 sm:gap-2 xl:grid-cols-4">
             {canOpenInventoryDetails ? (
               <button
                 type="button"
@@ -2769,7 +2769,7 @@ export default function PosApp({
         </div>
 
         <aside
-          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2.5 overflow-y-auto overscroll-contain rounded-t-[24px] border-t border-slate-200 bg-[#f6f8fb] p-2.5 shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
+          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
             mobileCartOpen
               ? "translate-y-0 pointer-events-auto"
               : "translate-y-full pointer-events-none xl:pointer-events-auto"

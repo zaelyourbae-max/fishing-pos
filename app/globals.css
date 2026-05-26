@@ -169,7 +169,7 @@
   }
 
   .mobile-data-card {
-    @apply min-w-0 p-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70 sm:p-4;
+    @apply min-w-0 p-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70 sm:p-4;
   }
 
   .responsive-action-row {
@@ -309,6 +309,12 @@
       border-radius: 1rem;
     }
 
+    .owner-shell .page-title,
+    .cashier-shell .page-title {
+      font-size: 1.5rem;
+      line-height: 1.15;
+    }
+
     .owner-shell :where(input, select, textarea),
     .cashier-shell :where(input, select, textarea) {
       min-height: 44px;
@@ -379,6 +385,11 @@
     .owner-shell :where(.gap-6),
     .cashier-shell :where(.gap-6) {
       gap: 1rem;
+    }
+
+    .owner-shell :where(.gap-5),
+    .cashier-shell :where(.gap-5) {
+      gap: 0.875rem;
     }
 
     .owner-shell :where(.space-y-6) > :not([hidden]) ~ :not([hidden]),

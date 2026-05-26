@@ -288,29 +288,29 @@ export default async function ProductsPage({
   const safePage = Math.min(currentPage, pageCount);
 
   return (
-    <div className="space-y-6 overflow-x-hidden">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-3 overflow-x-hidden sm:space-y-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
             Inventory Produk
           </h1>
-          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
             Sistem POS Toko Pancing
           </p>
         </div>
 
         {canManage ? (
-          <div className="grid gap-3 sm:flex-row sm:grid-cols-2 lg:flex">
+          <div className="grid gap-2 sm:flex-row sm:grid-cols-2 sm:gap-3 lg:flex">
             <Link
               href="/products/import"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
             >
               <Upload size={18} />
               Import Excel
             </Link>
             <Link
               href="/products/create"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-teal-600 px-5 text-sm font-bold text-white shadow-lg shadow-teal-900/10 transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 active:scale-95"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 text-xs font-bold text-white shadow-lg shadow-teal-900/10 transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 active:scale-95 sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
             >
               <Plus size={18} />
               Tambah Produk
@@ -319,22 +319,22 @@ export default async function ProductsPage({
         ) : null}
       </div>
 
-      <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${canViewCost ? "xl:grid-cols-4" : "lg:grid-cols-2"}`}>
+      <div className={`grid grid-cols-2 gap-2 sm:gap-4 ${canViewCost ? "xl:grid-cols-4" : "lg:grid-cols-2"}`}>
         <Link
           href="/products?status=all"
-          className="flex min-h-32 items-center gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:p-5"
+          className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
         >
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14">
-            <Package className="h-6 w-6 sm:h-7 sm:w-7" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
+            <Package className="h-5 w-5 sm:h-7 sm:w-7" />
           </span>
           <span className="min-w-0">
             <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Produk
             </span>
-            <span className="mt-1 block whitespace-nowrap text-2xl font-extrabold text-slate-950 dark:text-white">
+            <span className="mt-0.5 block whitespace-nowrap text-xl font-extrabold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
               {totalProducts}
             </span>
-            <span className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
+            <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
               Produk
             </span>
           </span>
@@ -342,19 +342,19 @@ export default async function ProductsPage({
 
         <Link
           href="/products"
-          className="flex min-h-32 items-center gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:p-5"
+          className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
         >
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14">
-            <Boxes className="h-6 w-6 sm:h-7 sm:w-7" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
+            <Boxes className="h-5 w-5 sm:h-7 sm:w-7" />
           </span>
           <span className="min-w-0">
             <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Stok
             </span>
-            <span className="mt-1 block whitespace-nowrap text-2xl font-extrabold text-slate-950 dark:text-white">
+            <span className="mt-0.5 block whitespace-nowrap text-xl font-extrabold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
               {totalStock}
             </span>
-            <span className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
+            <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
               Unit
             </span>
           </span>
@@ -363,19 +363,19 @@ export default async function ProductsPage({
         {canViewCost ? (
           <Link
             href="/reports"
-            className="flex min-h-32 items-center gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:p-5"
+            className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
           >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14">
-              <DollarSign className="h-6 w-6 sm:h-7 sm:w-7" />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
+              <DollarSign className="h-5 w-5 sm:h-7 sm:w-7" />
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
                 Nilai Jual Stok
               </span>
-            <span className="mt-1 block break-words text-xl font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-2xl">
+            <span className="mt-0.5 block break-words text-base font-extrabold tabular-nums text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
                 {rupiah(totalInventory)}
               </span>
-              <span className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
+              <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
                 Harga jual x stok
               </span>
             </span>
@@ -383,18 +383,18 @@ export default async function ProductsPage({
         ) : null}
 
         {canViewCost ? (
-          <div className="flex min-h-32 items-center gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 sm:h-14 sm:w-14">
-              <DollarSign className="h-6 w-6 sm:h-7 sm:w-7" />
+          <div className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 sm:h-14 sm:w-14 sm:rounded-2xl">
+              <DollarSign className="h-5 w-5 sm:h-7 sm:w-7" />
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
                 Nilai Modal Stok
               </span>
-              <span className="mt-1 block break-words text-xl font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-2xl">
+              <span className="mt-0.5 block break-words text-base font-extrabold tabular-nums text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
                 {rupiah(totalCostInventory)}
               </span>
-              <span className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
+              <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
                 {hasCostPrice ? "HPP x stok" : "HPP belum tersedia"}
               </span>
             </span>
@@ -404,20 +404,20 @@ export default async function ProductsPage({
 
       <section
         data-search-results
-        className="scroll-mt-24 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
+        className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:rounded-[28px]"
       >
-        <div className="flex flex-col gap-5 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between dark:border-slate-800">
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-3 lg:flex-row lg:items-center lg:justify-between dark:border-slate-800 sm:gap-5 sm:p-5">
           <div className="min-w-0">
-            <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-2xl">
               Daftar Produk
             </h2>
-            <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="mt-1 max-w-2xl text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
               Produk active tampil di POS. Produk inactive tersimpan untuk histori.
             </p>
           </div>
 
           {canManage ? (
-            <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-slate-900">
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-900 sm:gap-2 sm:rounded-2xl">
               {statusFilters.map((filter) => (
                 <Link
                   key={filter.value}
@@ -427,8 +427,8 @@ export default async function ProductsPage({
                   })}
                   className={
                     status === filter.value
-                      ? "inline-flex h-11 items-center justify-center rounded-xl bg-teal-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-teal-700"
-                      : "inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-bold text-slate-600 transition hover:bg-white hover:text-teal-700 dark:text-slate-300 dark:hover:bg-slate-950"
+                      ? "inline-flex h-9 items-center justify-center rounded-lg bg-teal-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-teal-700 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
+                      : "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-bold text-slate-600 transition hover:bg-white hover:text-teal-700 dark:text-slate-300 dark:hover:bg-slate-950 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
                   }
                 >
                   {filter.label}
@@ -438,7 +438,7 @@ export default async function ProductsPage({
           ) : null}
         </div>
 
-        <form className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-[1fr_270px_auto] dark:border-slate-800">
+        <form className="grid gap-2.5 border-b border-slate-200 p-3 md:grid-cols-[1fr_270px_auto] dark:border-slate-800 sm:gap-3 sm:p-4">
           {status !== "active" ? (
             <input type="hidden" name="status" value={status} />
           ) : null}
@@ -449,7 +449,7 @@ export default async function ProductsPage({
           <select
             name="category"
             defaultValue={selectedCategory}
-            className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10 sm:h-12 sm:rounded-2xl sm:px-4"
           >
             <option value="">Semua kategori/laci</option>
             {categoryOptions.map((category) => (
@@ -459,7 +459,7 @@ export default async function ProductsPage({
             ))}
           </select>
           <button
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:h-12 sm:rounded-2xl sm:px-5"
             type="submit"
           >
             <Filter className="h-4 w-4" />
@@ -642,7 +642,7 @@ export default async function ProductsPage({
           </table>
         </div>
 
-        <div className="space-y-2 bg-slate-50/70 p-2.5 sm:space-y-3 sm:p-4 lg:hidden dark:bg-slate-900/30">
+        <div className="space-y-1.5 bg-slate-50/70 p-2 sm:space-y-3 sm:p-4 lg:hidden dark:bg-slate-900/30">
           {products.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950">
               Tidak ada produk pada filter ini.
@@ -651,18 +651,18 @@ export default async function ProductsPage({
           {products.map((product) => (
             <div
               key={product.id}
-              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-4"
+              className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:rounded-2xl sm:p-4"
             >
-              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+              <div className="flex min-w-0 items-start gap-2.5 sm:gap-4">
                 <ProductImage
                   imageUrl={product.imageUrl}
                   name={product.name}
-                  className="h-10 w-10 rounded-xl sm:h-12 sm:w-12"
+                  className="h-9 w-9 rounded-lg sm:h-12 sm:w-12 sm:rounded-xl"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="line-clamp-2 break-words text-sm font-bold leading-snug text-slate-950 dark:text-white">
+                      <p className="line-clamp-1 break-words text-sm font-bold leading-snug text-slate-950 dark:text-white sm:line-clamp-2">
                         {product.name}
                       </p>
                       {productIdentityMeta(product) ? (
@@ -670,7 +670,7 @@ export default async function ProductsPage({
                           {productIdentityMeta(product)}
                         </p>
                       ) : null}
-                      <p className="mt-0.5 line-clamp-1 break-words text-xs text-slate-500 dark:text-slate-400">
+                      <p className="mt-0.5 line-clamp-1 break-words text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
                         {product.sku ?? product.barcode ?? "-"} -{" "}
                         {productCategoryLocationMeta(product)}
                       </p>
@@ -682,8 +682,8 @@ export default async function ProductsPage({
                       </span>
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px] sm:mt-3 sm:gap-2 sm:text-xs">
-                    <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900 sm:px-3 sm:py-2">
+                  <div className="mt-1.5 grid grid-cols-3 gap-1 text-[11px] sm:mt-3 sm:gap-2 sm:text-xs">
+                    <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:px-3 sm:py-2">
                       <p className="font-medium text-slate-500 dark:text-slate-400">
                         Stok
                       </p>
@@ -697,7 +697,7 @@ export default async function ProductsPage({
                         {product.stock} {product.unit}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900 sm:px-3 sm:py-2">
+                    <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:px-3 sm:py-2">
                       <p className="font-medium text-slate-500 dark:text-slate-400">
                         Min
                       </p>
@@ -705,7 +705,7 @@ export default async function ProductsPage({
                         {product.minStock}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900 sm:px-3 sm:py-2">
+                    <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:px-3 sm:py-2">
                       <p className="font-medium text-slate-500 dark:text-slate-400">
                         Status
                       </p>
@@ -721,13 +721,13 @@ export default async function ProductsPage({
                     </div>
                     {canViewCost ? (
                       <div className="col-span-3 grid grid-cols-2 gap-1.5 sm:gap-2">
-                        <span className="rounded-xl bg-slate-50 px-2 py-1.5 font-bold tabular-nums text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:px-3 sm:py-2">
+                        <span className="rounded-lg bg-slate-50 px-2 py-1 font-bold tabular-nums text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:rounded-xl sm:px-3 sm:py-2">
                           HPP{" "}
                           {product.costPrice > 0
                             ? rupiah(product.costPrice)
                             : "belum lengkap"}
                         </span>
-                        <span className="rounded-xl bg-slate-50 px-2 py-1.5 font-bold tabular-nums text-emerald-700 dark:bg-slate-900 dark:text-emerald-300 sm:px-3 sm:py-2">
+                        <span className="rounded-lg bg-slate-50 px-2 py-1 font-bold tabular-nums text-emerald-700 dark:bg-slate-900 dark:text-emerald-300 sm:rounded-xl sm:px-3 sm:py-2">
                           Margin {marginLabel(product.price, product.costPrice)}
                         </span>
                       </div>
@@ -736,7 +736,7 @@ export default async function ProductsPage({
                 </div>
               </div>
               {canManage ? (
-                <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <div className="mt-2.5 border-t border-slate-100 pt-2.5 dark:border-slate-800 sm:mt-3 sm:pt-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       Aksi Produk
@@ -745,7 +745,7 @@ export default async function ProductsPage({
                       Edit data berbeda dari koreksi stok
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
                     <ProductEditButton
                       product={{
                         id: product.id,
