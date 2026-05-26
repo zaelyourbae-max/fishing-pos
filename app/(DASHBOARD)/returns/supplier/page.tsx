@@ -155,7 +155,10 @@ export default async function SupplierReturnPage({
 
       <SupplierReturnForm suppliers={suppliers} products={products} />
 
-      <section className="surface-panel rounded-3xl p-5 sm:p-6">
+      <section
+        data-search-results
+        className="surface-panel scroll-mt-24 rounded-3xl p-5 sm:p-6"
+      >
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
           Retur Supplier Terbaru
         </h2>

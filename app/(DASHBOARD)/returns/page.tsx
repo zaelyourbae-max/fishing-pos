@@ -180,7 +180,10 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
         </button>
       </form>
 
-      <div className="surface-panel overflow-hidden rounded-3xl">
+      <div
+        data-search-results
+        className="surface-panel scroll-mt-24 overflow-hidden rounded-3xl"
+      >
         <div className="hidden md:block">
         <div className="table-scroll">
         <table className="data-table">

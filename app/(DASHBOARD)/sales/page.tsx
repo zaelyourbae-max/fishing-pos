@@ -462,7 +462,10 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+      <div
+        data-search-results
+        className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
+      >
         <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[1100px] text-left">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">

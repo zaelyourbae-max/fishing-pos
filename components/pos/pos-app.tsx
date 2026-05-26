@@ -2535,10 +2535,11 @@ export default function PosApp({
             ) : null}
 
             <div
+              data-search-results
               className={
                 productView === "grid"
-                  ? "grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 2xl:grid-cols-4"
-                  : "grid gap-2.5 sm:gap-3"
+                  ? "grid scroll-mt-24 grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 2xl:grid-cols-4"
+                  : "grid scroll-mt-24 gap-2.5 sm:gap-3"
               }
             >
               {visibleProducts.map((product) => (

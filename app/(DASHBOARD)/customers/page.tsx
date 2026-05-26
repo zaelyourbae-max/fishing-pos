@@ -162,7 +162,10 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+      <section
+        data-search-results
+        className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
+      >
         <div className="border-b border-slate-200 p-3 dark:border-slate-800 sm:p-5">
           <h2 className="text-base font-bold text-slate-950 dark:text-white sm:text-xl">
             Daftar Customer

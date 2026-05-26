@@ -402,7 +402,10 @@ export default async function ProductsPage({
         ) : null}
       </div>
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+      <section
+        data-search-results
+        className="scroll-mt-24 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
+      >
         <div className="flex flex-col gap-5 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between dark:border-slate-800">
           <div className="min-w-0">
             <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">

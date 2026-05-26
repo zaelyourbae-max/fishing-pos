@@ -254,7 +254,7 @@ export default function ReturnForm() {
           ) : null}
 
           {showSuggestions && query.trim().length >= 2 ? (
-            <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+5rem)] z-50 max-h-[50dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900 sm:absolute sm:inset-x-0 sm:top-[calc(100%+0.5rem)] sm:z-20 sm:max-h-96 sm:shadow-sm">
               {loadingSuggestions ? (
                 <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                   Mencari transaksi...
