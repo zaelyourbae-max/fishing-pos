@@ -17,7 +17,7 @@ export default async function DashboardLayout({
     >
       <Sidebar role={session.role} />
 
-      <main className="w-full min-w-0 max-w-full flex-1 overflow-x-hidden px-3 pb-20 pt-3 sm:px-5 sm:pt-4 md:px-6 lg:px-7 lg:pb-6 xl:px-8 2xl:px-10">
+      <main className="w-full min-w-0 max-w-full flex-1 overflow-x-hidden px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-2.5 transition-[padding] duration-200 sm:px-4 sm:pb-[calc(5.75rem+env(safe-area-inset-bottom))] sm:pt-3 md:px-6 md:pt-4 lg:px-7 lg:pb-6 xl:px-8 2xl:px-10">
         {children}
       </main>
     </div>

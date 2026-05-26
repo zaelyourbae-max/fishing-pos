@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BarChart3,
   FileText,
@@ -154,6 +154,7 @@ export default function Sidebar({ role }: SidebarProps) {
   const mobileMenus = primaryMobileMenus(role);
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMounted, setDrawerMounted] = useState(false);
   const primaryHrefs = new Set(mobileMenus.map((menu) => menu.href));
   const moreActive = menus.some(
     (menu) =>
@@ -161,6 +162,50 @@ export default function Sidebar({ role }: SidebarProps) {
       (pathname === menu.href ||
         (menu.href !== "/" && pathname.startsWith(`${menu.href}/`))),
   );
+
+  const openDrawer = useCallback(() => {
+    setDrawerMounted(true);
+    window.requestAnimationFrame(() => setDrawerOpen(true));
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!drawerMounted || drawerOpen) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setDrawerMounted(false), 240);
+    return () => window.clearTimeout(timeout);
+  }, [drawerMounted, drawerOpen]);
+
+  useEffect(() => {
+    if (!drawerMounted) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeDrawer();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeDrawer, drawerMounted]);
 
   return (
     <>
@@ -172,7 +217,7 @@ export default function Sidebar({ role }: SidebarProps) {
           <ThemeToggle />
           <button
             type="button"
-            onClick={() => setDrawerOpen(true)}
+            onClick={openDrawer}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-teal-500/10 sm:h-11 sm:w-11 sm:rounded-2xl"
             aria-label="Buka menu"
           >
@@ -181,16 +226,26 @@ export default function Sidebar({ role }: SidebarProps) {
         </div>
       </header>
 
-      {drawerOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
+      {drawerMounted ? (
+        <div
+          className={`fixed inset-0 z-50 lg:hidden ${
+            drawerOpen ? "pointer-events-auto" : "pointer-events-none"
+          }`}
+        >
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/50"
-            onClick={() => setDrawerOpen(false)}
+            className={`absolute inset-0 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${
+              drawerOpen ? "opacity-100" : "opacity-0"
+            }`}
+            onClick={closeDrawer}
             aria-label="Tutup menu"
           />
-          <aside className="relative flex h-dvh w-[min(86vw,320px)] flex-col border-r border-slate-200 bg-white p-4 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 sm:p-5">
-            <div className="mb-5 flex shrink-0 items-start justify-between gap-4 sm:mb-6">
+          <aside
+            className={`relative flex h-dvh max-h-dvh w-[min(88vw,22rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-r-[1.75rem] border-r border-slate-200 bg-white text-slate-900 shadow-2xl shadow-slate-950/20 transition-transform duration-300 ease-out will-change-transform dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 ${
+              drawerOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-4 pb-4 dark:border-slate-800 sm:p-5">
               <div>
                 <Brand />
                 <div className="mt-4">
@@ -199,21 +254,21 @@ export default function Sidebar({ role }: SidebarProps) {
               </div>
               <button
                 type="button"
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-700 transition duration-200 hover:bg-slate-50 active:scale-95 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-800"
                 aria-label="Tutup menu"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
               <MenuList
                 menus={menus}
                 pathname={pathname}
-                onNavigate={() => setDrawerOpen(false)}
+                onNavigate={closeDrawer}
               />
             </div>
-            <div className="shrink-0 pt-4">
+            <div className="shrink-0 border-t border-slate-100 p-4 dark:border-slate-800 sm:p-5">
               <LogoutButton />
             </div>
           </aside>
@@ -262,7 +317,7 @@ export default function Sidebar({ role }: SidebarProps) {
         })}
         <button
           type="button"
-          onClick={() => setDrawerOpen(true)}
+          onClick={openDrawer}
           className={
             moreActive
               ? "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl bg-teal-50 text-teal-700 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300 sm:min-h-12 sm:gap-1 sm:rounded-2xl"

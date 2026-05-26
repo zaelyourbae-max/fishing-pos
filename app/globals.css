@@ -121,6 +121,7 @@
     text-rendering: optimizeLegibility;
     max-width: 100%;
     overflow-x: hidden;
+    overscroll-behavior-y: none;
   }
 }
 
@@ -178,6 +179,10 @@
   .responsive-action-row > a,
   .responsive-action-row > button {
     @apply w-full justify-center sm:w-auto;
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 
   .btn-primary {
@@ -278,11 +283,19 @@
   @media (max-width: 640px) {
     html {
       font-size: 15px;
+      scroll-padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
     }
 
     .owner-shell,
     .cashier-shell {
       font-size: 0.9375rem;
+      scroll-padding-top: 4rem;
+      scroll-padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    }
+
+    .owner-shell :where(button, a, input, select, textarea),
+    .cashier-shell :where(button, a, input, select, textarea) {
+      -webkit-tap-highlight-color: transparent;
     }
 
     .owner-shell .surface-panel,
