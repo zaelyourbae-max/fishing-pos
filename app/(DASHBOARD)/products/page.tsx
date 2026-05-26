@@ -291,10 +291,10 @@ export default async function ProductsPage({
     <div className="space-y-3 overflow-x-hidden sm:space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+          <h1 className="page-title">
             Inventory Produk
           </h1>
-          <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
+          <p className="mobile-section-copy">
             Sistem POS Toko Pancing
           </p>
         </div>
@@ -303,14 +303,14 @@ export default async function ProductsPage({
           <div className="grid gap-2 sm:flex-row sm:grid-cols-2 sm:gap-3 lg:flex">
             <Link
               href="/products/import"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-teal-300 hover:text-teal-700 active:bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:active:bg-slate-900 sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
             >
               <Upload size={18} />
               Import Excel
             </Link>
             <Link
               href="/products/create"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 text-xs font-bold text-white shadow-lg shadow-teal-900/10 transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 active:scale-95 sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 text-xs font-semibold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 active:bg-teal-700 sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
             >
               <Plus size={18} />
               Tambah Produk
@@ -322,7 +322,7 @@ export default async function ProductsPage({
       <div className={`grid grid-cols-2 gap-2 sm:gap-4 ${canViewCost ? "xl:grid-cols-4" : "lg:grid-cols-2"}`}>
         <Link
           href="/products?status=all"
-          className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
+          className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
             <Package className="h-5 w-5 sm:h-7 sm:w-7" />
@@ -331,7 +331,7 @@ export default async function ProductsPage({
             <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Produk
             </span>
-            <span className="mt-0.5 block whitespace-nowrap text-xl font-extrabold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
+            <span className="metric-value mt-0.5 block whitespace-nowrap text-xl sm:mt-1 sm:text-2xl">
               {totalProducts}
             </span>
             <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
@@ -342,7 +342,7 @@ export default async function ProductsPage({
 
         <Link
           href="/products"
-          className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
+          className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
             <Boxes className="h-5 w-5 sm:h-7 sm:w-7" />
@@ -351,7 +351,7 @@ export default async function ProductsPage({
             <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Stok
             </span>
-            <span className="mt-0.5 block whitespace-nowrap text-xl font-extrabold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
+            <span className="metric-value mt-0.5 block whitespace-nowrap text-xl sm:mt-1 sm:text-2xl">
               {totalStock}
             </span>
             <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
@@ -363,7 +363,7 @@ export default async function ProductsPage({
         {canViewCost ? (
           <Link
             href="/reports"
-            className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
+            className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
               <DollarSign className="h-5 w-5 sm:h-7 sm:w-7" />
@@ -372,7 +372,7 @@ export default async function ProductsPage({
               <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
                 Nilai Jual Stok
               </span>
-            <span className="mt-0.5 block break-words text-base font-extrabold tabular-nums text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
+            <span className="metric-value mt-0.5 block break-words text-base sm:mt-1 sm:text-2xl">
                 {rupiah(totalInventory)}
               </span>
               <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
@@ -383,7 +383,7 @@ export default async function ProductsPage({
         ) : null}
 
         {canViewCost ? (
-          <div className="flex min-h-[86px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5">
+          <div className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 sm:h-14 sm:w-14 sm:rounded-2xl">
               <DollarSign className="h-5 w-5 sm:h-7 sm:w-7" />
             </span>
@@ -391,7 +391,7 @@ export default async function ProductsPage({
               <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
                 Nilai Modal Stok
               </span>
-              <span className="mt-0.5 block break-words text-base font-extrabold tabular-nums text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
+              <span className="metric-value mt-0.5 block break-words text-base sm:mt-1 sm:text-2xl">
                 {rupiah(totalCostInventory)}
               </span>
               <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
@@ -408,10 +408,10 @@ export default async function ProductsPage({
       >
         <div className="flex flex-col gap-3 border-b border-slate-200 p-3 lg:flex-row lg:items-center lg:justify-between dark:border-slate-800 sm:gap-5 sm:p-5">
           <div className="min-w-0">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-2xl">
+            <h2 className="mobile-section-heading">
               Daftar Produk
             </h2>
-            <p className="mt-1 max-w-2xl text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
+            <p className="mobile-section-copy max-w-2xl">
               Produk active tampil di POS. Produk inactive tersimpan untuk histori.
             </p>
           </div>
@@ -427,8 +427,8 @@ export default async function ProductsPage({
                   })}
                   className={
                     status === filter.value
-                      ? "inline-flex h-9 items-center justify-center rounded-lg bg-teal-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-teal-700 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
-                      : "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-bold text-slate-600 transition hover:bg-white hover:text-teal-700 dark:text-slate-300 dark:hover:bg-slate-950 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
+                      ? "inline-flex h-9 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
+                      : "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-white hover:text-teal-700 dark:text-slate-300 dark:hover:bg-slate-950 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
                   }
                 >
                   {filter.label}
@@ -459,7 +459,7 @@ export default async function ProductsPage({
             ))}
           </select>
           <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:h-12 sm:rounded-2xl sm:px-5"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-teal-300 hover:text-teal-700 active:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:active:bg-slate-900 sm:h-12 sm:rounded-2xl sm:px-5"
             type="submit"
           >
             <Filter className="h-4 w-4" />
@@ -651,7 +651,7 @@ export default async function ProductsPage({
           {products.map((product) => (
             <div
               key={product.id}
-              className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:rounded-2xl sm:p-4"
+              className="mobile-card-surface p-2.5 active:bg-slate-50 dark:active:bg-slate-900 sm:rounded-2xl sm:p-4"
             >
               <div className="flex min-w-0 items-start gap-2.5 sm:gap-4">
                 <ProductImage
@@ -683,7 +683,7 @@ export default async function ProductsPage({
                     </span>
                   </div>
                   <div className="mt-1.5 grid grid-cols-3 gap-1 text-[11px] sm:mt-3 sm:gap-2 sm:text-xs">
-                    <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:px-3 sm:py-2">
+                    <div className="mobile-mini-stat sm:rounded-xl sm:px-3 sm:py-2">
                       <p className="font-medium text-slate-500 dark:text-slate-400">
                         Stok
                       </p>
@@ -697,7 +697,7 @@ export default async function ProductsPage({
                         {product.stock} {product.unit}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:px-3 sm:py-2">
+                    <div className="mobile-mini-stat sm:rounded-xl sm:px-3 sm:py-2">
                       <p className="font-medium text-slate-500 dark:text-slate-400">
                         Min
                       </p>
@@ -705,7 +705,7 @@ export default async function ProductsPage({
                         {product.minStock}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:px-3 sm:py-2">
+                    <div className="mobile-mini-stat sm:rounded-xl sm:px-3 sm:py-2">
                       <p className="font-medium text-slate-500 dark:text-slate-400">
                         Status
                       </p>
@@ -721,13 +721,13 @@ export default async function ProductsPage({
                     </div>
                     {canViewCost ? (
                       <div className="col-span-3 grid grid-cols-2 gap-1.5 sm:gap-2">
-                        <span className="rounded-lg bg-slate-50 px-2 py-1 font-bold tabular-nums text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:rounded-xl sm:px-3 sm:py-2">
+                        <span className="mobile-mini-stat font-bold tabular-nums text-slate-600 dark:text-slate-300 sm:rounded-xl sm:px-3 sm:py-2">
                           HPP{" "}
                           {product.costPrice > 0
                             ? rupiah(product.costPrice)
                             : "belum lengkap"}
                         </span>
-                        <span className="rounded-lg bg-slate-50 px-2 py-1 font-bold tabular-nums text-emerald-700 dark:bg-slate-900 dark:text-emerald-300 sm:rounded-xl sm:px-3 sm:py-2">
+                        <span className="mobile-mini-stat font-bold tabular-nums text-emerald-700 dark:text-emerald-300 sm:rounded-xl sm:px-3 sm:py-2">
                           Margin {marginLabel(product.price, product.costPrice)}
                         </span>
                       </div>

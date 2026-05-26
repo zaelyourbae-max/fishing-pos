@@ -143,13 +143,13 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Customer</h1>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400 sm:mt-3 sm:text-base">
+          <p className="mobile-section-copy max-w-2xl sm:text-base">
             Data customer aktif dari transaksi POS. Kasir melihat data
             operasional dasar, owner dan developer melihat histori pembelian
             read-only.
           </p>
         </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
+        <div className="mobile-pill w-fit sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
           <Users className="h-4 w-4 text-teal-600" />
           {totalCustomers} customer tampil
         </div>
@@ -167,10 +167,10 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
       >
         <div className="border-b border-slate-200 p-3 dark:border-slate-800 sm:p-5">
-          <h2 className="text-base font-bold text-slate-950 dark:text-white sm:text-xl">
+          <h2 className="mobile-section-heading">
             Daftar Customer
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
+          <p className="mobile-section-copy">
             Klik customer untuk melihat detail dan histori yang diizinkan role.
           </p>
         </div>
@@ -257,7 +257,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           </table>
         </div>
 
-        <div className="divide-y divide-slate-200 lg:hidden dark:divide-slate-800">
+        <div className="space-y-1.5 bg-slate-50/70 p-1.5 lg:hidden dark:bg-slate-900/30">
           {customers.map((customer) => {
             const summary = summaryByCustomer.get(customer.id);
 
@@ -265,7 +265,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               <Link
                 key={customer.id}
                 href={`/customers/${customer.id}`}
-                className="block p-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-900 sm:p-4"
+                className="mobile-card-surface block p-2.5 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 dark:active:bg-slate-900 sm:rounded-2xl sm:p-4"
               >
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -279,7 +279,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                       {customer.customerCode} - Sejak {formatDate(customer.createdAt)}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200 sm:text-[11px]">
+                  <span className="mobile-pill mobile-pill-active min-h-6 px-2 text-[10px] sm:text-[11px]">
                     {customer.loyaltyPoints} poin
                   </span>
                 </div>
@@ -292,7 +292,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                   </p>
                   {canViewAnalytics ? (
                     <div className="grid grid-cols-2 gap-1.5">
-                      <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:py-1.5">
+                      <div className="mobile-mini-stat sm:rounded-xl sm:py-1.5">
                         <p className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
                           <History className="h-3.5 w-3.5" />
                           Transaksi
@@ -301,7 +301,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                           {summary?._count._all ?? customer._count.sales}
                         </p>
                       </div>
-                      <div className="rounded-lg bg-slate-50 px-2 py-1 dark:bg-slate-900 sm:rounded-xl sm:py-1.5">
+                      <div className="mobile-mini-stat sm:rounded-xl sm:py-1.5">
                         <p className="text-[11px] font-medium text-slate-400">
                           Total belanja
                         </p>

@@ -352,7 +352,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Riwayat Penjualan</h1>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:mt-3 sm:text-base">
+          <p className="mobile-section-copy">
             {session.role === "cashier"
               ? "Transaksi milik kasir login."
               : "Semua transaksi dengan filter dasar."}
@@ -419,7 +419,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             />
           </label>
 
-          <button className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white shadow-lg shadow-teal-900/10 transition hover:bg-teal-700 sm:h-12 sm:px-5">
+          <button className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 active:bg-teal-700 sm:h-12 sm:px-5">
             <Filter className="h-4 w-4" />
             Filter
           </button>
@@ -427,7 +427,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
       </form>
 
       <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2">
-        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:gap-5 sm:p-5">
+        <div className="mobile-card-surface flex items-center gap-2.5 p-2.5 sm:gap-5 sm:rounded-2xl sm:p-5">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
             <ShoppingCart className="h-5 w-5 sm:h-8 sm:w-8" />
           </span>
@@ -435,7 +435,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Transaksi
             </p>
-            <h2 className="mt-0.5 text-lg font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
+            <h2 className="metric-value mt-0.5 text-lg sm:mt-1 sm:text-2xl">
               {totalSales}
             </h2>
             <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
@@ -444,7 +444,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:gap-5 sm:p-5">
+        <div className="mobile-card-surface flex items-center gap-2.5 p-2.5 sm:gap-5 sm:rounded-2xl sm:p-5">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
             <TrendingUp className="h-5 w-5 sm:h-8 sm:w-8" />
           </span>
@@ -452,7 +452,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Omzet
             </p>
-            <h2 className="mt-0.5 truncate text-base font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
+            <h2 className="metric-value mt-0.5 truncate text-base sm:mt-1 sm:text-2xl">
               {rupiah(netOmzet)}
             </h2>
             <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
@@ -602,9 +602,9 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
           </table>
         </div>
 
-        <div className="divide-y divide-slate-200 lg:hidden dark:divide-slate-800">
+        <div className="space-y-1.5 bg-slate-50/70 p-1.5 lg:hidden dark:bg-slate-900/30">
           {sales.length === 0 ? (
-            <div className="p-6 text-center text-sm text-slate-500">
+            <div className="mobile-card-surface p-6 text-center text-sm text-slate-500">
               Tidak ada transaksi sesuai filter.
             </div>
           ) : null}
@@ -617,7 +617,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             const isPendingQris = isPendingQrisSale(sale);
 
             return (
-              <div key={sale.id} className="p-2.5 sm:p-4">
+              <div key={sale.id} className="mobile-card-surface p-2.5 sm:rounded-2xl sm:p-4">
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="break-all text-[13px] font-bold leading-snug text-slate-950 dark:text-white sm:text-sm">
@@ -669,10 +669,10 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                   </div>
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1 sm:mt-2 sm:gap-1.5">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadgeClass(sale.transactionStatus)}`}>
                     {sale.transactionStatus}
                   </span>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadgeClass(sale.paymentStatus)}`}>
                     {sale.paymentStatus}
                   </span>
                   {hasReturn ? (
@@ -761,7 +761,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                   href={buildHref(pageParams, pageNumber)}
                   className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-semibold sm:h-10 sm:w-10 sm:rounded-xl sm:text-sm ${
                     pageNumber === safePage
-                      ? "border-teal-600 bg-teal-600 text-white"
+                      ? "border-teal-200 bg-teal-50 text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"
                       : "border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300"
                   }`}
                 >

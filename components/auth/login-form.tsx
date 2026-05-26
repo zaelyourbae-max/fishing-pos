@@ -72,7 +72,7 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={login}
-      className="w-full rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_18px_52px_rgba(15,23,42,0.07)] sm:p-8"
+      className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_36px_rgba(15,23,42,0.055)] sm:rounded-3xl sm:p-8"
     >
       <div className="mb-5 sm:mb-7">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">
@@ -94,7 +94,7 @@ export default function LoginForm() {
 
       <div className="space-y-3.5 sm:space-y-4">
         <div>
-          <label className="mb-2 block text-sm font-bold text-slate-700">Email</label>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">Email</label>
           <input
             type="email"
             inputMode="email"
@@ -107,7 +107,7 @@ export default function LoginForm() {
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-bold text-slate-700">Password</label>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">Password</label>
           <input
             type="password"
             autoComplete="current-password"
@@ -121,7 +121,7 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="min-h-11 w-full rounded-xl bg-teal-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-teal-900/10 transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:rounded-2xl sm:py-3 sm:text-base"
+          className="min-h-11 w-full rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 active:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:rounded-2xl sm:py-3 sm:text-base"
         >
           {loading ? "Login..." : "Login"}
         </button>

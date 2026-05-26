@@ -2410,7 +2410,7 @@ export default function PosApp({
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
                   Area Produk
                 </p>
-                <h2 className="mt-0.5 text-lg font-bold text-slate-950 dark:text-slate-50 sm:text-xl">
+                <h2 className="mobile-section-heading mt-0.5">
                   Produk
                 </h2>
               </div>
@@ -2505,8 +2505,8 @@ export default function PosApp({
                         }}
                         className={
                           active
-                            ? "inline-flex min-h-7 shrink-0 items-center gap-1 rounded-full border border-teal-200 bg-white px-2.5 py-0.5 text-[11px] font-bold text-teal-700 shadow-sm dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200 sm:min-h-8 sm:gap-1.5 sm:px-3 sm:py-1 sm:text-xs"
-                            : "inline-flex min-h-7 shrink-0 items-center gap-1 rounded-full border border-transparent bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-white dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 sm:min-h-8 sm:gap-1.5 sm:px-3 sm:py-1 sm:text-xs"
+                            ? "mobile-pill mobile-pill-active sm:min-h-8 sm:gap-1.5 sm:px-3 sm:py-1 sm:text-xs"
+                            : "mobile-pill hover:bg-slate-50 hover:text-teal-700 dark:hover:bg-slate-800 dark:hover:text-teal-100 sm:min-h-8 sm:gap-1.5 sm:px-3 sm:py-1 sm:text-xs"
                         }
                         type="button"
                       >
@@ -2560,7 +2560,7 @@ export default function PosApp({
                       setProductDetail(product);
                     }
                   }}
-                  className={`group flex min-h-0 min-w-0 cursor-pointer flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-200 hover:border-teal-200 hover:bg-teal-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950 sm:min-h-[190px] sm:rounded-2xl sm:p-3 ${
+                  className={`group mobile-card-surface flex min-h-0 cursor-pointer flex-col hover:border-teal-200 hover:bg-teal-50/20 active:bg-teal-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950 sm:min-h-[190px] sm:rounded-2xl sm:p-3 ${
                     productView === "grid" ? "p-2" : "p-2.5"
                   }`}
                 >
@@ -2657,7 +2657,7 @@ export default function PosApp({
               <button
                 type="button"
                 onClick={() => openSummaryDetail("total-products")}
-                className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
+                className="mobile-card-surface flex items-center gap-2 p-2 text-left hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-9 sm:w-9">
                   <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -2677,7 +2677,7 @@ export default function PosApp({
                 </div>
               </button>
             ) : (
-              <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 sm:gap-3 sm:p-3">
+              <div className="mobile-card-surface flex items-center gap-2 p-2 sm:gap-3 sm:p-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-9 sm:w-9">
                   <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </span>
@@ -2698,7 +2698,7 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("low-stock")}
-              className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
+              className="mobile-card-surface flex items-center gap-2 p-2 text-left hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 sm:h-9 sm:w-9">
                 <PackageSearch className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -2719,7 +2719,7 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("today-transactions")}
-              className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
+              className="mobile-card-surface flex items-center gap-2 p-2 text-left hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200 sm:h-9 sm:w-9">
                 <CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -2744,7 +2744,7 @@ export default function PosApp({
             <button
               type="button"
               onClick={() => openSummaryDetail("total-sales")}
-              className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white/80 p-2 text-left shadow-sm transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
+              className="mobile-card-surface flex items-center gap-2 p-2 text-left hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:gap-3 sm:p-3"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200 sm:h-9 sm:w-9">
                 <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
