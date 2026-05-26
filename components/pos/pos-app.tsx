@@ -2457,8 +2457,8 @@ export default function PosApp({
                       aria-pressed={productView === "grid"}
                       className={
                         productView === "grid"
-                          ? "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg bg-slate-950 px-2 py-2 text-xs font-extrabold text-white shadow-sm ring-2 ring-teal-200 dark:bg-teal-300 dark:text-slate-950 dark:ring-teal-500/30 sm:gap-1.5 sm:px-3 sm:text-sm"
-                          : "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:text-slate-300 dark:hover:bg-slate-800 sm:gap-1.5 sm:px-3 sm:text-sm"
+                          ? "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2 py-2 text-xs font-extrabold text-teal-800 shadow-sm ring-1 ring-teal-200/80 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20 sm:gap-1.5 sm:px-3 sm:text-sm"
+                          : "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:text-slate-300 dark:hover:bg-teal-400/10 dark:hover:text-teal-100 sm:gap-1.5 sm:px-3 sm:text-sm"
                       }
                     >
                       <Grid2X2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
@@ -2471,8 +2471,8 @@ export default function PosApp({
                       aria-pressed={productView === "list"}
                       className={
                         productView === "list"
-                          ? "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg bg-slate-950 px-2 py-2 text-xs font-extrabold text-white shadow-sm ring-2 ring-teal-200 dark:bg-teal-300 dark:text-slate-950 dark:ring-teal-500/30 sm:gap-1.5 sm:px-3 sm:text-sm"
-                          : "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:text-slate-300 dark:hover:bg-slate-800 sm:gap-1.5 sm:px-3 sm:text-sm"
+                          ? "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2 py-2 text-xs font-extrabold text-teal-800 shadow-sm ring-1 ring-teal-200/80 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20 sm:gap-1.5 sm:px-3 sm:text-sm"
+                          : "inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:text-slate-300 dark:hover:bg-teal-400/10 dark:hover:text-teal-100 sm:gap-1.5 sm:px-3 sm:text-sm"
                       }
                     >
                       <List className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
