@@ -139,23 +139,23 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const safePage = Math.min(currentPage, pageCount);
 
   return (
-    <div className="space-y-7">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-4 sm:space-y-7">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Customer</h1>
-          <p className="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-500 dark:text-slate-400 sm:mt-3 sm:text-base">
             Data customer aktif dari transaksi POS. Kasir melihat data
             operasional dasar, owner dan developer melihat histori pembelian
             read-only.
           </p>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
           <Users className="h-4 w-4 text-teal-600" />
           {totalCustomers} customer tampil
         </div>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+      <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-4">
         <LiveSearchInput
           initialValue={q}
           placeholder="Cari nama customer, WhatsApp, atau kode customer..."
@@ -163,24 +163,24 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-        <div className="border-b border-slate-200 p-5 dark:border-slate-800">
-          <h2 className="text-xl font-bold text-slate-950 dark:text-white">
+        <div className="border-b border-slate-200 p-3 dark:border-slate-800 sm:p-5">
+          <h2 className="text-base font-bold text-slate-950 dark:text-white sm:text-xl">
             Daftar Customer
           </h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
             Klik customer untuk melihat detail dan histori yang diizinkan role.
           </p>
         </div>
 
         {customers.length === 0 ? (
-          <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-              <Search className="h-8 w-8" />
+          <div className="flex min-h-52 flex-col items-center justify-center p-6 text-center sm:min-h-72 sm:p-8">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300 sm:h-16 sm:w-16">
+              <Search className="h-6 w-6 sm:h-8 sm:w-8" />
             </span>
-            <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
+            <h3 className="mt-3 text-sm font-bold text-slate-900 dark:text-white sm:mt-4 sm:text-base">
               Customer tidak ditemukan
             </h3>
-            <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 max-w-md text-xs text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm">
               Coba gunakan nama, nomor WhatsApp, atau kode customer lain.
             </p>
           </div>
@@ -262,34 +262,51 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               <Link
                 key={customer.id}
                 href={`/customers/${customer.id}`}
-                className="block p-4 transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                className="block p-3 transition hover:bg-slate-50 dark:hover:bg-slate-900 sm:p-4"
               >
-                <div className="flex min-w-0 items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="break-words font-bold text-slate-950 dark:text-white">
+                    <p className="line-clamp-1 break-words text-sm font-bold leading-snug text-slate-950 dark:text-white">
                       {customer.name}
                     </p>
-                    <p className="mt-1 break-all text-sm text-slate-500">
+                    <p className="mt-0.5 break-all text-xs text-slate-500">
                       {customer.phone ?? "WhatsApp belum ada"}
                     </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                      {customer.customerCode} - Sejak {formatDate(customer.createdAt)}
+                    </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
+                  <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
                     {customer.loyaltyPoints} poin
                   </span>
                 </div>
-                <div className="mt-3 grid gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <p className="flex min-w-0 items-start gap-2">
-                    <MapPin className="h-4 w-4 text-slate-400" />
-                    <span className="min-w-0 break-words">{customer.address ?? "-"}</span>
+                <div className="mt-2 grid gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <p className="flex min-w-0 items-start gap-1.5">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <span className="min-w-0 line-clamp-1 break-words">
+                      {customer.address ?? "-"}
+                    </span>
                   </p>
                   {canViewAnalytics ? (
-                    <p className="flex min-w-0 items-start gap-2 font-semibold">
-                      <History className="h-4 w-4 text-slate-400" />
-                      <span className="min-w-0 break-words">
-                        {summary?._count._all ?? customer._count.sales} transaksi
-                        - {rupiah(summary?._sum.subtotal ?? 0)}
-                      </span>
-                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900">
+                        <p className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                          <History className="h-3.5 w-3.5" />
+                          Transaksi
+                        </p>
+                        <p className="mt-0.5 font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                          {summary?._count._all ?? customer._count.sales}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 px-2 py-1.5 dark:bg-slate-900">
+                        <p className="text-[11px] font-medium text-slate-400">
+                          Total belanja
+                        </p>
+                        <p className="mt-0.5 truncate font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                          {rupiah(summary?._sum.subtotal ?? 0)}
+                        </p>
+                      </div>
+                    </div>
                   ) : null}
                 </div>
               </Link>

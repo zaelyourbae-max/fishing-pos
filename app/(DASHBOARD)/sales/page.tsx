@@ -348,36 +348,36 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Riwayat Penjualan</h1>
-          <p className="mt-3 text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400 sm:mt-3 sm:text-base">
             {session.role === "cashier"
               ? "Transaksi milik kasir login."
               : "Semua transaksi dengan filter dasar."}
           </p>
         </div>
-        <div className="inline-flex min-h-12 max-w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+        <div className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 sm:min-h-12 sm:gap-3 sm:px-4 sm:text-sm">
           <Calendar className="h-4 w-4 text-slate-500" />
           <span className="min-w-0 break-words">{rangeLabel}</span>
           <ChevronDown className="h-4 w-4 text-slate-400" />
         </div>
       </div>
 
-      <form className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[180px_180px_1fr_1fr_1.2fr_160px]">
+      <form className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-4">
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-[180px_180px_1fr_1fr_1.2fr_160px]">
           <SalesDateFilterFields from={params.from} to={params.to} />
 
           {session.role !== "cashier" ? (
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            <label className="space-y-1.5 sm:space-y-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
                 Operator
               </span>
               <select
                 name="cashier"
                 defaultValue={params.cashier ?? ""}
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10 sm:h-12 sm:px-4"
               >
                 <option value="">Semua Operator</option>
                 {cashiers.map((cashier) => (
@@ -391,14 +391,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <input type="hidden" name="cashier" value={String(session.sub)} />
           )}
 
-          <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          <label className="space-y-1.5 sm:space-y-2">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
               Metode Pembayaran
             </span>
             <select
               name="payment"
               defaultValue={payment}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10 sm:h-12 sm:px-4"
             >
               <option value="">Semua Payment</option>
               {paymentMethods.map((item) => (
@@ -409,8 +409,8 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             </select>
           </label>
 
-          <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          <label className="space-y-1.5 sm:space-y-2">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
               Invoice / Customer
             </span>
             <LiveSearchInput
@@ -419,43 +419,43 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             />
           </label>
 
-          <button className="mt-auto inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 text-sm font-semibold text-white shadow-lg shadow-teal-900/10 transition hover:bg-teal-700">
+          <button className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white shadow-lg shadow-teal-900/10 transition hover:bg-teal-700 sm:h-12 sm:px-5">
             <Filter className="h-4 w-4" />
             Filter
           </button>
         </div>
       </form>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
-            <ShoppingCart className="h-8 w-8" />
+      <div className="grid gap-2 sm:gap-4 lg:grid-cols-2">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:gap-5 sm:p-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
+            <ShoppingCart className="h-5 w-5 sm:h-8 sm:w-8" />
           </span>
           <div>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Transaksi
             </p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+            <h2 className="mt-0.5 text-xl font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
               {totalSales}
             </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
               Transaksi
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
-            <TrendingUp className="h-8 w-8" />
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:gap-5 sm:p-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
+            <TrendingUp className="h-5 w-5 sm:h-8 sm:w-8" />
           </span>
           <div>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Omzet
             </p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">
+            <h2 className="mt-0.5 text-xl font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-2xl">
               {rupiah(netOmzet)}
             </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
               Total penjualan
             </p>
           </div>
@@ -601,7 +601,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
         <div className="divide-y divide-slate-200 lg:hidden dark:divide-slate-800">
           {sales.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-500">
+            <div className="p-6 text-center text-sm text-slate-500">
               Tidak ada transaksi sesuai filter.
             </div>
           ) : null}
@@ -614,18 +614,18 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             const isPendingQris = isPendingQrisSale(sale);
 
             return (
-              <div key={sale.id} className="p-4">
-                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div key={sale.id} className="p-3 sm:p-4">
+                <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="break-all font-bold text-slate-950 dark:text-white">
+                    <p className="break-all text-sm font-bold leading-snug text-slate-950 dark:text-white">
                       {sale.invoiceNumber}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       {formatDateTime(sale.createdAt)}
                     </p>
                   </div>
                   <p
-                    className={`font-bold tabular-nums sm:shrink-0 sm:text-right ${
+                    className={`shrink-0 text-right text-sm font-bold tabular-nums ${
                       hasReturn
                         ? "text-rose-600 dark:text-rose-300"
                         : "text-slate-950 dark:text-white"
@@ -634,108 +634,103 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     {hasReturn ? `- ${rupiah(refund)}` : rupiah(sale.subtotal)}
                   </p>
                 </div>
-                <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 dark:text-slate-300">
-                  <p>
-                    <span className="block text-xs font-medium text-slate-400">
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                  <p className="min-w-0">
+                    <span className="block text-[11px] font-medium text-slate-400">
                       Customer
                     </span>
-                    {sale.customer?.name ?? "Walk-in"}
+                    <span className="line-clamp-1 break-words">
+                      {sale.customer?.name ?? "Walk-in"}
+                    </span>
                   </p>
-                  <p>
-                    <span className="block text-xs font-medium text-slate-400">
+                  <p className="min-w-0">
+                    <span className="block text-[11px] font-medium text-slate-400">
                       Operator
                     </span>
-                    {operatorLabel(sale.cashier)}
+                    <span className="line-clamp-1 break-words">
+                      {operatorLabel(sale.cashier)}
+                    </span>
                   </p>
-                  <p className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="block text-xs font-medium text-slate-400">
+                  <p className="col-span-2 flex min-w-0 items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-slate-400">
                       Payment
                     </span>
                     {paymentIcon(sale.paymentMethod)}
-                    <span className="break-words">{paymentName}</span>
+                    <span className="min-w-0 truncate">{paymentName}</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="block w-full text-xs font-medium text-slate-400">
-                      Status
-                    </span>
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
-                      {sale.transactionStatus}
-                    </span>
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
-                      {sale.paymentStatus}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-xs font-medium text-slate-400">
+                  <div className="col-span-2 flex min-w-0 items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-slate-400">
                       Item
                     </span>
                     <span>{sale.items.length} item</span>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                    {hasReturn ? (
-                      <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
-                        Ada retur
-                      </span>
-                    ) : null}
-                    {discountTotal > 0 ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
-                        Diskon {rupiah(discountTotal)}
-                      </span>
-                    ) : null}
-                    {sale.loyaltyApplied ? (
-                      <span className="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
-                        Loyalty
-                        {sale.loyaltyMilestone
-                          ? ` ke-${sale.loyaltyMilestone}`
-                          : ""}
-                      </span>
-                    ) : null}
-                    {sale.transactionStatus === "CANCELLED" ? (
-                      <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
-                        Dibatalkan
-                      </span>
-                    ) : null}
-                    {isPendingQris ? (
-                      <PendingExpiryCountdown
-                        expiredAt={sale.expiredAt?.toISOString() ?? null}
-                      />
-                    ) : null}
-                    </div>
                   </div>
                 </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
+                    {sale.transactionStatus}
+                  </span>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
+                    {sale.paymentStatus}
+                  </span>
+                  {hasReturn ? (
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                      Retur
+                    </span>
+                  ) : null}
+                  {discountTotal > 0 ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                      Diskon {rupiah(discountTotal)}
+                    </span>
+                  ) : null}
+                  {sale.loyaltyApplied ? (
+                    <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+                      Loyalty
+                      {sale.loyaltyMilestone ? ` ke-${sale.loyaltyMilestone}` : ""}
+                    </span>
+                  ) : null}
+                  {sale.transactionStatus === "CANCELLED" ? (
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                      Dibatalkan
+                    </span>
+                  ) : null}
+                  {isPendingQris ? (
+                    <PendingExpiryCountdown
+                      expiredAt={sale.expiredAt?.toISOString() ?? null}
+                    />
+                  ) : null}
+                </div>
                 {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
-                  <p className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
+                  <p className="mt-2 rounded-xl border border-rose-100 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
                     {sale.cancelReason}
                   </p>
                 ) : null}
-                {isPendingQris || sale.transactionStatus === "PENDING" ? (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {isPendingQris ? (
-                      <PaymentProofActionButton
-                        saleId={sale.id}
-                        invoiceNumber={sale.invoiceNumber}
-                      />
-                    ) : null}
-                    {sale.transactionStatus === "PENDING" ? (
-                      <CancelSaleButton
-                        saleId={sale.id}
-                        invoiceNumber={sale.invoiceNumber}
-                      />
-                    ) : null}
-                  </div>
-                ) : null}
-                <Link
-                  href={`/invoices/${sale.id}`}
-                  className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-teal-300 text-sm font-semibold text-teal-700 dark:border-teal-500/50 dark:text-teal-200"
-                >
-                  Invoice
-                </Link>
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  {isPendingQris ? (
+                    <PaymentProofActionButton
+                      saleId={sale.id}
+                      invoiceNumber={sale.invoiceNumber}
+                    />
+                  ) : null}
+                  {sale.transactionStatus === "PENDING" ? (
+                    <CancelSaleButton
+                      saleId={sale.id}
+                      invoiceNumber={sale.invoiceNumber}
+                    />
+                  ) : null}
+                  <Link
+                    href={`/invoices/${sale.id}`}
+                    className="inline-flex h-9 items-center justify-center rounded-lg border border-teal-300 px-3 text-xs font-semibold text-teal-700 dark:border-teal-500/50 dark:text-teal-200"
+                  >
+                    Invoice
+                  </Link>
+                </div>
               </div>
             );
           })}
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4 dark:border-slate-800">
+          <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
             Menampilkan{" "}
             {totalSales === 0
               ? "0"
@@ -745,11 +740,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 )}`}{" "}
             dari {totalSales} data
           </p>
-          <div className="flex max-w-full flex-wrap items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2">
             <Link
               aria-disabled={safePage === 1}
               href={buildHref(pageParams, Math.max(1, safePage - 1))}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300 ${
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 sm:h-10 sm:w-10 sm:rounded-xl dark:border-slate-800 dark:text-slate-300 ${
                 safePage === 1 ? "pointer-events-none opacity-40" : ""
               }`}
             >
@@ -761,7 +756,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 <Link
                   key={pageNumber}
                   href={buildHref(pageParams, pageNumber)}
-                  className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-semibold ${
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-semibold sm:h-10 sm:w-10 sm:rounded-xl sm:text-sm ${
                     pageNumber === safePage
                       ? "border-teal-600 bg-teal-600 text-white"
                       : "border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300"
@@ -773,7 +768,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <Link
               aria-disabled={safePage === pageCount}
               href={buildHref(pageParams, Math.min(pageCount, safePage + 1))}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300 ${
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 sm:h-10 sm:w-10 sm:rounded-xl dark:border-slate-800 dark:text-slate-300 ${
                 safePage === pageCount ? "pointer-events-none opacity-40" : ""
               }`}
             >

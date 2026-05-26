@@ -120,8 +120,8 @@ export default function SalesDateFilterFields({
       <input ref={fromHiddenRef} type="hidden" name="from" defaultValue={from ?? ""} />
       <input ref={toHiddenRef} type="hidden" name="to" defaultValue={to ?? ""} />
 
-      <label className="space-y-2">
-        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+      <label className="space-y-1.5 sm:space-y-2">
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
           Tanggal Mulai
         </span>
         <input
@@ -134,12 +134,12 @@ export default function SalesDateFilterFields({
             setError("");
           }}
           onBlur={(event) => normalizeField("from", event.target.value)}
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-teal-500/10"
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-teal-500/10 sm:h-12 sm:px-4"
         />
       </label>
 
-      <label className="space-y-2">
-        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+      <label className="space-y-1.5 sm:space-y-2">
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
           Tanggal Akhir
         </span>
         <input
@@ -152,12 +152,12 @@ export default function SalesDateFilterFields({
             setError("");
           }}
           onBlur={(event) => normalizeField("to", event.target.value)}
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-teal-500/10"
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-teal-500/10 sm:h-12 sm:px-4"
         />
       </label>
 
       {error ? (
-        <p className="text-sm font-medium text-rose-600 dark:text-rose-300 md:col-span-2 xl:col-span-6">
+        <p className="text-xs font-medium text-rose-600 dark:text-rose-300 sm:text-sm md:col-span-2 xl:col-span-6">
           {error}
         </p>
       ) : null}
