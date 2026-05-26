@@ -1999,7 +1999,7 @@ export default function PosApp({
       >
         {productDetail ? (
           <DialogContent className="bottom-0 left-0 right-0 top-auto max-h-[88dvh] max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-b-none rounded-t-3xl p-0 sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl">
-            <div className="max-h-[88dvh] overflow-y-auto p-5 pb-6 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+            <div className="max-h-[88dvh] overflow-y-auto overscroll-contain p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch] sm:max-h-[calc(100dvh-2rem)] sm:p-6">
               <DialogHeader className="pr-10">
                 <DialogTitle className="text-xl font-extrabold leading-snug text-slate-950 dark:text-slate-50">
                   {productDetail.name}
@@ -2099,7 +2099,7 @@ export default function PosApp({
 
       {summaryDetail ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-slate-950/50 p-0 sm:items-center sm:p-4">
-          <div className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-950 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 sm:max-h-[86vh] sm:rounded-xl">
+          <div data-mobile-sheet className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-950 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 sm:max-h-[86vh] sm:rounded-xl">
             <div className="sticky top-0 z-10 mb-0 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <div className="min-w-0">
                 <h2 className="text-lg font-bold">{summaryDetail.title}</h2>
@@ -2376,6 +2376,7 @@ export default function PosApp({
         <button
           type="button"
           onClick={() => setMobileCartOpen(true)}
+          data-mobile-hide-on-input
           className={`fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 transition duration-200 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden ${
             productSearchFocused
               ? "pointer-events-none translate-y-24 opacity-0"
@@ -2769,7 +2770,8 @@ export default function PosApp({
         </div>
 
         <aside
-          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
+          data-mobile-sheet
+          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
             mobileCartOpen
               ? "translate-y-0 pointer-events-auto"
               : "translate-y-full pointer-events-none xl:pointer-events-auto"

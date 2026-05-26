@@ -185,6 +185,13 @@
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 
+  .mobile-bottom-nav,
+  [data-mobile-hide-on-input] {
+    transition-property: opacity, transform;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+  }
+
   .btn-primary {
     @apply min-h-10 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400;
   }
@@ -296,6 +303,38 @@
     .owner-shell :where(button, a, input, select, textarea),
     .cashier-shell :where(button, a, input, select, textarea) {
       -webkit-tap-highlight-color: transparent;
+    }
+
+    .owner-shell :where(input, select, textarea),
+    .cashier-shell :where(input, select, textarea) {
+      scroll-margin-top: 5rem;
+      scroll-margin-bottom: calc(8rem + env(safe-area-inset-bottom));
+    }
+
+    body:has(:where(input, textarea, select):focus) .mobile-bottom-nav,
+    body.mobile-search-active .mobile-bottom-nav {
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(calc(100% + env(safe-area-inset-bottom)));
+    }
+
+    body:has(:where(input, textarea, select):focus) [data-mobile-hide-on-input],
+    body.mobile-search-active [data-mobile-hide-on-input] {
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(calc(120% + env(safe-area-inset-bottom)));
+    }
+
+    [data-search-results] {
+      scroll-margin-top: 5rem;
+      scroll-margin-bottom: calc(7rem + env(safe-area-inset-bottom));
+    }
+
+    [data-mobile-sheet] {
+      max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top)));
+      overscroll-behavior: contain;
+      scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+      -webkit-overflow-scrolling: touch;
     }
 
     .owner-shell .surface-panel,

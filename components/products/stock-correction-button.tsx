@@ -127,10 +127,11 @@ export default function StockCorrectionButton({
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-slate-950/50 p-0 sm:items-center sm:p-4">
           <form
             onSubmit={submit}
-            className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 text-slate-950 shadow-xl dark:bg-slate-900 dark:text-slate-50 sm:rounded-2xl sm:p-5"
+            data-mobile-sheet
+            className="max-h-[92dvh] w-full max-w-lg scroll-pb-28 overflow-y-auto overscroll-contain rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-slate-950 shadow-xl [-webkit-overflow-scrolling:touch] dark:bg-slate-900 dark:text-slate-50 sm:rounded-2xl sm:p-5"
           >
             <div className="flex items-start justify-between gap-3 sm:gap-4">
               <div className="min-w-0">
@@ -235,7 +236,7 @@ export default function StockCorrectionButton({
               </label>
             </div>
 
-            <div className="mt-4 flex flex-col-reverse gap-2.5 sm:mt-6 sm:flex-row sm:justify-end sm:gap-3">
+            <div className="sticky bottom-0 -mx-4 -mb-4 mt-4 flex flex-col-reverse gap-2.5 border-t border-slate-200 bg-white/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:static sm:m-0 sm:mt-6 sm:flex-row sm:justify-end sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
