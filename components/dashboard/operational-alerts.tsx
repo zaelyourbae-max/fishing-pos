@@ -26,6 +26,7 @@ export type OperationalAlert = {
 
 type OperationalAlertsProps = {
   alerts: OperationalAlert[];
+  maxItems?: number;
 };
 
 const severityStyle: Record<
@@ -77,11 +78,19 @@ function iconFor(alert: OperationalAlert) {
   return Info;
 }
 
-export default function OperationalAlerts({ alerts }: OperationalAlertsProps) {
+export default function OperationalAlerts({
+  alerts,
+  maxItems = alerts.length,
+}: OperationalAlertsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const visibleLimit = Math.max(0, maxItems);
+  const hasHiddenAlerts = alerts.length > visibleLimit;
+  const visibleAlerts =
+    showAll || !hasHiddenAlerts ? alerts : alerts.slice(0, visibleLimit);
 
   return (
-    <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70">
+    <section className="flex h-full min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70">
       <div className="flex items-start justify-between gap-3">
         <h2 className="min-w-0 flex-1 break-words text-lg font-extrabold leading-tight tracking-tight text-slate-950 dark:text-white">
           Alert Operasional
@@ -91,7 +100,7 @@ export default function OperationalAlerts({ alerts }: OperationalAlertsProps) {
         </span>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 flex-1 space-y-3">
         {alerts.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-5 text-center dark:border-slate-800 dark:bg-slate-900/40">
             <Info className="mx-auto h-8 w-8 text-teal-600 dark:text-teal-200" />
@@ -104,7 +113,7 @@ export default function OperationalAlerts({ alerts }: OperationalAlertsProps) {
           </div>
         ) : null}
 
-        {alerts.map((alert) => {
+        {visibleAlerts.map((alert) => {
           const Icon = iconFor(alert);
           const style = severityStyle[alert.severity];
           const expanded = expandedId === alert.id;
@@ -168,6 +177,18 @@ export default function OperationalAlerts({ alerts }: OperationalAlertsProps) {
           );
         })}
       </div>
+
+      {hasHiddenAlerts ? (
+        <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-teal-700 transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-950 dark:text-teal-200 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
+          >
+            {showAll ? "Ringkas" : "Lihat semua"}
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

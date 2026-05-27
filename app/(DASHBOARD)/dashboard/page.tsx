@@ -52,6 +52,9 @@ const toneClass: Record<StatTone, string> = {
 };
 
 const paymentColors = ["#10b981", "#3b82f6", "#7c3aed", "#64748b", "#f59e0b"];
+const DASHBOARD_TOP_PRODUCTS_LIMIT = 5;
+const DASHBOARD_ALERT_LIMIT = 3;
+const DASHBOARD_DEAD_STOCK_LIMIT = 5;
 
 function dateInputValue(date: Date) {
   const local = new Date(date);
@@ -553,7 +556,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       orderBy: {
         createdAt: "desc",
       },
-      take: 5,
+      take: DASHBOARD_TOP_PRODUCTS_LIMIT,
       select: {
         id: true,
         invoiceNumber: true,
@@ -747,7 +750,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       },
     }),
     getDeadStockProducts({
-      limit: 5,
+      limit: DASHBOARD_DEAD_STOCK_LIMIT,
     }),
     getSettings(),
     prisma.user.findUnique({
@@ -761,6 +764,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   ]);
 
   const bestSellerProductIds = bestSellerGroups.map((item) => item.productId);
+  const visibleBestSellerGroups = bestSellerGroups.slice(
+    0,
+    DASHBOARD_TOP_PRODUCTS_LIMIT,
+  );
   const bestSellerProducts = bestSellerProductIds.length
     ? await prisma.product.findMany({
         where: {
@@ -1148,20 +1155,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       href: `/sales?from=${dateInputValue(monthStart)}&to=${selectedDateInput}&payment=${item.paymentMethod}`,
     };
   });
-  const deadStockItems: DeadStockCardItem[] = deadStock.items.map((product) => {
-    const query = product.sku ?? product.name;
+  const deadStockItems: DeadStockCardItem[] = deadStock.items
+    .slice(0, DASHBOARD_DEAD_STOCK_LIMIT)
+    .map((product) => {
+      const query = product.sku ?? product.name;
 
-    return {
-      id: product.id,
-      name: product.name,
-      sku: product.sku,
-      stock: product.stock,
-      lastSoldAt: product.lastSoldAt?.toISOString() ?? null,
-      daysSinceLastSold: product.daysSinceLastSold,
-      reason: product.reason,
-      detailHref: `/products?q=${encodeURIComponent(query)}`,
-    };
-  });
+      return {
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        stock: product.stock,
+        lastSoldAt: product.lastSoldAt?.toISOString() ?? null,
+        daysSinceLastSold: product.daysSinceLastSold,
+        reason: product.reason,
+        detailHref: `/products?q=${encodeURIComponent(query)}`,
+      };
+    });
   const operationalAlerts: OperationalAlert[] = [
     ...(lowStockProducts.length > 0
       ? [
@@ -1346,19 +1355,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-2 xl:grid-cols-12">
-        <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 xl:col-span-4">
+      <div className="grid min-w-0 grid-cols-1 items-stretch gap-5 lg:grid-cols-2 xl:grid-cols-12">
+        <section className="flex h-full min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 xl:col-span-4">
           <SectionHeader title="Produk Terlaris Hari Ini" href={salesHref(selectedDateInput)} />
-          <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/40 p-2 dark:border-slate-800 dark:bg-slate-900/30">
-            {bestSellerGroups.length === 0 ? (
+          <div className="mt-4 flex-1 rounded-2xl border border-slate-100 bg-slate-50/40 p-2 dark:border-slate-800 dark:bg-slate-900/30">
+            {visibleBestSellerGroups.length === 0 ? (
               <EmptyState
                 icon={ShoppingBag}
                 label="Belum ada produk terjual hari ini."
               />
             ) : null}
-            {bestSellerGroups.length > 0 ? (
+            {visibleBestSellerGroups.length > 0 ? (
               <div className="space-y-2 p-3">
-                {bestSellerGroups.map((item, index) => {
+                {visibleBestSellerGroups.map((item, index) => {
                   const product = productMap.get(item.productId);
 
                   return (
@@ -1401,7 +1410,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </section>
 
         <div className="min-w-0 xl:col-span-4">
-          <OperationalAlerts alerts={operationalAlerts} />
+          <OperationalAlerts
+            alerts={operationalAlerts}
+            maxItems={DASHBOARD_ALERT_LIMIT}
+          />
         </div>
 
         <div className="min-w-0 xl:col-span-4">
@@ -1409,6 +1421,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             items={deadStockItems}
             total={deadStock.total}
             thresholdDays={deadStock.thresholdDays}
+            maxItems={DASHBOARD_DEAD_STOCK_LIMIT}
           />
         </div>
 

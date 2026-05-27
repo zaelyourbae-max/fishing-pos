@@ -20,6 +20,8 @@ type DeadStockCardProps = {
   items: DeadStockCardItem[];
   total: number;
   thresholdDays: number;
+  maxItems?: number;
+  allHref?: string;
   dark?: boolean;
 };
 
@@ -43,17 +45,21 @@ export default function DeadStockCard({
   items,
   total,
   thresholdDays,
+  maxItems = 5,
+  allHref = "/products",
   dark = false,
 }: DeadStockCardProps) {
   const [selectedItem, setSelectedItem] = useState<DeadStockCardItem | null>(null);
+  const visibleItems = items.slice(0, Math.max(0, maxItems));
+  const hasMoreItems = total > visibleItems.length;
 
   return (
     <>
       <section
         className={
           dark
-            ? "surface-panel rounded-3xl p-5 sm:p-6"
-            : "min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70"
+            ? "surface-panel flex h-full flex-col rounded-3xl p-5 sm:p-6"
+            : "flex h-full min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70"
         }
       >
         <div className="flex items-start justify-between gap-3">
@@ -91,11 +97,11 @@ export default function DeadStockCard({
         <div
           className={
             dark
-              ? "mt-4 space-y-3"
-              : "mt-4 space-y-2.5"
+              ? "mt-4 flex-1 space-y-3"
+              : "mt-4 flex-1 space-y-2.5"
           }
         >
-          {items.length === 0 ? (
+          {visibleItems.length === 0 ? (
             <div
               className={
                 dark
@@ -107,7 +113,7 @@ export default function DeadStockCard({
             </div>
           ) : null}
 
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -164,6 +170,28 @@ export default function DeadStockCard({
             </button>
           ))}
         </div>
+
+        {hasMoreItems ? (
+          <div
+            className={
+              dark
+                ? "mt-4 border-t border-slate-800 pt-3"
+                : "mt-4 border-t border-slate-100 pt-3 dark:border-slate-800"
+            }
+          >
+            <Link
+              href={allHref}
+              className={
+                dark
+                  ? "inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 px-3 text-xs font-bold text-amber-200 transition duration-200 hover:bg-slate-800 active:scale-[0.99]"
+                  : "inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-amber-700 transition duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:bg-amber-50 active:scale-[0.99] dark:border-slate-800 dark:bg-slate-950 dark:text-amber-200 dark:hover:bg-amber-500/10"
+              }
+            >
+              Lihat semua
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        ) : null}
       </section>
 
       {selectedItem ? (
