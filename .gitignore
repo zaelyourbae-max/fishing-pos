@@ -45,3 +45,11 @@ next-env.d.ts
 # local payment proof uploads
 /public/uploads/payment-proofs/*
 !/public/uploads/payment-proofs/.gitkeep
+
+# local product image uploads
+/public/uploads/products/*
+!/public/uploads/products/.gitkeep
+
+# local QRIS image uploads
+/public/uploads/qris/*
+!/public/uploads/qris/.gitkeep
