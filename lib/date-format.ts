@@ -1,5 +1,6 @@
 const DATE_INPUT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const ID_DATE_INPUT_PATTERN = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+export const DEFAULT_APP_TIMEZONE = "Asia/Makassar";
 
 function dateFromInput(value: string) {
   const match = value.match(DATE_INPUT_PATTERN);
@@ -49,14 +50,73 @@ function twoDigits(value: number) {
   return String(value).padStart(2, "0");
 }
 
-export function formatDateID(value: Date | string | null | undefined) {
+function isValidTimeZone(timeZone: string) {
+  try {
+    new Intl.DateTimeFormat("id-ID", {
+      timeZone,
+    }).format(new Date());
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getAppTimeZone() {
+  const configuredTimeZone =
+    typeof document !== "undefined"
+      ? document.documentElement.dataset.appTimezone
+      : process.env.APP_TIMEZONE;
+  const timeZone = configuredTimeZone?.trim() || DEFAULT_APP_TIMEZONE;
+
+  return isValidTimeZone(timeZone) ? timeZone : DEFAULT_APP_TIMEZONE;
+}
+
+function dateParts(value: Date | string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const inputMatch = value.match(DATE_INPUT_PATTERN);
+
+    if (inputMatch) {
+      return {
+        day: inputMatch[3],
+        month: inputMatch[2],
+        year: inputMatch[1],
+      };
+    }
+  }
+
   const date = asDate(value);
 
   if (!date) {
+    return null;
+  }
+
+  const parts = new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: getAppTimeZone(),
+  }).formatToParts(date);
+
+  return {
+    day: parts.find((part) => part.type === "day")?.value ?? "",
+    month: parts.find((part) => part.type === "month")?.value ?? "",
+    year: parts.find((part) => part.type === "year")?.value ?? "",
+  };
+}
+
+export function formatDateID(value: Date | string | null | undefined) {
+  const parts = dateParts(value);
+
+  if (!parts) {
     return "-";
   }
 
-  return `${twoDigits(date.getDate())}/${twoDigits(date.getMonth() + 1)}/${date.getFullYear()}`;
+  return `${parts.day}/${parts.month}/${parts.year}`;
 }
 
 export function formatDateTimeID(value: Date | string | null | undefined) {
@@ -66,7 +126,23 @@ export function formatDateTimeID(value: Date | string | null | undefined) {
     return "-";
   }
 
-  return `${formatDateID(date)} ${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`;
+  const parts = new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+    timeZone: getAppTimeZone(),
+  }).formatToParts(date);
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "";
+
+  return `${day}/${month}/${year} ${hour}:${minute}`;
 }
 
 export function parseIDDateInput(value: string) {
