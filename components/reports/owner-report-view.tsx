@@ -101,6 +101,15 @@ type TrendRow = {
   transactions: number;
 };
 
+type MonthlyTrendRow = {
+  key: string;
+  label: string;
+  omzet: number;
+  transactions: number;
+  days: number;
+  dailyRows: TrendRow[];
+};
+
 type LowStockRow = {
   id: number;
   name: string;
@@ -263,7 +272,15 @@ const desktopTabs = [
   { id: "pembelian", label: "Pembelian" },
   { id: "stok", label: "Stok" },
   { id: "laba-margin", label: "Laba & Margin" },
-];
+] as const;
+
+type DesktopReportTabId = (typeof desktopTabs)[number]["id"];
+
+const REPORT_SECTION_PREFERENCE_KEY = "owner-report-active-section";
+
+function isDesktopReportTabId(value: string | null): value is DesktopReportTabId {
+  return desktopTabs.some((tab) => tab.id === value);
+}
 
 const mobileTabs = [
   { id: "penjualan", label: "Penjualan" },
@@ -723,7 +740,7 @@ function PaymentSummary({ payments, total, desktopDonut = false }: { payments: P
   }
 
   return (
-    <div className={cx("min-w-0", desktopDonut && "grid items-center gap-5 md:grid-cols-[220px_minmax(0,1fr)]")}>
+    <div className={cx("min-w-0", desktopDonut && "space-y-5")}>
       {desktopDonut ? (
         <div className="relative mx-auto hidden h-48 w-48 rounded-full md:block" style={{ background }}>
           <div className="absolute inset-10 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-inner">
@@ -735,14 +752,19 @@ function PaymentSummary({ payments, total, desktopDonut = false }: { payments: P
       <div className="space-y-3">
         {payments.map((payment) => (
           <div key={payment.method} className="min-w-0 rounded-xl border border-slate-100 p-3">
-            <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: payment.color }} />
-                <span className="truncate text-sm font-bold text-slate-700">{payment.label}</span>
+                <span className="min-w-0 break-words text-sm font-bold text-slate-700">{payment.label}</span>
               </div>
-              <span className="shrink-0 text-right text-sm font-extrabold tabular-nums text-slate-950">
-                {payment.formattedTotal}
-              </span>
+              <div className="min-w-0 text-left sm:text-right">
+                <p className="text-sm font-extrabold tabular-nums text-slate-950">
+                  {payment.formattedTotal}
+                </p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                  {payment.transactions} transaksi
+                </p>
+              </div>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
@@ -751,7 +773,7 @@ function PaymentSummary({ payments, total, desktopDonut = false }: { payments: P
               />
             </div>
             <p className="mt-2 text-xs font-semibold text-slate-500">
-              {payment.transactions} transaksi - {payment.percent.toFixed(1)}%
+              Kontribusi {payment.percent.toFixed(1)}%
             </p>
           </div>
         ))}
@@ -1264,6 +1286,8 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
   const [showProfitDetail, setShowProfitDetail] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("all");
+  const [activeReportSection, setActiveReportSection] =
+    useState<DesktopReportTabId>("ringkasan");
 
   const netKpi = data.kpis.find((kpi) => kpi.id === "net") ?? data.kpis[0];
   const mobileKpis = data.kpis.filter((kpi) => kpi.id !== "net");
@@ -1352,6 +1376,28 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
 
   function scrollToSection(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const savedSection = window.localStorage.getItem(REPORT_SECTION_PREFERENCE_KEY);
+
+      if (isDesktopReportTabId(savedSection)) {
+        setActiveReportSection(savedSection);
+
+        if (savedSection !== "ringkasan") {
+          scrollToSection(savedSection);
+        }
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  function selectReportSection(sectionId: DesktopReportTabId) {
+    setActiveReportSection(sectionId);
+    window.localStorage.setItem(REPORT_SECTION_PREFERENCE_KEY, sectionId);
+    scrollToSection(sectionId);
   }
 
   const filterForm = (
@@ -1720,8 +1766,13 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
             <button
               key={tab.id}
               type="button"
-              onClick={() => scrollToSection(tab.id)}
-              className="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-extrabold text-slate-600 transition hover:border-blue-600 hover:text-blue-700"
+              onClick={() => selectReportSection(tab.id)}
+              className={cx(
+                "shrink-0 border-b-2 px-4 py-3 text-sm font-extrabold transition",
+                activeReportSection === tab.id
+                  ? "border-blue-600 text-blue-700"
+                  : "border-transparent text-slate-600 hover:border-blue-600 hover:text-blue-700",
+              )}
             >
               {tab.label}
             </button>
@@ -2034,6 +2085,8 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
               key={data.period.label}
               periodLabel={data.period.label}
               rows={data.trend}
+              transactions={data.transactions}
+              returnRecords={data.returnSummary.recentCustomer}
             />
           </ReportModal>
         ) : null}
@@ -2281,25 +2334,138 @@ function TransactionDetailContent({
   );
 }
 
+const ID_MONTH_NAMES = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
+
+function parseTrendLabelDate(label: string) {
+  const match = label.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+
+  if (
+    !Number.isInteger(day) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(year) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  return { day, month, year };
+}
+
+function groupTrendRowsByMonth(rows: TrendRow[]) {
+  const monthMap = new Map<string, MonthlyTrendRow>();
+
+  for (const row of rows) {
+    const parsedDate = parseTrendLabelDate(row.label);
+
+    if (!parsedDate) {
+      continue;
+    }
+
+    const key = `${parsedDate.year}-${String(parsedDate.month).padStart(2, "0")}`;
+    const existing = monthMap.get(key);
+
+    if (existing) {
+      existing.omzet += row.omzet;
+      existing.transactions += row.transactions;
+      existing.days += 1;
+      existing.dailyRows.push(row);
+      continue;
+    }
+
+    monthMap.set(key, {
+      key,
+      label: `${ID_MONTH_NAMES[parsedDate.month - 1]} ${parsedDate.year}`,
+      omzet: row.omzet,
+      transactions: row.transactions,
+      days: 1,
+      dailyRows: [row],
+    });
+  }
+
+  return Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
+}
+
 function TrendDetailContent({
   periodLabel,
   rows,
+  transactions,
+  returnRecords,
 }: {
   periodLabel: string;
   rows: TrendRow[];
+  transactions: TransactionRow[];
+  returnRecords: ReturnRecord[];
 }) {
   const [page, setPage] = useState(1);
-  const hasTrend = rows.length > 0 && rows.some((row) => row.omzet > 0 || row.transactions > 0);
-  const totalOmzet = rows.reduce((total, row) => total + row.omzet, 0);
-  const totalTransactions = rows.reduce((total, row) => total + row.transactions, 0);
-  const averagePerDay = rows.length > 0 ? Math.round(totalOmzet / rows.length) : 0;
-  const bestDay = rows.reduce(
-    (best, row) => (row.omzet > best.omzet ? row : best),
-    rows[0] ?? { label: "-", omzet: 0, transactions: 0 },
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
+  const [selectedDayLabel, setSelectedDayLabel] = useState<string | null>(null);
+  const monthlyRows = useMemo(() => groupTrendRowsByMonth(rows), [rows]);
+  const selectedMonth =
+    monthlyRows.find((row) => row.key === selectedMonthKey) ?? null;
+  const tableRows = selectedMonth ? selectedMonth.dailyRows : monthlyRows;
+  const selectedDay =
+    selectedMonth?.dailyRows.find((row) => row.label === selectedDayLabel) ?? null;
+  const dayTransactions = useMemo(
+    () =>
+      selectedDay
+        ? transactions.filter(
+            (transaction) => formatDateID(transaction.createdAt) === selectedDay.label,
+          )
+        : [],
+    [selectedDay, transactions],
   );
-  const pageCount = Math.max(1, Math.ceil(rows.length / REPORT_DETAIL_PAGE_SIZE));
+  const dayReturnRecords = selectedDay
+    ? returnRecords.filter((record) => record.date === selectedDay.label)
+    : [];
+  const chartRows = selectedMonth
+    ? selectedMonth.dailyRows
+    : monthlyRows.map((row) => ({
+        label: row.label,
+        omzet: row.omzet,
+        transactions: row.transactions,
+      }));
+  const hasTrend =
+    monthlyRows.length > 0 &&
+    monthlyRows.some((row) => row.omzet > 0 || row.transactions > 0);
+  const totalOmzet = tableRows.reduce((total, row) => total + row.omzet, 0);
+  const totalTransactions = tableRows.reduce(
+    (total, row) => total + row.transactions,
+    0,
+  );
+  const averageDenominator = selectedMonth ? selectedMonth.days : monthlyRows.length;
+  const averageValue =
+    averageDenominator > 0 ? Math.round(totalOmzet / averageDenominator) : 0;
+  const bestRow = tableRows.reduce(
+    (best, row) => (row.omzet > best.omzet ? row : best),
+    tableRows[0] ?? { label: "-", omzet: 0, transactions: 0 },
+  );
+  const pageCount = Math.max(1, Math.ceil(tableRows.length / REPORT_DETAIL_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const visibleRows = rows.slice(
+  const visibleRows = tableRows.slice(
     (currentPage - 1) * REPORT_DETAIL_PAGE_SIZE,
     currentPage * REPORT_DETAIL_PAGE_SIZE,
   );
@@ -2311,17 +2477,44 @@ function TrendDetailContent({
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
-        Periode aktif: {periodLabel}
+        {selectedMonth
+          ? `Detail harian: ${selectedMonth.label}`
+          : `Periode aktif: ${periodLabel}`}
       </div>
       <div className="rounded-2xl border border-slate-100 p-4">
-        <TrendChart rows={rows} />
+        <TrendChart rows={chartRows} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <InsightBox label="Total Omzet" value={rupiahCompact(totalOmzet)} />
-        <InsightBox label="Rata-rata / hari" value={rupiahCompact(averagePerDay)} />
-        <InsightBox label="Hari terbaik" value={bestDay.label} />
+        <InsightBox
+          label={selectedMonth ? "Rata-rata / hari" : "Rata-rata / bulan"}
+          value={rupiahCompact(averageValue)}
+        />
+        <InsightBox
+          label={selectedMonth ? "Hari terbaik" : "Bulan terbaik"}
+          value={bestRow.label}
+        />
         <InsightBox label="Total transaksi" value={String(totalTransactions)} />
       </div>
+      {selectedMonth ? (
+        <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Menampilkan breakdown harian untuk{" "}
+            <strong className="text-slate-900">{selectedMonth.label}</strong>.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMonthKey(null);
+              setSelectedDayLabel(null);
+              setPage(1);
+            }}
+            className="inline-flex min-h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-extrabold text-slate-700 transition hover:bg-slate-100"
+          >
+            Kembali ke bulanan
+          </button>
+        </div>
+      ) : null}
       <div className="max-w-full overflow-x-auto rounded-xl border border-slate-100">
         <table className="w-full min-w-[620px] table-fixed text-left text-sm">
           <colgroup>
@@ -2329,13 +2522,19 @@ function TrendDetailContent({
             <col className="w-[170px]" />
             <col className="w-[150px]" />
             <col className="w-[140px]" />
+            {!selectedMonth ? <col className="w-[140px]" /> : null}
+            <col className="w-[120px]" />
           </colgroup>
           <thead className="bg-slate-50 text-xs font-bold text-slate-500">
             <tr>
-              <th className="px-4 py-3">Tanggal</th>
+              <th className="px-4 py-3">{selectedMonth ? "Tanggal" : "Bulan"}</th>
               <th className="px-4 py-3 text-right">Omzet</th>
               <th className="px-4 py-3 text-right">Jumlah transaksi</th>
-              <th className="px-4 py-3 text-right">ATV</th>
+              <th className="px-4 py-3 text-right">
+                {selectedMonth ? "ATV" : "Rata-rata harian"}
+              </th>
+              {!selectedMonth ? <th className="px-4 py-3 text-right">ATV</th> : null}
+              <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -2350,8 +2549,39 @@ function TrendDetailContent({
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-700">
                   {row.transactions > 0
-                    ? rupiahCompact(Math.round(row.omzet / row.transactions))
+                    ? selectedMonth
+                      ? rupiahCompact(Math.round(row.omzet / row.transactions))
+                      : rupiahCompact(
+                          Math.round(
+                            row.omzet / Math.max((row as MonthlyTrendRow).days, 1),
+                          ),
+                        )
                     : "-"}
+                </td>
+                {!selectedMonth ? (
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-700">
+                    {row.transactions > 0
+                      ? rupiahCompact(Math.round(row.omzet / row.transactions))
+                      : "-"}
+                  </td>
+                ) : null}
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedMonth) {
+                        setSelectedDayLabel(row.label);
+                        return;
+                      }
+
+                      setSelectedMonthKey((row as MonthlyTrendRow).key);
+                      setSelectedDayLabel(null);
+                      setPage(1);
+                    }}
+                    className="inline-flex min-h-9 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-extrabold text-blue-700 transition hover:bg-blue-100"
+                  >
+                    Detail
+                  </button>
                 </td>
               </tr>
             ))}
@@ -2359,13 +2589,236 @@ function TrendDetailContent({
         </table>
         <ClientPaginationControl
           currentPage={currentPage}
-          totalItems={rows.length}
+          totalItems={tableRows.length}
           pageSize={REPORT_DETAIL_PAGE_SIZE}
           onPageChange={setPage}
           className="rounded-b-xl"
         />
       </div>
+      {selectedDay ? (
+        <DailyTrendActivityDetail
+          day={selectedDay}
+          transactions={dayTransactions}
+          returnRecords={dayReturnRecords}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function DailyTrendActivityDetail({
+  day,
+  transactions,
+  returnRecords,
+}: {
+  day: TrendRow;
+  transactions: TransactionRow[];
+  returnRecords: ReturnRecord[];
+}) {
+  const atv = day.transactions > 0 ? Math.round(day.omzet / day.transactions) : 0;
+  const returnCount = transactions.reduce(
+    (total, transaction) => total + transaction.returnCount,
+    0,
+  );
+  const pendingOrCancelledTransactions = transactions.filter(
+    (transaction) =>
+      ["PENDING", "CANCELLED", "FAILED"].includes(transaction.transactionStatus) ||
+      ["WAITING_PROOF", "FAILED", "UNPAID"].includes(transaction.paymentStatus),
+  );
+  const paymentRows = Array.from(
+    transactions
+      .reduce((map, transaction) => {
+        const key = transaction.paymentLabel || transaction.paymentMethod || "Lainnya";
+        const current = map.get(key) ?? { label: key, total: 0, transactions: 0 };
+
+        current.total += transaction.subtotal;
+        current.transactions += 1;
+        map.set(key, current);
+
+        return map;
+      }, new Map<string, { label: string; total: number; transactions: number }>())
+      .values(),
+  ).sort((a, b) => b.total - a.total);
+
+  return (
+    <section className="space-y-4 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">
+            Aktivitas harian
+          </p>
+          <h3 className="mt-1 text-lg font-extrabold text-slate-950">{day.label}</h3>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            Detail ini memakai data transaksi yang sudah tersedia di laporan saat ini.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <InsightBox label="Omzet hari itu" value={rupiahCompact(day.omzet)} />
+        <InsightBox label="Jumlah transaksi" value={String(day.transactions)} />
+        <InsightBox label="ATV" value={day.transactions > 0 ? rupiahCompact(atv) : "-"} />
+        <InsightBox
+          label="Retur"
+          value={
+            returnCount > 0 || returnRecords.length > 0
+              ? `${Math.max(returnCount, returnRecords.length)} catatan`
+              : "-"
+          }
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <p className="text-sm font-extrabold text-slate-900">Payment method</p>
+          <div className="mt-3 space-y-2">
+            {paymentRows.length > 0 ? (
+              paymentRows.map((payment) => (
+                <div
+                  key={payment.label}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-slate-800">{payment.label}</p>
+                    <p className="text-xs font-semibold text-slate-500">
+                      {payment.transactions} transaksi
+                    </p>
+                  </div>
+                  <strong className="shrink-0 tabular-nums text-slate-950">
+                    {rupiahCompact(payment.total)}
+                  </strong>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm font-semibold text-slate-500">
+                Belum ada payment method pada transaksi yang tersedia.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <p className="text-sm font-extrabold text-slate-900">Pending / cancelled</p>
+          <div className="mt-3 space-y-2">
+            {pendingOrCancelledTransactions.length > 0 ? (
+              pendingOrCancelledTransactions.map((transaction) => (
+                <div
+                  key={transaction.id}
+                  className="rounded-xl bg-white px-3 py-2 text-sm"
+                >
+                  <p className="font-bold text-slate-900">{transaction.invoiceNumber}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className={cx("rounded-full px-2.5 py-1 text-xs font-extrabold", statusBadgeClass(transaction.transactionStatus))}>
+                      {transaction.transactionStatus}
+                    </span>
+                    <span className={cx("rounded-full px-2.5 py-1 text-xs font-extrabold", statusBadgeClass(transaction.paymentStatus))}>
+                      {transaction.paymentStatus}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm font-semibold text-slate-500">
+                Tidak ada pending/cancelled pada transaksi yang tersedia. Data penuh pending/cancelled belum dimuat di payload trend laporan.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <p className="text-sm font-extrabold text-slate-900">Retur & produk</p>
+          <div className="mt-3 space-y-3 text-sm font-semibold text-slate-600">
+            {returnRecords.length > 0 ? (
+              <div className="space-y-2">
+                {returnRecords.map((record) => (
+                  <div key={record.id} className="rounded-xl bg-white px-3 py-2">
+                    <p className="font-bold text-slate-900">{record.number}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {record.reason} • {record.total}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : returnCount > 0 ? (
+              <p>Ada {returnCount} transaksi dengan retur pada data transaksi hari ini.</p>
+            ) : (
+              <p>Tidak ada retur pada data yang tersedia.</p>
+            )}
+            <p className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+              Produk terlaris harian belum tersedia di payload detail trend karena daftar transaksi belum memuat item produk.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-100">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+          <h4 className="text-sm font-extrabold text-slate-900">
+            Daftar transaksi hari itu
+          </h4>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-600">
+            {transactions.length} transaksi
+          </span>
+        </div>
+        {transactions.length > 0 ? (
+          <div className="max-w-full overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-bold text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Invoice</th>
+                  <th className="px-4 py-3">Waktu</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Payment</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {transactions.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td className="px-4 py-3 font-extrabold text-slate-900">
+                      {transaction.invoiceNumber}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-600">
+                      {transaction.createdAtLabel}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-600">
+                      {transaction.customerName}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={cx("inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", paymentBadgeClass(transaction.paymentMethod))}>
+                        {transaction.paymentLabel}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={cx("inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", statusBadgeClass(transaction.paymentStatus))}>
+                        {transaction.paymentStatus}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-extrabold tabular-nums text-slate-950">
+                      {transaction.formattedSubtotal}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/invoices/${transaction.id}`}
+                        className="inline-flex min-h-9 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-extrabold text-blue-700 transition hover:bg-blue-100"
+                      >
+                        Invoice
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-4">
+            <EmptyState label="Daftar transaksi hari ini belum tersedia di payload laporan." />
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
