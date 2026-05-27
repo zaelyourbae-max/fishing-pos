@@ -6,11 +6,37 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
+import { cleanupStaleGlobalInteractionState } from "@/lib/global-interaction-state"
 
 function Dialog({
+  open,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  React.useEffect(() => {
+    if (open !== false) {
+      return
+    }
+
+    const timeout = window.setTimeout(cleanupStaleGlobalInteractionState, 220)
+
+    return () => window.clearTimeout(timeout)
+  }, [open])
+
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange?.(nextOpen)
+
+        if (!nextOpen) {
+          window.setTimeout(cleanupStaleGlobalInteractionState, 220)
+        }
+      }}
+      {...props}
+    />
+  )
 }
 
 function DialogTrigger({

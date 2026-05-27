@@ -22,6 +22,7 @@ import {
 
 import LogoutButton from "@/components/layout/logout-button";
 import ThemeToggle from "@/components/layout/theme-toggle";
+import { useBodyScrollLock } from "@/lib/global-interaction-state";
 import {
   canAccessReports,
   canAccessReturns,
@@ -181,6 +182,8 @@ export default function Sidebar({ role }: SidebarProps) {
     return () => window.clearTimeout(timeout);
   }, [drawerMounted, drawerOpen]);
 
+  useBodyScrollLock(drawerOpen);
+
   useEffect(() => {
     if (!drawerOpen) {
       return;
@@ -220,6 +223,7 @@ export default function Sidebar({ role }: SidebarProps) {
 
       {drawerMounted ? (
         <div
+          data-mobile-blocking-overlay
           className={`fixed inset-0 z-50 lg:hidden ${
             drawerOpen ? "pointer-events-auto" : "pointer-events-none"
           }`}

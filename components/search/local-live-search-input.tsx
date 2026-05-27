@@ -10,6 +10,8 @@ import {
 } from "react";
 import { Search, X } from "lucide-react";
 
+import { cleanupStaleGlobalInteractionState } from "@/lib/global-interaction-state";
+
 type LocalLiveSearchInputProps = {
   value: string;
   onSearch: (value: string) => void;
@@ -68,7 +70,9 @@ export default function LocalLiveSearchInput({
 
   function closeMobileSearch() {
     mobileInputRef.current?.blur();
+    document.body.classList.remove("mobile-search-active");
     setMobileSearchOpen(false);
+    window.setTimeout(cleanupStaleGlobalInteractionState, 220);
   }
 
   useEffect(() => {
@@ -89,6 +93,7 @@ export default function LocalLiveSearchInput({
       document.body.classList.remove("mobile-search-active");
       window.visualViewport?.removeEventListener("resize", handleViewportChange);
       window.visualViewport?.removeEventListener("scroll", handleViewportChange);
+      window.setTimeout(cleanupStaleGlobalInteractionState, 220);
     };
   }, [mobileSearchOpen, scrollToSearchResults]);
 
@@ -150,7 +155,10 @@ export default function LocalLiveSearchInput({
       {mobileSearchOpen ? (
         <>
           <div className="h-20 sm:hidden" />
-          <div className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/95 px-3 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.65rem)] shadow-lg backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:hidden">
+          <div
+            data-mobile-search-dock
+            className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/95 px-3 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.65rem)] shadow-lg backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:hidden"
+          >
             <div className="flex items-center gap-2">
               <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

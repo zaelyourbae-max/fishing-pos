@@ -27,6 +27,10 @@ import PaymentConfirmationModal from "@/components/pos/payment-confirmation-moda
 import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
+import {
+  useBodyScrollLock,
+  useGlobalInteractionCleanup,
+} from "@/lib/global-interaction-state";
 import { formatDateTimeID } from "@/lib/date-format";
 import {
   Dialog,
@@ -675,6 +679,22 @@ export default function PosApp({
     value: "0",
     note: "",
   });
+  const selectedPaymentMethod = paymentMethods.find(
+    (method) => method.code === paymentMethod,
+  );
+  const mobileCartSheetOpen = mobileCartOpen && cart.length > 0;
+  const blockingOverlayOpen =
+    mobileCartSheetOpen ||
+    (paymentModalOpen && Boolean(selectedPaymentMethod)) ||
+    summaryDetail !== null;
+  const modalOverlayOpen =
+    blockingOverlayOpen ||
+    productDetail !== null ||
+    loyaltyModalOpen ||
+    discountModalItemId !== null;
+
+  useBodyScrollLock(blockingOverlayOpen);
+  useGlobalInteractionCleanup(modalOverlayOpen);
   const request = useCallback(
     async (url: string, init: RequestInit = {}) => {
       const isFormData = init.body instanceof FormData;
@@ -1076,9 +1096,6 @@ export default function PosApp({
       ? loyaltyPreviewDiscountAmount
       : 0;
   const grandTotal = Math.max(subtotal - loyaltyDiscountAmount, 0);
-  const selectedPaymentMethod = paymentMethods.find(
-    (method) => method.code === paymentMethod,
-  );
   const cartItemCount = useMemo(() => {
     return cart.reduce((acc, item) => acc + item.qty, 0);
   }, [cart]);
@@ -1446,6 +1463,10 @@ export default function PosApp({
   }
 
   function decreaseQty(id: number) {
+    if (cart.length === 1 && cart[0]?.id === id && cart[0].qty <= 1) {
+      setMobileCartOpen(false);
+    }
+
     setCart((prev) =>
       prev
         .map((item) =>
@@ -1462,6 +1483,10 @@ export default function PosApp({
   }
 
   function removeCartItem(id: number) {
+    if (cart.length === 1 && cart[0]?.id === id) {
+      setMobileCartOpen(false);
+    }
+
     setCart((prev) => prev.filter((item) => item.id !== id));
   }
 
@@ -2055,7 +2080,10 @@ export default function PosApp({
       </Dialog>
 
       {summaryDetail ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-slate-950/50 p-0 sm:items-center sm:p-4">
+        <div
+          data-mobile-blocking-overlay
+          className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-slate-950/50 p-0 sm:items-center sm:p-4"
+        >
           <div data-mobile-sheet className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-950 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 sm:max-h-[86vh] sm:rounded-xl">
             <div className="sticky top-0 z-10 mb-0 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <div className="min-w-0">
@@ -2350,9 +2378,10 @@ export default function PosApp({
         </button>
       ) : null}
 
-      {mobileCartOpen ? (
+      {mobileCartSheetOpen ? (
         <button
           type="button"
+          data-mobile-blocking-overlay
           aria-label="Tutup keranjang"
           onClick={() => setMobileCartOpen(false)}
           className="fixed inset-0 z-40 touch-none overscroll-contain bg-slate-950/45 xl:hidden"
@@ -2729,7 +2758,7 @@ export default function PosApp({
         <aside
           data-mobile-sheet
           className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
-            mobileCartOpen
+            mobileCartSheetOpen
               ? "translate-y-0 pointer-events-auto"
               : "translate-y-full pointer-events-none xl:pointer-events-auto"
           }`}
