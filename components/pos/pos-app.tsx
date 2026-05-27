@@ -2779,7 +2779,7 @@ export default function PosApp({
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pb-[calc(5.75rem+env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch] sm:gap-3 sm:pb-[calc(6rem+env(safe-area-inset-bottom))] xl:contents">
           <section
             ref={customerAutocompleteRef}
-            className="order-1 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            className="order-2 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:order-1"
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -2949,7 +2949,7 @@ export default function PosApp({
             </div>
           </section>
 
-          <section id="pos-cart" className="order-2 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <section id="pos-cart" className="order-1 scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:order-2">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800 sm:px-4 sm:py-3">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-slate-700 dark:text-slate-200" />
@@ -3246,7 +3246,7 @@ export default function PosApp({
               <button
                 onClick={initiateCheckout}
                 disabled={loadingCheckout || cart.length === 0}
-                className="hidden min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3 xl:inline-flex"
+                className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3"
                 type="button"
               >
                 <span className="inline-flex min-w-0 items-center gap-2">
@@ -3259,30 +3259,6 @@ export default function PosApp({
               </button>
             </div>
           </section>
-          </div>
-          <div className="shrink-0 rounded-2xl border border-teal-200 bg-white/95 p-2.5 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900/95 xl:hidden">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {cartItemCount} item
-              </span>
-              <span className="text-base font-extrabold tabular-nums text-slate-950 dark:text-slate-50">
-                {rupiah(grandTotal)}
-              </span>
-            </div>
-            <button
-              onClick={initiateCheckout}
-              disabled={loadingCheckout || cart.length === 0}
-              className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
-              type="button"
-            >
-              <span className="inline-flex min-w-0 items-center gap-2">
-                <ShoppingBag className="h-5 w-5 shrink-0" />
-                <span className="truncate">
-                  {loadingCheckout ? "Memproses..." : "Checkout & Konfirmasi"}
-                </span>
-              </span>
-              <span className="shrink-0 tabular-nums">{rupiah(grandTotal)}</span>
-            </button>
           </div>
         </aside>
       </div>
