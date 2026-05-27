@@ -19,7 +19,9 @@ import { requireProtectedPage } from "@/lib/page-guards";
 import {
   getProductAnalyticsWhere,
   parseProductAnalyticsFilter,
+  PRODUCT_ANALYTICS_FILTERS,
   PRODUCT_ANALYTICS_FILTER_LABELS,
+  type ProductAnalyticsFilter,
 } from "@/lib/product-analytics";
 import { prisma } from "@/lib/prisma";
 
@@ -138,6 +140,37 @@ function pageHref(
 
   if (page > 1) {
     query.set("page", String(page));
+  }
+
+  const next = query.toString();
+
+  return next ? `/products?${next}` : "/products";
+}
+
+function analyticsFilterHref(
+  filter: ProductAnalyticsFilter | null,
+  params: {
+    status: string;
+    q: string;
+    category: string;
+  },
+) {
+  const query = new URLSearchParams();
+
+  if (params.status !== "active") {
+    query.set("status", params.status);
+  }
+
+  if (params.q) {
+    query.set("q", params.q);
+  }
+
+  if (params.category) {
+    query.set("category", params.category);
+  }
+
+  if (filter) {
+    query.set("filter", filter);
   }
 
   const next = query.toString();
@@ -490,14 +523,46 @@ export default async function ProductsPage({
           </button>
         </form>
 
-        {analyticsFilter ? (
-          <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300 sm:px-4">
-            Filter aktif:{" "}
-            <span className="text-teal-700 dark:text-teal-300">
-              {PRODUCT_ANALYTICS_FILTER_LABELS[analyticsFilter]}
-            </span>
+        <div className="border-b border-slate-200 px-3 py-2.5 dark:border-slate-800 sm:px-4">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Filter analitik
+            </p>
+            <div className="flex min-w-0 gap-2 overflow-x-auto pb-0.5 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0">
+              <Link
+                href={analyticsFilterHref(null, {
+                  status,
+                  q,
+                  category: selectedCategory,
+                })}
+                className={
+                  analyticsFilter === null
+                    ? "inline-flex min-h-9 shrink-0 items-center rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"
+                    : "inline-flex min-h-9 shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:text-teal-200"
+                }
+              >
+                Semua
+              </Link>
+              {PRODUCT_ANALYTICS_FILTERS.map((filter) => (
+                <Link
+                  key={filter}
+                  href={analyticsFilterHref(filter, {
+                    status,
+                    q,
+                    category: selectedCategory,
+                  })}
+                  className={
+                    analyticsFilter === filter
+                      ? "inline-flex min-h-9 shrink-0 items-center rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"
+                      : "inline-flex min-h-9 shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:text-teal-200"
+                  }
+                >
+                  {PRODUCT_ANALYTICS_FILTER_LABELS[filter]}
+                </Link>
+              ))}
+            </div>
           </div>
-        ) : null}
+        </div>
 
         <div className="hidden lg:block">
           <table className="w-full table-fixed text-left">
