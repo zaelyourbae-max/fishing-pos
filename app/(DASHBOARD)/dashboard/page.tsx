@@ -14,9 +14,6 @@ import {
 import DashboardTopActions, {
   DashboardStatusChips,
 } from "@/components/dashboard/dashboard-top-actions";
-import DeadStockCard, {
-  type DeadStockCardItem,
-} from "@/components/dashboard/dead-stock-card";
 import KpiActionCard, {
   type KpiDetail,
   type KpiIconName,
@@ -24,11 +21,16 @@ import KpiActionCard, {
 import OperationalAlerts, {
   type OperationalAlert,
 } from "@/components/dashboard/operational-alerts";
+import ProductAnalyticsCard, {
+  type ProductAnalyticsCardItem,
+} from "@/components/dashboard/product-analytics-card";
 import TransactionPaymentPanel from "@/components/dashboard/transaction-payment-panel";
 import { formatDateID, formatDateTimeID } from "@/lib/date-format";
-import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireOwnerPage } from "@/lib/page-guards";
-import { getLowStockWhere } from "@/lib/product-analytics";
+import {
+  getLowStockWhere,
+  getProductAnalyticsPreview,
+} from "@/lib/product-analytics";
 import { prisma } from "@/lib/prisma";
 import { rupiah } from "@/lib/reports";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
@@ -55,7 +57,7 @@ const toneClass: Record<StatTone, string> = {
 const paymentColors = ["#10b981", "#3b82f6", "#7c3aed", "#64748b", "#f59e0b"];
 const DASHBOARD_TOP_PRODUCTS_LIMIT = 5;
 const DASHBOARD_ALERT_LIMIT = 3;
-const DASHBOARD_DEAD_STOCK_LIMIT = 5;
+const DASHBOARD_PRODUCT_ANALYTICS_LIMIT = 3;
 
 function dateInputValue(date: Date) {
   const local = new Date(date);
@@ -387,7 +389,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     todaySalesQuick,
     todayReturnsQuick,
     activeProductSamples,
-    deadStock,
+    productAnalytics,
     settings,
     currentUser,
   ] = await Promise.all([
@@ -749,8 +751,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         category: true,
       },
     }),
-    getDeadStockProducts({
-      limit: DASHBOARD_DEAD_STOCK_LIMIT,
+    getProductAnalyticsPreview({
+      limit: DASHBOARD_PRODUCT_ANALYTICS_LIMIT,
     }),
     getSettings(),
     prisma.user.findUnique({
@@ -1155,9 +1157,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       href: `/sales?from=${dateInputValue(monthStart)}&to=${selectedDateInput}&payment=${item.paymentMethod}`,
     };
   });
-  const deadStockItems: DeadStockCardItem[] = deadStock.items
-    .slice(0, DASHBOARD_DEAD_STOCK_LIMIT)
-    .map((product) => {
+  const slowMovingItems: ProductAnalyticsCardItem[] =
+    productAnalytics.slowMoving.items.map((product) => {
       const query = product.sku ?? product.name;
 
       return {
@@ -1165,9 +1166,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         name: product.name,
         sku: product.sku,
         stock: product.stock,
-        lastSoldAt: product.lastSoldAt?.toISOString() ?? null,
         daysSinceLastSold: product.daysSinceLastSold,
-        reason: product.reason,
+        detailHref: `/products?q=${encodeURIComponent(query)}`,
+      };
+    });
+  const deadStockItems: ProductAnalyticsCardItem[] =
+    productAnalytics.deadStock.items.map((product) => {
+      const query = product.sku ?? product.name;
+
+      return {
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        stock: product.stock,
+        daysSinceLastSold: product.daysSinceLastSold,
         detailHref: `/products?q=${encodeURIComponent(query)}`,
       };
     });
@@ -1186,12 +1198,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           },
         ]
       : []),
-    ...(deadStock.total > 0
+    ...(productAnalytics.deadStock.total > 0
       ? [
           {
             id: "dead-stock",
-            title: `${deadStock.total} produk dead stock`,
-            helper: `Tidak terjual >= ${deadStock.thresholdDays} hari`,
+            title: `${productAnalytics.deadStock.total} produk dead stock`,
+            helper: `Tidak terjual >= ${productAnalytics.deadStock.thresholdDays} hari`,
             detail:
               "Dead Stock berbeda dari stok rendah: barang masih punya stok, tetapi belum pernah terjual atau lama tidak terjual.",
             severity: "warning" as const,
@@ -1418,11 +1430,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
 
         <div className="min-w-0 xl:col-span-4">
-          <DeadStockCard
-            items={deadStockItems}
-            total={deadStock.total}
-            thresholdDays={deadStock.thresholdDays}
-            maxItems={DASHBOARD_DEAD_STOCK_LIMIT}
+          <ProductAnalyticsCard
+            slowMoving={{
+              title: "Slow Moving",
+              helper: `Tidak terjual >= ${productAnalytics.slowMoving.thresholdDays} hari`,
+              href: "/products?filter=slow-moving",
+              total: productAnalytics.slowMoving.total,
+              items: slowMovingItems,
+              tone: "amber",
+            }}
+            deadStock={{
+              title: "Dead Stock",
+              helper: `Tidak terjual >= ${productAnalytics.deadStock.thresholdDays} hari`,
+              href: "/products?filter=dead-stock",
+              total: productAnalytics.deadStock.total,
+              items: deadStockItems,
+              tone: "rose",
+            }}
           />
         </div>
 
