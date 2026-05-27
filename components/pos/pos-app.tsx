@@ -1458,6 +1458,7 @@ export default function PosApp({
     setLoyaltyConfirmedKey(loyaltyContextKey);
     setLoyaltyModalError("");
     setLoyaltyModalOpen(false);
+    setMobileCartOpen(false);
     setPaymentModalOpen(true);
   }
 
@@ -1643,6 +1644,7 @@ export default function PosApp({
         note: loyaltyMinimumMet ? "" : loyaltyMinimumNote,
       });
       setLoyaltyModalError("");
+      setMobileCartOpen(false);
       setLoyaltyModalOpen(true);
       return;
     }
@@ -1654,6 +1656,7 @@ export default function PosApp({
       return;
     }
 
+    setMobileCartOpen(false);
     setPaymentModalOpen(true);
   }
 
