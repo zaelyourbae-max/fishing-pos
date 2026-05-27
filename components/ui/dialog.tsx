@@ -60,8 +60,9 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-mobile-sheet
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 grid max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-0.5rem))] w-full max-w-none translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl bg-popover p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-sm text-popover-foreground ring-1 ring-foreground/10 duration-150 outline-none [-webkit-overflow-scrolling:touch] sm:top-1/2 sm:left-1/2 sm:bottom-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-4 sm:rounded-xl sm:pb-4 data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-4 sm:data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-bottom-4 sm:data-closed:zoom-out-95",
+          "fixed inset-x-0 bottom-0 z-50 grid max-h-[min(92dvh,calc(100dvh_-_env(safe-area-inset-top)_-_0.5rem))] w-full max-w-none translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl bg-popover p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-sm text-popover-foreground ring-1 ring-foreground/10 duration-150 outline-none [-webkit-overflow-scrolling:touch] sm:top-1/2 sm:left-1/2 sm:bottom-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-4 sm:rounded-xl sm:pb-4 data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-4 sm:data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-bottom-4 sm:data-closed:zoom-out-95",
           className
         )}
         {...props}
