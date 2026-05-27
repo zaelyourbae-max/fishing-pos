@@ -17,11 +17,23 @@ type LoginResponse = {
 
 const TOKEN_KEY = "fishing_pos_token";
 const USER_KEY = "fishing_pos_user";
+const DEMO_CREDENTIALS = [
+  {
+    label: "Isi demo owner",
+    email: "owner@toko.local",
+    password: "owner123",
+  },
+  {
+    label: "Isi demo kasir",
+    email: "cashier@toko.local",
+    password: "cashier123",
+  },
+] as const;
 
 export default function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("cashier@toko.local");
-  const [password, setPassword] = useState("cashier123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -98,7 +110,7 @@ export default function LoginForm() {
           <input
             type="email"
             inputMode="email"
-            autoComplete="email"
+            autoComplete="username"
             enterKeyHint="next"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -125,6 +137,26 @@ export default function LoginForm() {
         >
           {loading ? "Login..." : "Login"}
         </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+        <span className="text-xs font-semibold text-slate-500">
+          Akun demo:
+        </span>
+        {DEMO_CREDENTIALS.map((credential) => (
+          <button
+            key={credential.email}
+            type="button"
+            onClick={() => {
+              setEmail(credential.email);
+              setPassword(credential.password);
+              setError("");
+            }}
+            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-[0.98]"
+          >
+            {credential.label}
+          </button>
+        ))}
       </div>
     </form>
   );
