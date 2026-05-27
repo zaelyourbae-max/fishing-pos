@@ -87,12 +87,10 @@ export default function LocalLiveSearchInput({
     };
 
     window.visualViewport?.addEventListener("resize", handleViewportChange);
-    window.visualViewport?.addEventListener("scroll", handleViewportChange);
 
     return () => {
       document.body.classList.remove("mobile-search-active");
       window.visualViewport?.removeEventListener("resize", handleViewportChange);
-      window.visualViewport?.removeEventListener("scroll", handleViewportChange);
       window.setTimeout(cleanupStaleGlobalInteractionState, 220);
     };
   }, [mobileSearchOpen, scrollToSearchResults]);

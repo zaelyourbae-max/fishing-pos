@@ -8,7 +8,6 @@ const BODY_LOCK_ACTIVE_ATTR = "data-body-scroll-lock-active";
 
 const ACTIVE_OVERLAY_SELECTOR = [
   "[data-mobile-blocking-overlay]",
-  "[data-mobile-search-dock]",
   '[data-slot="dialog-overlay"]',
   '[data-slot="dialog-content"]',
   '[data-slot="sheet-overlay"]',

@@ -121,7 +121,7 @@
     text-rendering: optimizeLegibility;
     max-width: 100%;
     overflow-x: hidden;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: auto;
   }
 }
 
