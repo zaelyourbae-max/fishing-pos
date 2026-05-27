@@ -2751,7 +2751,7 @@ export default function PosApp({
 
         <aside
           data-mobile-sheet
-          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
+          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-hidden overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
             mobileCartSheetOpen
               ? "visible translate-y-0 pointer-events-auto"
               : "invisible translate-y-full pointer-events-none xl:visible xl:pointer-events-auto"
@@ -2776,6 +2776,7 @@ export default function PosApp({
               <X className="h-5 w-5" />
             </button>
           </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pb-[calc(5.75rem+env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch] sm:gap-3 sm:pb-[calc(6rem+env(safe-area-inset-bottom))] xl:contents">
           <section
             ref={customerAutocompleteRef}
             className="order-2 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:order-1"
@@ -3258,6 +3259,7 @@ export default function PosApp({
               </button>
             </div>
           </section>
+          </div>
         </aside>
       </div>
       <Dialog
