@@ -16,6 +16,11 @@ import LiveSearchInput from "@/components/search/live-search-input";
 import PaginationLinks from "@/components/ui/pagination-links";
 import { canManageProducts, canViewCostPrice } from "@/lib/auth-session";
 import { requireProtectedPage } from "@/lib/page-guards";
+import {
+  getProductAnalyticsWhere,
+  parseProductAnalyticsFilter,
+  PRODUCT_ANALYTICS_FILTER_LABELS,
+} from "@/lib/product-analytics";
 import { prisma } from "@/lib/prisma";
 
 type ProductsPageProps = {
@@ -23,6 +28,7 @@ type ProductsPageProps = {
     status?: string;
     q?: string;
     category?: string;
+    filter?: string;
     page?: string;
   }>;
 };
@@ -77,6 +83,7 @@ function statusHref(
   params: {
     q: string;
     category: string;
+    filter: string;
   },
 ) {
   const query = new URLSearchParams();
@@ -93,6 +100,10 @@ function statusHref(
     query.set("category", params.category);
   }
 
+  if (params.filter) {
+    query.set("filter", params.filter);
+  }
+
   const next = query.toString();
 
   return next ? `/products?${next}` : "/products";
@@ -104,6 +115,7 @@ function pageHref(
     status: string;
     q: string;
     category: string;
+    filter: string;
   },
 ) {
   const query = new URLSearchParams();
@@ -118,6 +130,10 @@ function pageHref(
 
   if (params.category) {
     query.set("category", params.category);
+  }
+
+  if (params.filter) {
+    query.set("filter", params.filter);
   }
 
   if (page > 1) {
@@ -184,10 +200,13 @@ export default async function ProductsPage({
       : "active";
   const q = String(params.q ?? "").trim();
   const selectedCategory = String(params.category ?? "").trim();
+  const analyticsFilter = parseProductAnalyticsFilter(params.filter);
+  const analyticsWhere = getProductAnalyticsWhere(analyticsFilter);
   const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
   const where: Prisma.ProductWhereInput = {
     ...(status === "all" ? {} : { isActive: status === "active" }),
     ...(selectedCategory ? { category: selectedCategory } : {}),
+    ...(analyticsWhere ? { AND: [analyticsWhere] } : {}),
     ...(q
       ? {
           OR: [
@@ -424,6 +443,7 @@ export default async function ProductsPage({
                   href={statusHref(filter.value, {
                     q,
                     category: selectedCategory,
+                    filter: analyticsFilter ?? "",
                   })}
                   className={
                     status === filter.value
@@ -441,6 +461,9 @@ export default async function ProductsPage({
         <form className="grid gap-2.5 border-b border-slate-200 p-3 md:grid-cols-[1fr_270px_auto] dark:border-slate-800 sm:gap-3 sm:p-4">
           {status !== "active" ? (
             <input type="hidden" name="status" value={status} />
+          ) : null}
+          {analyticsFilter ? (
+            <input type="hidden" name="filter" value={analyticsFilter} />
           ) : null}
           <LiveSearchInput
             initialValue={q}
@@ -466,6 +489,15 @@ export default async function ProductsPage({
             Filter
           </button>
         </form>
+
+        {analyticsFilter ? (
+          <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300 sm:px-4">
+            Filter aktif:{" "}
+            <span className="text-teal-700 dark:text-teal-300">
+              {PRODUCT_ANALYTICS_FILTER_LABELS[analyticsFilter]}
+            </span>
+          </div>
+        ) : null}
 
         <div className="hidden lg:block">
           <table className="w-full table-fixed text-left">
@@ -807,6 +839,7 @@ export default async function ProductsPage({
               status,
               q,
               category: selectedCategory,
+              filter: analyticsFilter ?? "",
             })
           }
         />

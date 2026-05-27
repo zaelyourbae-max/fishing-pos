@@ -28,8 +28,9 @@ import TransactionPaymentPanel from "@/components/dashboard/transaction-payment-
 import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireOwnerPage } from "@/lib/page-guards";
+import { getLowStockWhere } from "@/lib/product-analytics";
 import { prisma } from "@/lib/prisma";
-import { LOW_STOCK_LIMIT, rupiah } from "@/lib/reports";
+import { rupiah } from "@/lib/reports";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { getSettings } from "@/lib/settings";
@@ -536,9 +537,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     prisma.product.findMany({
       where: {
         isActive: true,
-        stock: {
-          lt: LOW_STOCK_LIMIT,
-        },
+        ...getLowStockWhere(),
       },
       orderBy: {
         stock: "asc",
@@ -549,6 +548,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         name: true,
         sku: true,
         stock: true,
+        minStock: true,
         imageUrl: true,
       },
     }),
@@ -1042,12 +1042,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     {
       title: "Stok Rendah",
       value: String(lowStockProducts.length),
-      helper: `Stok < ${LOW_STOCK_LIMIT}`,
+      helper: "Stok <= min stok",
       icon: "alert",
       tone: "rose",
       detail: {
         title: "Stok Rendah",
-        description: `Produk aktif dengan stok di bawah ${LOW_STOCK_LIMIT}.`,
+        description: "Produk aktif dengan stok di bawah atau sama dengan min stok masing-masing.",
         rows: lowStockRows,
         emptyLabel: "Tidak ada produk stok rendah.",
       },
@@ -1178,7 +1178,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             id: "stock-low",
             title: `${lowStockProducts.length} produk stok rendah`,
             helper: "Ada produk di bawah stok minimum",
-            detail: `Produk stok rendah perlu dicek sebelum penjualan berikutnya. Batas stok saat ini adalah ${LOW_STOCK_LIMIT}.`,
+            detail:
+              "Produk stok rendah perlu dicek sebelum penjualan berikutnya. Batas stok mengikuti min stok masing-masing produk.",
             severity: "critical" as const,
             href: "/products",
             action: "Lihat stok rendah",

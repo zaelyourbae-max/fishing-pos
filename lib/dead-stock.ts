@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
-
-export const DEAD_STOCK_THRESHOLD_DAYS = 60;
+import {
+  daysSince,
+  DEAD_STOCK_THRESHOLD_DAYS,
+  getDeadStockWhere,
+} from "@/lib/product-analytics";
 
 export type DeadStockReason = "NEVER_SOLD" | "NOT_SOLD_OVER_THRESHOLD";
 
@@ -15,12 +18,6 @@ export type DeadStockProduct = {
   reason: DeadStockReason;
 };
 
-function daysAgo(date: Date, now: Date) {
-  const diff = now.getTime() - date.getTime();
-
-  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-}
-
 export async function getDeadStockProducts({
   limit = 5,
   thresholdDays = DEAD_STOCK_THRESHOLD_DAYS,
@@ -29,25 +26,12 @@ export async function getDeadStockProducts({
   thresholdDays?: number;
 } = {}) {
   const now = new Date();
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - thresholdDays);
   const where = {
     isActive: true,
-    stock: {
-      gt: 0,
-    },
-    NOT: {
-      saleItems: {
-        some: {
-          sale: {
-            ...FINAL_SALE_STATUS_WHERE,
-            createdAt: {
-              gte: cutoff,
-            },
-          },
-        },
-      },
-    },
+    ...getDeadStockWhere({
+      now,
+      thresholdDays,
+    }),
   };
   const [total, products] = await Promise.all([
     prisma.product.count({
@@ -64,6 +48,7 @@ export async function getDeadStockProducts({
         name: true,
         sku: true,
         stock: true,
+        createdAt: true,
         saleItems: {
           where: {
             sale: FINAL_SALE_STATUS_WHERE,
@@ -93,13 +78,15 @@ export async function getDeadStockProducts({
           return latest;
         }, null) ?? null;
 
+      const referenceDate = lastSoldAt ?? product.createdAt;
+
       return {
         id: product.id,
         name: product.name,
         sku: product.sku,
         stock: product.stock,
         lastSoldAt,
-        daysSinceLastSold: lastSoldAt ? daysAgo(lastSoldAt, now) : null,
+        daysSinceLastSold: daysSince(referenceDate, now),
         reason: lastSoldAt ? "NOT_SOLD_OVER_THRESHOLD" : "NEVER_SOLD",
       };
     })

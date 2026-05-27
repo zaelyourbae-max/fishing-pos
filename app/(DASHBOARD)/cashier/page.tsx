@@ -7,10 +7,9 @@ import DeadStockCard, {
 import { formatDateTimeID } from "@/lib/date-format";
 import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireCashierPage } from "@/lib/page-guards";
+import { getLowStockWhere } from "@/lib/product-analytics";
 import { prisma } from "@/lib/prisma";
 import { transactionIdentityLabel } from "@/lib/transaction-identity";
-
-const LOW_STOCK_LIMIT = 10;
 
 function startOfToday() {
   const date = new Date();
@@ -107,9 +106,7 @@ export default async function CashierPage() {
       prisma.product.findMany({
         where: {
           isActive: true,
-          stock: {
-            lt: LOW_STOCK_LIMIT,
-          },
+          ...getLowStockWhere(),
         },
         orderBy: {
           stock: "asc",
