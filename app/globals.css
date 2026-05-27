@@ -111,7 +111,7 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {
@@ -120,7 +120,7 @@
     font-feature-settings: "tnum", "cv02", "cv03", "cv04", "cv11";
     text-rendering: optimizeLegibility;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     overscroll-behavior-y: auto;
   }
 }
@@ -128,7 +128,7 @@
 @layer components {
   .owner-shell,
   .cashier-shell {
-    @apply min-h-screen w-full min-w-0 overflow-x-hidden bg-[#f6f8fb] text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100;
+    @apply min-h-screen w-full min-w-0 overflow-x-clip bg-[#f6f8fb] text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100;
   }
 
   .surface-panel {

@@ -225,7 +225,9 @@ export default function Sidebar({ role }: SidebarProps) {
         <div
           data-mobile-blocking-overlay
           className={`fixed inset-0 z-50 lg:hidden ${
-            drawerOpen ? "pointer-events-auto" : "pointer-events-none"
+            drawerOpen
+              ? "visible pointer-events-auto"
+              : "invisible pointer-events-none"
           }`}
         >
           <button

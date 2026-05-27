@@ -2358,8 +2358,8 @@ export default function PosApp({
           data-mobile-hide-on-input
           className={`fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 transition duration-200 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden ${
             productSearchFocused
-              ? "pointer-events-none translate-y-24 opacity-0"
-              : "translate-y-0 opacity-100"
+              ? "invisible pointer-events-none translate-y-24 opacity-0"
+              : "visible translate-y-0 opacity-100"
           }`}
         >
           <span className="min-w-0">
@@ -2753,8 +2753,8 @@ export default function PosApp({
           data-mobile-sheet
           className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
             mobileCartSheetOpen
-              ? "translate-y-0 pointer-events-auto"
-              : "translate-y-full pointer-events-none xl:pointer-events-auto"
+              ? "visible translate-y-0 pointer-events-auto"
+              : "invisible translate-y-full pointer-events-none xl:visible xl:pointer-events-auto"
           }`}
         >
           <div className="mx-auto h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700 sm:h-1.5 sm:w-12 xl:hidden" />
