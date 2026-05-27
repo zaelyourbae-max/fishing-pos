@@ -635,6 +635,7 @@ export default function PosApp({
   const [activeCustomerSuggestionIndex, setActiveCustomerSuggestionIndex] =
     useState(0);
   const customerAutocompleteRef = useRef<HTMLDivElement | null>(null);
+  const mobileCustomerAutocompleteRef = useRef<HTMLDetailsElement | null>(null);
   const customerNameInputRef = useRef<HTMLInputElement | null>(null);
   const paidAmountInputRef = useRef<HTMLInputElement | null>(null);
   const [normalizedCustomerPhone, setNormalizedCustomerPhone] = useState("");
@@ -868,7 +869,12 @@ export default function PosApp({
     ) {
       event.preventDefault();
       closeCustomerSuggestions();
-      customerNameInputRef.current?.focus();
+      const customerForm = event.currentTarget.closest("[data-customer-form]");
+      const customerNameInput =
+        customerForm?.querySelector<HTMLInputElement>(
+          "[data-customer-name-input]",
+        ) ?? customerNameInputRef.current;
+      customerNameInput?.focus();
       return;
     }
 
@@ -901,7 +907,12 @@ export default function PosApp({
     if (event.key === "Enter" && type === "phone") {
       event.preventDefault();
       closeCustomerSuggestions();
-      customerNameInputRef.current?.focus();
+      const customerForm = event.currentTarget.closest("[data-customer-form]");
+      const customerNameInput =
+        customerForm?.querySelector<HTMLInputElement>(
+          "[data-customer-name-input]",
+        ) ?? customerNameInputRef.current;
+      customerNameInput?.focus();
     }
   }
 
@@ -932,9 +943,17 @@ export default function PosApp({
     }
 
     function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      const customerSuggestionContainers = [
+        customerAutocompleteRef.current,
+        mobileCustomerAutocompleteRef.current,
+      ].filter(Boolean);
+
       if (
-        customerAutocompleteRef.current &&
-        !customerAutocompleteRef.current.contains(event.target as Node)
+        customerSuggestionContainers.length > 0 &&
+        customerSuggestionContainers.every(
+          (container) => !container?.contains(target),
+        )
       ) {
         closeCustomerSuggestions();
       }
@@ -1539,8 +1558,9 @@ export default function PosApp({
   }
 
   function handlePaidAmountChange(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
     const rawValue = event.target.value;
-    const selectionStart = event.target.selectionStart ?? rawValue.length;
+    const selectionStart = input.selectionStart ?? rawValue.length;
     const digitsBeforeCaret = normalizeRupiahIntegerInput(
       rawValue.slice(0, selectionStart),
     ).length;
@@ -1549,9 +1569,7 @@ export default function PosApp({
     setPaidAmount(nextPaidAmount);
 
     window.requestAnimationFrame(() => {
-      const input = paidAmountInputRef.current;
-
-      if (!input) {
+      if (document.activeElement !== input) {
         return;
       }
 
@@ -2751,7 +2769,435 @@ export default function PosApp({
 
         <aside
           data-mobile-sheet
-          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[86dvh] min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
+          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] min-w-0 flex-col overflow-hidden rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 xl:hidden ${
+            mobileCartSheetOpen
+              ? "visible translate-y-0 pointer-events-auto"
+              : "invisible translate-y-full pointer-events-none"
+          }`}
+        >
+          <div className="shrink-0 px-3 pb-2 pt-2">
+            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
+                  Transaksi
+                </p>
+                <h2 className="truncate text-lg font-bold text-slate-950 dark:text-slate-50">
+                  Keranjang & Pembayaran
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileCartOpen(false)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                aria-label="Tutup keranjang"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 pb-2 [-webkit-overflow-scrolling:touch]">
+            <section className="rounded-2xl border border-teal-200 bg-teal-50 p-3 dark:border-teal-500/30 dark:bg-teal-500/10">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
+                    Total Bayar
+                  </p>
+                  <p className="text-2xl font-extrabold tabular-nums text-slate-950 dark:text-slate-50">
+                    {rupiah(grandTotal)}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-teal-700 ring-1 ring-teal-100 dark:bg-slate-950 dark:text-teal-200 dark:ring-teal-500/20">
+                  {cartItemCount} item
+                </span>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 dark:border-slate-800">
+                <div className="flex min-w-0 items-center gap-2">
+                  <ShoppingCart className="h-4 w-4 shrink-0 text-slate-700 dark:text-slate-200" />
+                  <h3 className="truncate text-sm font-bold text-slate-950 dark:text-slate-50">
+                    Detail item
+                  </h3>
+                </div>
+                <span className="shrink-0 text-xs font-bold text-slate-500 dark:text-slate-400">
+                  {cart.length} baris
+                </span>
+              </div>
+
+              <div className="space-y-1.5 p-2">
+                {cart.slice(0, 3).map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-950/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 gap-2">
+                        <ProductThumb
+                          product={item}
+                          className="h-8 w-8 rounded-lg"
+                        />
+                        <div className="min-w-0">
+                          <p className="line-clamp-1 break-words text-xs font-bold text-slate-950 dark:text-slate-50">
+                            {item.name}
+                          </p>
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                            {rupiah(item.price)} / {item.unit}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <button
+                          type="button"
+                          onClick={() => removeCartItem(item.id)}
+                          className="mb-0.5 inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                          aria-label={`Hapus ${item.name} dari keranjang`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                        <p className="text-xs font-bold tabular-nums text-slate-950 dark:text-slate-50">
+                          {rupiah(cartLineTotal(item))}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => decreaseQty(item.id)}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+                        type="button"
+                        aria-label={`Kurangi qty ${item.name}`}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max={item.stock}
+                        value={item.qtyInput}
+                        onChange={(event) =>
+                          applyManualQty(item.id, event.target.value)
+                        }
+                        onBlur={(event) =>
+                          applyManualQty(item.id, event.target.value, true)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            applyManualQty(
+                              item.id,
+                              event.currentTarget.value,
+                              true,
+                            );
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        className="h-7 w-12 rounded-lg border border-slate-300 bg-white px-2 text-center text-xs font-bold tabular-nums text-slate-950 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        aria-label={`Qty ${item.name}`}
+                      />
+                      <button
+                        onClick={() => increaseQty(item.id)}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+                        type="button"
+                        aria-label={`Tambah qty ${item.name}`}
+                      >
+                        +
+                      </button>
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        {item.unit}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openDiscountModal(item)}
+                        className="ml-auto inline-flex h-7 items-center justify-center rounded-lg border border-teal-300 bg-white px-2 text-[10px] font-bold text-teal-700 transition hover:bg-teal-50 dark:border-teal-500/40 dark:bg-slate-900 dark:text-teal-200 dark:hover:bg-teal-500/10"
+                      >
+                        Diskon
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {cart.length > 3 ? (
+                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-center text-xs font-semibold text-slate-500 dark:bg-slate-950/60 dark:text-slate-400">
+                    +{cart.length - 3} baris item lain ikut checkout.
+                  </p>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Pembayaran
+                </p>
+                <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {selectedPaymentMethod?.name ?? "Metode belum dipilih"}
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Metode Pembayaran
+                  </span>
+                  <span className="relative block">
+                    <select
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value)}
+                      className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                    >
+                      {paymentMethods.map((method) => (
+                        <option key={method.code} value={method.code}>
+                          {method.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </span>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Dibayar
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={formatRupiahIntegerInput(paidAmount)}
+                    onChange={handlePaidAmountChange}
+                    placeholder={formatRupiahIntegerInput(String(grandTotal))}
+                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  />
+                </label>
+              </div>
+
+              {selectedPaymentMethod?.type === "BANK_TRANSFER" ? (
+                <div className="mt-2 rounded-xl bg-slate-50 p-2 text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800">
+                  <p className="font-semibold">Transfer Bank</p>
+                  <p className="mt-1">
+                    Detail rekening tampil di modal checkout.
+                  </p>
+                </div>
+              ) : null}
+
+              {selectedPaymentMethod?.type === "QRIS" ? (
+                <div className="mt-2 rounded-xl bg-slate-50 p-2 text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800">
+                  <p className="font-semibold">QRIS Statis</p>
+                  <p className="mt-1">
+                    QRIS besar tampil setelah kasir klik Checkout.
+                  </p>
+                </div>
+              ) : null}
+            </section>
+
+            <details
+              ref={mobileCustomerAutocompleteRef}
+              data-customer-form
+              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-left [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Customer opsional
+                  </span>
+                  <span className="block truncate text-sm font-bold text-slate-950 dark:text-slate-50">
+                    {foundCustomer?.name ||
+                      customerName ||
+                      customerPhone ||
+                      "Isi jika diperlukan"}
+                  </span>
+                </span>
+                {foundCustomer ? (
+                  <span className="shrink-0 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
+                    Terhubung
+                  </span>
+                ) : null}
+              </summary>
+
+              <div className="mt-3 grid gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Nomor WhatsApp
+                  </span>
+                  <span className="relative block">
+                    <input
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(event) =>
+                        handleCustomerManualEdit(event.target.value, "phone")
+                      }
+                      onFocus={() => {
+                        setCustomerSuggestionType("phone");
+                        setCustomerSuggestionOpen(true);
+                      }}
+                      onKeyDown={(event) =>
+                        handleCustomerSuggestionKeyDown(event, "phone")
+                      }
+                      className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-11 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                      placeholder="08xxxxxxxxxx"
+                    />
+                    {renderCustomerSuggestions("phone")}
+                    {customerPhone ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerPhone("");
+                          setSelectedCustomer(null);
+                          setFoundCustomer(null);
+                          setNormalizedCustomerPhone("");
+                          setCustomerLookupMessage("");
+                          closeCustomerSuggestions();
+                        }}
+                        className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                        aria-label="Bersihkan nomor customer"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <Users className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                    )}
+                  </span>
+                  {customerPhone &&
+                  !loadingCustomer &&
+                  !foundCustomer &&
+                  customerLookupMessage ? (
+                    <span className="mt-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {customerLookupMessage}
+                    </span>
+                  ) : null}
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Nama Customer
+                  </span>
+                  <input
+                    data-customer-name-input
+                    type="text"
+                    value={customerName}
+                    onChange={(event) =>
+                      handleCustomerManualEdit(event.target.value, "name")
+                    }
+                    onFocus={() => {
+                      setCustomerSuggestionType("name");
+                      setCustomerSuggestionOpen(true);
+                    }}
+                    onKeyDown={(event) =>
+                      handleCustomerSuggestionKeyDown(event, "name")
+                    }
+                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    placeholder="Nama customer (opsional)"
+                  />
+                  <span className="relative block">
+                    {renderCustomerSuggestions("name")}
+                  </span>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Alamat
+                  </span>
+                  <input
+                    type="text"
+                    value={customerAddress}
+                    onChange={(event) => setCustomerAddress(event.target.value)}
+                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    placeholder="Opsional"
+                  />
+                </label>
+
+                {customerPhone && (loadingCustomer || foundCustomer) ? (
+                  <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800/70 dark:text-slate-300">
+                    {loadingCustomer
+                      ? "Mencari customer..."
+                      : customerLookupMessage}
+                    {normalizedCustomerPhone ? (
+                      <p className="mt-1 tabular-nums">
+                        Normalized: {normalizedCustomerPhone}
+                      </p>
+                    ) : null}
+                    {foundCustomer ? (
+                      <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
+                        {foundCustomer.customerCode} - {foundCustomer.name}
+                      </p>
+                    ) : null}
+                    {foundCustomer?.loyalty_progress ? (
+                      <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+                        <p className="font-semibold">Progress loyalty</p>
+                        <p className="mt-1">
+                          {foundCustomer.loyalty_progress.valid_transactions}/
+                          {foundCustomer.loyalty_progress.next_milestone} transaksi
+                          valid menuju benefit.
+                        </p>
+                        <p className="mt-1 text-xs">
+                          S&K benefit: minimal pembelian{" "}
+                          {rupiah(LOYALTY_MIN_PURCHASE_AMOUNT)} setelah diskon item.
+                        </p>
+                        {foundCustomer.loyalty_progress.eligible_milestone ? (
+                          foundCustomer.loyalty_progress.reserved_milestones.includes(
+                            foundCustomer.loyalty_progress.eligible_milestone,
+                          ) ? (
+                            <p className="mt-1 font-semibold">
+                              Milestone {foundCustomer.loyalty_progress.eligible_milestone} sedang reserved di transaksi pending.
+                            </p>
+                          ) : (
+                            <p className="mt-1 font-semibold">
+                              Transaksi ini mencapai milestone {foundCustomer.loyalty_progress.eligible_milestone}.
+                            </p>
+                          )
+                        ) : (
+                          <p className="mt-1">
+                            Sisa {foundCustomer.loyalty_progress.remaining_to_next} transaksi.
+                          </p>
+                        )}
+                        {eligibleLoyaltyMilestone && !loyaltyMinimumMet ? (
+                          <p className="mt-1 font-semibold text-amber-800 dark:text-amber-100">
+                            Subtotal saat ini belum memenuhi minimal pembelian.
+                            Kurang {rupiah(loyaltyMinimumShortfall)}.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </details>
+          </div>
+
+          <div className="shrink-0 border-t border-teal-200 bg-white/95 p-2 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900/95">
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <span className="min-w-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {selectedPaymentMethod?.name ?? "Pilih pembayaran"}
+              </span>
+              <span className="shrink-0 text-base font-extrabold tabular-nums text-slate-950 dark:text-slate-50">
+                {rupiah(grandTotal)}
+              </span>
+            </div>
+            <button
+              onClick={initiateCheckout}
+              disabled={loadingCheckout || cart.length === 0}
+              className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+              type="button"
+            >
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <ShoppingBag className="h-5 w-5 shrink-0" />
+                <span className="truncate">
+                  {loadingCheckout ? "Memproses..." : "Checkout & Konfirmasi"}
+                </span>
+              </span>
+              <span className="shrink-0 text-xs font-semibold">
+                {cartItemCount} item
+              </span>
+            </button>
+          </div>
+        </aside>
+
+        <aside
+          data-mobile-sheet
+          className={`hidden min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-transform duration-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950 sm:max-h-[88dvh] sm:gap-3 sm:rounded-t-[28px] sm:p-4 xl:sticky xl:inset-auto xl:top-5 xl:z-auto xl:flex xl:max-h-none xl:translate-y-0 xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none xl:dark:bg-transparent ${
             mobileCartSheetOpen
               ? "visible translate-y-0 pointer-events-auto"
               : "invisible translate-y-full pointer-events-none xl:visible xl:pointer-events-auto"
@@ -2778,6 +3224,7 @@ export default function PosApp({
           </div>
           <section
             ref={customerAutocompleteRef}
+            data-customer-form
             className="order-2 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:order-1"
           >
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -2860,6 +3307,7 @@ export default function PosApp({
                 </label>
                 <input
                   ref={customerNameInputRef}
+                  data-customer-name-input
                   type="text"
                   value={customerName}
                   onChange={(event) =>
