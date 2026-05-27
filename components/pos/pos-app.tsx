@@ -639,6 +639,7 @@ export default function PosApp({
   const customerNameInputRef = useRef<HTMLInputElement | null>(null);
   const paidAmountInputRef = useRef<HTMLInputElement | null>(null);
   const mobilePaymentSectionRef = useRef<HTMLElement | null>(null);
+  const mobileCartScrollRef = useRef<HTMLDivElement | null>(null);
   const [normalizedCustomerPhone, setNormalizedCustomerPhone] = useState("");
   const [customerLookupMessage, setCustomerLookupMessage] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
@@ -657,6 +658,8 @@ export default function PosApp({
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [mobilePaymentSectionVisible, setMobilePaymentSectionVisible] =
+    useState(false);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -691,6 +694,38 @@ export default function PosApp({
     discountModalItemId !== null;
 
   useGlobalInteractionCleanup(modalOverlayOpen);
+
+  useEffect(() => {
+    if (!mobileCartSheetOpen) {
+      return;
+    }
+
+    const root = mobileCartScrollRef.current;
+    const target = mobilePaymentSectionRef.current;
+
+    if (!root || !target || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setMobilePaymentSectionVisible(
+          entry.isIntersecting && entry.intersectionRatio >= 0.35,
+        );
+      },
+      {
+        root,
+        threshold: [0, 0.35, 0.6],
+      },
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [mobileCartSheetOpen]);
+
   const request = useCallback(
     async (url: string, init: RequestInit = {}) => {
       const isFormData = init.body instanceof FormData;
@@ -1662,6 +1697,7 @@ export default function PosApp({
   }
 
   function scrollToMobilePaymentSection() {
+    setMobilePaymentSectionVisible(true);
     mobilePaymentSectionRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "start",
@@ -2386,7 +2422,10 @@ export default function PosApp({
       {cart.length > 0 ? (
         <button
           type="button"
-          onClick={() => setMobileCartOpen(true)}
+          onClick={() => {
+            setMobilePaymentSectionVisible(false);
+            setMobileCartOpen(true);
+          }}
           data-mobile-hide-on-input
           className={`fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-teal-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-900 shadow-lg shadow-slate-900/10 transition duration-200 dark:border-teal-500/30 dark:bg-slate-900 dark:text-slate-100 sm:inset-x-4 sm:bottom-20 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3 xl:hidden ${
             productSearchFocused
@@ -2811,7 +2850,10 @@ export default function PosApp({
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 pb-2 [-webkit-overflow-scrolling:touch]">
+          <div
+            ref={mobileCartScrollRef}
+            className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 pb-2 [-webkit-overflow-scrolling:touch]"
+          >
             <section className="rounded-2xl border border-teal-200 bg-teal-50 p-3 dark:border-teal-500/30 dark:bg-teal-500/10">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -3203,7 +3245,13 @@ export default function PosApp({
             </details>
           </div>
 
-          <div className="shrink-0 border-t border-teal-200 bg-white/95 p-2 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900/95">
+          <div
+            className={
+              mobilePaymentSectionVisible
+                ? "hidden"
+                : "shrink-0 border-t border-teal-200 bg-white/95 p-2 shadow-lg shadow-slate-900/10 dark:border-teal-500/30 dark:bg-slate-900/95"
+            }
+          >
             <div className="mb-1.5 flex items-center justify-between gap-3">
               <span className="min-w-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {selectedPaymentMethod?.name ?? "Pilih pembayaran"}
