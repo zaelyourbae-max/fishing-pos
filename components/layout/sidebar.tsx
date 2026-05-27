@@ -22,7 +22,7 @@ import {
 
 import LogoutButton from "@/components/layout/logout-button";
 import ThemeToggle from "@/components/layout/theme-toggle";
-import { useBodyScrollLock } from "@/lib/global-interaction-state";
+import { useGlobalInteractionCleanup } from "@/lib/global-interaction-state";
 import {
   canAccessReports,
   canAccessReturns,
@@ -182,7 +182,7 @@ export default function Sidebar({ role }: SidebarProps) {
     return () => window.clearTimeout(timeout);
   }, [drawerMounted, drawerOpen]);
 
-  useBodyScrollLock(drawerOpen);
+  useGlobalInteractionCleanup(drawerOpen);
 
   useEffect(() => {
     if (!drawerOpen) {

@@ -27,10 +27,7 @@ import PaymentConfirmationModal from "@/components/pos/payment-confirmation-moda
 import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
-import {
-  useBodyScrollLock,
-  useGlobalInteractionCleanup,
-} from "@/lib/global-interaction-state";
+import { useGlobalInteractionCleanup } from "@/lib/global-interaction-state";
 import { formatDateTimeID } from "@/lib/date-format";
 import {
   Dialog,
@@ -683,17 +680,14 @@ export default function PosApp({
     (method) => method.code === paymentMethod,
   );
   const mobileCartSheetOpen = mobileCartOpen && cart.length > 0;
-  const blockingOverlayOpen =
+  const modalOverlayOpen =
     mobileCartSheetOpen ||
     (paymentModalOpen && Boolean(selectedPaymentMethod)) ||
-    summaryDetail !== null;
-  const modalOverlayOpen =
-    blockingOverlayOpen ||
+    summaryDetail !== null ||
     productDetail !== null ||
     loyaltyModalOpen ||
     discountModalItemId !== null;
 
-  useBodyScrollLock(blockingOverlayOpen);
   useGlobalInteractionCleanup(modalOverlayOpen);
   const request = useCallback(
     async (url: string, init: RequestInit = {}) => {
