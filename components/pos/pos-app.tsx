@@ -638,6 +638,7 @@ export default function PosApp({
   const mobileCustomerAutocompleteRef = useRef<HTMLDetailsElement | null>(null);
   const customerNameInputRef = useRef<HTMLInputElement | null>(null);
   const paidAmountInputRef = useRef<HTMLInputElement | null>(null);
+  const mobilePaymentSectionRef = useRef<HTMLElement | null>(null);
   const [normalizedCustomerPhone, setNormalizedCustomerPhone] = useState("");
   const [customerLookupMessage, setCustomerLookupMessage] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
@@ -1658,6 +1659,16 @@ export default function PosApp({
 
     setMobileCartOpen(false);
     setPaymentModalOpen(true);
+  }
+
+  function scrollToMobilePaymentSection() {
+    mobilePaymentSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    mobilePaymentSectionRef.current?.focus({
+      preventScroll: true,
+    });
   }
 
   async function finalizeCheckout() {
@@ -2931,7 +2942,12 @@ export default function PosApp({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section
+              ref={mobilePaymentSectionRef}
+              id="mobile-payment-section"
+              tabIndex={-1}
+              className="scroll-mt-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:border-slate-800 dark:bg-slate-900"
+            >
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Pembayaran
@@ -2994,6 +3010,23 @@ export default function PosApp({
                   </p>
                 </div>
               ) : null}
+
+              <button
+                onClick={initiateCheckout}
+                disabled={loadingCheckout || cart.length === 0}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                type="button"
+              >
+                <span className="inline-flex min-w-0 items-center gap-2">
+                  <ShoppingBag className="h-5 w-5 shrink-0" />
+                  <span className="truncate">
+                    {loadingCheckout ? "Memproses..." : "Checkout & Konfirmasi"}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold">
+                  {cartItemCount} item
+                </span>
+              </button>
             </section>
 
             <details
@@ -3180,15 +3213,15 @@ export default function PosApp({
               </span>
             </div>
             <button
-              onClick={initiateCheckout}
-              disabled={loadingCheckout || cart.length === 0}
+              onClick={scrollToMobilePaymentSection}
+              disabled={cart.length === 0}
               className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
               type="button"
             >
               <span className="inline-flex min-w-0 items-center gap-2">
                 <ShoppingBag className="h-5 w-5 shrink-0" />
                 <span className="truncate">
-                  {loadingCheckout ? "Memproses..." : "Checkout & Konfirmasi"}
+                  Lanjut ke Pembayaran
                 </span>
               </span>
               <span className="shrink-0 text-xs font-semibold">
