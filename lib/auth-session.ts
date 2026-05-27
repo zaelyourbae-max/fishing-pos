@@ -22,8 +22,39 @@ export {
   type RoleSlug,
 } from "@/lib/permissions";
 
-const SESSION_SECRET =
-  process.env.SESSION_SECRET ?? "dev-session-secret-change-me";
+const DEV_SESSION_SECRET = "dev-session-secret-change-me";
+const MIN_SESSION_SECRET_LENGTH = 32;
+
+function resolveSessionSecret() {
+  const secret = process.env.SESSION_SECRET?.trim();
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (!secret) {
+    if (isProduction) {
+      throw new Error(
+        "SESSION_SECRET is required in production and must be at least 32 characters.",
+      );
+    }
+
+    return DEV_SESSION_SECRET;
+  }
+
+  if (isProduction && secret === DEV_SESSION_SECRET) {
+    throw new Error(
+      "SESSION_SECRET must not use the development fallback value.",
+    );
+  }
+
+  if (secret.length < MIN_SESSION_SECRET_LENGTH) {
+    throw new Error(
+      "SESSION_SECRET must be at least 32 characters.",
+    );
+  }
+
+  return secret;
+}
+
+const SESSION_SECRET = resolveSessionSecret();
 const TOKEN_TTL_SECONDS = 60 * 60 * 12;
 
 export type TokenPayload = {
