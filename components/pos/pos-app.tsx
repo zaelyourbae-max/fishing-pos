@@ -27,6 +27,7 @@ import PaymentConfirmationModal from "@/components/pos/payment-confirmation-moda
 import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
+import { useBodyScrollLock } from "@/lib/body-scroll-lock";
 import { formatDateTimeID } from "@/lib/date-format";
 import {
   Dialog,
@@ -915,45 +916,7 @@ export default function PosApp({
     return () => window.removeEventListener("resize", updateProductPageSize);
   }, []);
 
-  useEffect(() => {
-    if (!mobileOverlayOpen) {
-      return;
-    }
-
-    const scrollY = window.scrollY;
-    const { body, documentElement } = document;
-    const previousBodyStyles = {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      overflow: body.style.overflow,
-      overscrollBehavior: body.style.overscrollBehavior,
-    };
-    const previousHtmlOverscroll = documentElement.style.overscrollBehavior;
-
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
-    body.style.overflow = "hidden";
-    body.style.overscrollBehavior = "none";
-    documentElement.style.overscrollBehavior = "none";
-
-    return () => {
-      body.style.position = previousBodyStyles.position;
-      body.style.top = previousBodyStyles.top;
-      body.style.left = previousBodyStyles.left;
-      body.style.right = previousBodyStyles.right;
-      body.style.width = previousBodyStyles.width;
-      body.style.overflow = previousBodyStyles.overflow;
-      body.style.overscrollBehavior = previousBodyStyles.overscrollBehavior;
-      documentElement.style.overscrollBehavior = previousHtmlOverscroll;
-      window.scrollTo(0, scrollY);
-    };
-  }, [mobileOverlayOpen]);
+  useBodyScrollLock(mobileOverlayOpen);
 
   useEffect(() => {
     if (!customerSuggestionOpen) {

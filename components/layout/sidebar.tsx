@@ -22,6 +22,7 @@ import {
 
 import LogoutButton from "@/components/layout/logout-button";
 import ThemeToggle from "@/components/layout/theme-toggle";
+import { useBodyScrollLock } from "@/lib/body-scroll-lock";
 import {
   canAccessReports,
   canAccessReturns,
@@ -181,16 +182,12 @@ export default function Sidebar({ role }: SidebarProps) {
     return () => window.clearTimeout(timeout);
   }, [drawerMounted, drawerOpen]);
 
+  useBodyScrollLock(drawerOpen);
+
   useEffect(() => {
-    if (!drawerMounted) {
+    if (!drawerOpen) {
       return;
     }
-
-    const originalOverflow = document.body.style.overflow;
-    const originalTouchAction = document.body.style.touchAction;
-
-    document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -201,11 +198,9 @@ export default function Sidebar({ role }: SidebarProps) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.touchAction = originalTouchAction;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [closeDrawer, drawerMounted]);
+  }, [closeDrawer, drawerOpen]);
 
   return (
     <>
