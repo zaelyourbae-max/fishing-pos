@@ -197,6 +197,7 @@ type SummaryDetail = {
 const TOKEN_KEY = "fishing_pos_token";
 const USER_KEY = "fishing_pos_user";
 const DEFAULT_POS_PRODUCT_PAGE_SIZE = 6;
+const MOBILE_CART_PREVIEW_LIMIT = 3;
 const POS_DRAFT_KEY_PREFIX = "fishing_pos_draft_v1";
 const POS_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -757,6 +758,7 @@ export default function PosApp({
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [mobilePaymentSectionVisible, setMobilePaymentSectionVisible] =
     useState(false);
+  const [mobileCartItemsExpanded, setMobileCartItemsExpanded] = useState(false);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -784,6 +786,13 @@ export default function PosApp({
     (method) => method.code === paymentMethod,
   );
   const mobileCartSheetOpen = mobileCartOpen && cart.length > 0;
+  const visibleMobileCartItems = mobileCartItemsExpanded
+    ? cart
+    : cart.slice(0, MOBILE_CART_PREVIEW_LIMIT);
+  const hiddenMobileCartItemCount = Math.max(
+    cart.length - MOBILE_CART_PREVIEW_LIMIT,
+    0,
+  );
   const modalOverlayOpen =
     mobileCartSheetOpen ||
     (paymentModalOpen && Boolean(selectedPaymentMethod)) ||
@@ -2656,6 +2665,7 @@ export default function PosApp({
           type="button"
           onClick={() => {
             setMobilePaymentSectionVisible(false);
+            setMobileCartItemsExpanded(false);
             setMobileCartOpen(true);
           }}
           data-mobile-hide-on-input
@@ -3116,7 +3126,7 @@ export default function PosApp({
               </div>
 
               <div className="space-y-1.5 p-2">
-                {cart.slice(0, 3).map((item) => (
+                {visibleMobileCartItems.map((item) => (
                   <div
                     key={item.id}
                     className="rounded-xl border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-950/50"
@@ -3208,10 +3218,19 @@ export default function PosApp({
                   </div>
                 ))}
 
-                {cart.length > 3 ? (
-                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-center text-xs font-semibold text-slate-500 dark:bg-slate-950/60 dark:text-slate-400">
-                    +{cart.length - 3} baris item lain ikut checkout.
-                  </p>
+                {hiddenMobileCartItemCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMobileCartItemsExpanded((current) => !current)
+                    }
+                    className="flex w-full items-center justify-center rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-center text-xs font-bold text-teal-700 transition hover:bg-teal-100 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200 dark:hover:bg-teal-500/20"
+                    aria-expanded={mobileCartItemsExpanded}
+                  >
+                    {mobileCartItemsExpanded
+                      ? "Ringkas item"
+                      : `Lihat semua item (+${hiddenMobileCartItemCount})`}
+                  </button>
                 ) : null}
               </div>
             </section>
