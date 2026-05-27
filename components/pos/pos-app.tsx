@@ -197,6 +197,28 @@ type SummaryDetail = {
 const TOKEN_KEY = "fishing_pos_token";
 const USER_KEY = "fishing_pos_user";
 const DEFAULT_POS_PRODUCT_PAGE_SIZE = 6;
+const POS_DRAFT_KEY_PREFIX = "fishing_pos_draft_v1";
+const POS_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+
+type PosDraftCartItem = {
+  productId: number;
+  qty: number;
+  qtyInput: string;
+  discountType: DiscountType;
+  discountValue: number;
+  discountReason: string;
+};
+
+type PosDraft = {
+  version: 1;
+  updatedAt: number;
+  cart: PosDraftCartItem[];
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  paymentMethod: string;
+  paidAmount: string;
+};
 
 function resolvePosProductPageSize() {
   if (typeof window === "undefined") {
@@ -465,6 +487,80 @@ function readStoredUser() {
   return value ? (JSON.parse(value) as UserPayload) : null;
 }
 
+function userDraftKey(user: UserPayload | null) {
+  const rawKey = user?.email || user?.name || "guest";
+  const scopedKey = rawKey.trim().toLocaleLowerCase("id-ID") || "guest";
+
+  return `${POS_DRAFT_KEY_PREFIX}:${scopedKey}`;
+}
+
+function readPosDraft(key: string): PosDraft | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawDraft = window.localStorage.getItem(key);
+
+    if (!rawDraft) {
+      return null;
+    }
+
+    const draft = JSON.parse(rawDraft) as Partial<PosDraft>;
+
+    if (
+      draft.version !== 1 ||
+      typeof draft.updatedAt !== "number" ||
+      Date.now() - draft.updatedAt > POS_DRAFT_TTL_MS
+    ) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    return {
+      version: 1,
+      updatedAt: draft.updatedAt,
+      cart: Array.isArray(draft.cart) ? draft.cart : [],
+      customerName: stringValue(draft.customerName),
+      customerPhone: stringValue(draft.customerPhone),
+      customerAddress: stringValue(draft.customerAddress),
+      paymentMethod: stringValue(draft.paymentMethod),
+      paidAmount: normalizeRupiahIntegerInput(stringValue(draft.paidAmount)),
+    };
+  } catch {
+    window.localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function clearPosDraft(key: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(key);
+}
+
+function writePosDraft(key: string, draft: Omit<PosDraft, "version" | "updatedAt">) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (draft.cart.length === 0) {
+    clearPosDraft(key);
+    return;
+  }
+
+  window.localStorage.setItem(
+    key,
+    JSON.stringify({
+      version: 1,
+      updatedAt: Date.now(),
+      ...draft,
+    } satisfies PosDraft),
+  );
+}
+
 function objectValue(value: unknown, key: string) {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)[key]
@@ -592,6 +688,7 @@ export default function PosApp({
     () => readStoredUser() ?? currentUser,
   );
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [productSearchFocused, setProductSearchFocused] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
@@ -673,6 +770,8 @@ export default function PosApp({
     reason: "",
   });
   const [discountModalError, setDiscountModalError] = useState("");
+  const [posDraftHydrated, setPosDraftHydrated] = useState(false);
+  const restoredDraftKeyRef = useRef("");
   const [loyaltyModalOpen, setLoyaltyModalOpen] = useState(false);
   const [loyaltyModalError, setLoyaltyModalError] = useState("");
   const [loyaltyConfirmedKey, setLoyaltyConfirmedKey] = useState("");
@@ -692,6 +791,7 @@ export default function PosApp({
     productDetail !== null ||
     loyaltyModalOpen ||
     discountModalItemId !== null;
+  const posDraftKey = useMemo(() => userDraftKey(user), [user]);
 
   useGlobalInteractionCleanup(modalOverlayOpen);
 
@@ -795,6 +895,7 @@ export default function PosApp({
       }
     } finally {
       setLoadingProducts(false);
+      setProductsLoaded(true);
     }
   }, [request]);
 
@@ -961,6 +1062,126 @@ export default function PosApp({
 
     return () => window.clearTimeout(timer);
   }, [fetchActivePendingQris, fetchProducts, fetchSummary]);
+
+  useEffect(() => {
+    if (!productsLoaded || restoredDraftKeyRef.current === posDraftKey) {
+      return;
+    }
+
+    restoredDraftKeyRef.current = posDraftKey;
+
+    const restoreTimer = window.setTimeout(() => {
+      const draft = readPosDraft(posDraftKey);
+
+      setPosDraftHydrated(true);
+
+      if (!draft) {
+        return;
+      }
+
+      const productById = new Map(
+        products.map((product) => [product.id, product]),
+      );
+      const restoredCart: CartItem[] = [];
+      const warnings: string[] = [];
+
+      for (const draftItem of draft.cart) {
+        const productId = Number(draftItem.productId);
+        const product = Number.isInteger(productId)
+          ? productById.get(productId)
+          : undefined;
+
+        if (!product || product.stock <= 0) {
+          warnings.push("beberapa item tidak tersedia lagi");
+          continue;
+        }
+
+        const draftQty = Number(draftItem.qty);
+        const safeQty =
+          Number.isInteger(draftQty) && draftQty > 0
+            ? Math.min(draftQty, product.stock)
+            : 1;
+
+        if (safeQty !== draftQty) {
+          warnings.push(`${product.name} disesuaikan ke stok ${safeQty}`);
+        }
+
+        const discountType: DiscountType =
+          draftItem.discountType === "FIXED" ||
+          draftItem.discountType === "PERCENT"
+            ? draftItem.discountType
+            : "NONE";
+        const discountValue = Number(draftItem.discountValue);
+        const safeDiscountValue =
+          discountType === "NONE" || !Number.isFinite(discountValue)
+            ? 0
+            : Math.max(discountValue, 0);
+
+        restoredCart.push({
+          ...product,
+          qty: safeQty,
+          qtyInput: String(safeQty),
+          discountType,
+          discountValue: safeDiscountValue,
+          discountReason:
+            discountType === "NONE" || safeDiscountValue <= 0
+              ? ""
+              : stringValue(draftItem.discountReason).trim(),
+        });
+      }
+
+      setCart(restoredCart);
+      setCustomerName(draft.customerName);
+      setCustomerPhone(draft.customerPhone);
+      setCustomerAddress(draft.customerAddress);
+      setPaidAmount(draft.paidAmount);
+
+      if (paymentMethods.some((method) => method.code === draft.paymentMethod)) {
+        setPaymentMethod(draft.paymentMethod);
+      }
+
+      if (warnings.length > 0) {
+        setErrorMessage(
+          `Draft POS dipulihkan dengan penyesuaian: ${Array.from(
+            new Set(warnings),
+          ).join(", ")}.`,
+        );
+      }
+    }, 0);
+
+    return () => window.clearTimeout(restoreTimer);
+  }, [paymentMethods, posDraftKey, products, productsLoaded]);
+
+  useEffect(() => {
+    if (!posDraftHydrated) {
+      return;
+    }
+
+    writePosDraft(posDraftKey, {
+      cart: cart.map((item) => ({
+        productId: item.id,
+        qty: item.qty,
+        qtyInput: item.qtyInput,
+        discountType: item.discountType,
+        discountValue: item.discountValue,
+        discountReason: item.discountReason,
+      })),
+      customerName,
+      customerPhone,
+      customerAddress,
+      paymentMethod,
+      paidAmount,
+    });
+  }, [
+    cart,
+    customerAddress,
+    customerName,
+    customerPhone,
+    paidAmount,
+    paymentMethod,
+    posDraftHydrated,
+    posDraftKey,
+  ]);
 
   useEffect(() => {
     function updateProductPageSize() {
@@ -1819,6 +2040,7 @@ export default function PosApp({
       });
       setProofFile(null);
       setProofMessage("");
+      clearPosDraft(posDraftKey);
       setCart([]);
       setPaidAmount("");
       setLoyaltyConfirmedKey("");
@@ -1913,9 +2135,13 @@ export default function PosApp({
 
     window.localStorage.removeItem(TOKEN_KEY);
     window.localStorage.removeItem(USER_KEY);
+    clearPosDraft(posDraftKey);
+    restoredDraftKeyRef.current = "";
+    setPosDraftHydrated(false);
     setToken("");
     setUser(null);
     setProducts([]);
+    setProductsLoaded(false);
     setCart([]);
     setPaidAmount("");
     setPaymentMethod(
@@ -1926,7 +2152,13 @@ export default function PosApp({
     setSuccessMessage("");
     setLastSaleId("");
     setCheckoutSuccess(null);
+    setCustomerName("");
+    setCustomerPhone("");
+    setCustomerAddress("");
     setSelectedCustomer(null);
+    setFoundCustomer(null);
+    setNormalizedCustomerPhone("");
+    setCustomerLookupMessage("");
     closeCustomerSuggestions();
     setPaymentModalOpen(false);
     setErrorMessage("");
