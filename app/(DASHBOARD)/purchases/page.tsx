@@ -116,7 +116,8 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
       <div>
         <h1 className="page-title">Stock-In Pembelian</h1>
         <p className="mt-3 text-slate-500 dark:text-slate-400">
-          Catat stok masuk dari supplier resmi.
+          Jalur resmi untuk mencatat barang masuk dan menambah stok. Supplier
+          bisa distributor, grosir, atau toko kecil tempat owner membeli barang.
         </p>
       </div>
 

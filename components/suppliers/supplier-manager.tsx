@@ -151,7 +151,8 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
             {isEditing ? "Edit Supplier" : "Tambah Supplier"}
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Supplier aktif akan tersedia di form pembelian.
+            Supplier aktif akan tersedia di form pembelian. Boleh berupa
+            distributor, grosir, sales, atau toko kecil.
           </p>
         </div>
 
@@ -174,7 +175,7 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
               setForm((current) => ({ ...current, name: event.target.value }))
             }
             className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 text-slate-900 outline-none dark:text-slate-100"
-            placeholder="Nama supplier"
+            placeholder="Nama supplier / toko kecil"
           />
           <select
             value={form.type}
@@ -192,7 +193,7 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
               setForm((current) => ({ ...current, phone: event.target.value }))
             }
             className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 text-slate-900 outline-none dark:text-slate-100"
-            placeholder="Telepon"
+            placeholder="Telepon (opsional)"
           />
         </div>
 
@@ -202,7 +203,7 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
             setForm((current) => ({ ...current, address: event.target.value }))
           }
           className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 text-slate-900 outline-none dark:text-slate-100"
-          placeholder="Alamat"
+          placeholder="Alamat (opsional)"
         />
 
         <textarea
@@ -211,7 +212,7 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
             setForm((current) => ({ ...current, notes: event.target.value }))
           }
           className="min-h-24 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 text-slate-900 outline-none dark:text-slate-100"
-          placeholder="Notes"
+          placeholder="Catatan asal barang, tempo, atau kontak sales (opsional)"
         />
 
         <div className="responsive-action-row">

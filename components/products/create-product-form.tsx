@@ -109,7 +109,7 @@ export default function CreateProductForm() {
       </h1>
 
       <p className="text-slate-400 mt-3">
-        Tambahkan produk baru
+        Tambahkan data barang. Stok awal hanya untuk setup pertama.
       </p>
 
       <form
@@ -208,8 +208,11 @@ export default function CreateProductForm() {
                 value={supplier}
                 onChange={(e) => setSupplier(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Opsional"
+                placeholder="Opsional, bisa distributor atau toko kecil"
               />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Boleh diisi sederhana sebagai asal barang.
+              </p>
             </label>
             <label className="space-y-2">
               <span className="text-sm text-slate-600 dark:text-slate-300">Lokasi Rak</span>
@@ -265,15 +268,18 @@ export default function CreateProductForm() {
               </p>
             </label>
             <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Stok *</span>
+              <span className="text-sm text-slate-600 dark:text-slate-300">Stok awal *</span>
               <input
                 type="number"
                 min={0}
                 value={stock}
                 onChange={(e) => setStock(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Jumlah stok"
+                placeholder="Jumlah stok awal"
               />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Isi hanya saat produk pertama kali dibuat. Untuk tambah stok barang lama, gunakan menu Pembelian.
+              </p>
             </label>
             <label className="space-y-2">
               <span className="text-sm text-slate-600 dark:text-slate-300">Min Stok *</span>

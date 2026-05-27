@@ -198,6 +198,11 @@ export default function PurchaseForm({
         </div>
       ) : null}
 
+      <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200">
+        Pembelian adalah jalur resmi untuk menambah stok barang lama. Setelah
+        disimpan, stok produk otomatis bertambah sesuai qty.
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Supplier</label>
@@ -253,7 +258,8 @@ export default function PurchaseForm({
                 </select>
                 {selectedProduct ? (
                   <p className="mt-2 text-xs text-slate-500">
-                    Stok saat ini: {selectedProduct.stock}
+                    Stok saat ini: {selectedProduct.stock}. Qty pembelian akan
+                    menambah stok setelah disimpan.
                   </p>
                 ) : null}
               </div>
