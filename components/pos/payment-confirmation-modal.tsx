@@ -117,8 +117,8 @@ export default function PaymentConfirmationModal({
                 </p>
               </div>
               <p className="mt-4 text-sm text-teal-800 dark:text-teal-200">
-                Minta customer transfer sesuai total, lalu klik Pembayaran
-                Diterima setelah bukti/transfer dikonfirmasi.
+                Minta customer transfer sesuai total. Transaksi akan tersimpan
+                sebagai pending sampai pembayaran diverifikasi sesuai flow toko.
               </p>
             </div>
           ) : null}
@@ -158,7 +158,7 @@ export default function PaymentConfirmationModal({
                 ? "Selesaikan Transaksi"
                 : isQris
                   ? "Buat Transaksi Pending"
-                : "Pembayaran Diterima"}
+                : "Buat Transaksi Pending"}
           </button>
         </div>
       </div>
