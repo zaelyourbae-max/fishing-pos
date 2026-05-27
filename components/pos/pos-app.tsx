@@ -27,7 +27,6 @@ import PaymentConfirmationModal from "@/components/pos/payment-confirmation-moda
 import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
-import { useBodyScrollLock } from "@/lib/body-scroll-lock";
 import { formatDateTimeID } from "@/lib/date-format";
 import {
   Dialog,
@@ -676,9 +675,6 @@ export default function PosApp({
     value: "0",
     note: "",
   });
-  const mobileOverlayOpen =
-    mobileCartOpen || paymentModalOpen || summaryDetail !== null;
-
   const request = useCallback(
     async (url: string, init: RequestInit = {}) => {
       const isFormData = init.body instanceof FormData;
@@ -915,8 +911,6 @@ export default function PosApp({
 
     return () => window.removeEventListener("resize", updateProductPageSize);
   }, []);
-
-  useBodyScrollLock(mobileOverlayOpen);
 
   useEffect(() => {
     if (!customerSuggestionOpen) {

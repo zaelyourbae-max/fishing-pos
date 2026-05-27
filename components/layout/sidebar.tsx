@@ -22,7 +22,6 @@ import {
 
 import LogoutButton from "@/components/layout/logout-button";
 import ThemeToggle from "@/components/layout/theme-toggle";
-import { useBodyScrollLock } from "@/lib/body-scroll-lock";
 import {
   canAccessReports,
   canAccessReturns,
@@ -182,8 +181,6 @@ export default function Sidebar({ role }: SidebarProps) {
     return () => window.clearTimeout(timeout);
   }, [drawerMounted, drawerOpen]);
 
-  useBodyScrollLock(drawerOpen);
-
   useEffect(() => {
     if (!drawerOpen) {
       return;
@@ -229,7 +226,7 @@ export default function Sidebar({ role }: SidebarProps) {
         >
           <button
             type="button"
-            className={`absolute inset-0 bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${
+            className={`absolute inset-0 touch-none bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${
               drawerOpen ? "opacity-100" : "opacity-0"
             }`}
             onClick={closeDrawer}
