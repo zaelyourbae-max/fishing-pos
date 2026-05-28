@@ -17,18 +17,6 @@ type LoginResponse = {
 
 const TOKEN_KEY = "fishing_pos_token";
 const USER_KEY = "fishing_pos_user";
-const DEMO_CREDENTIALS = [
-  {
-    label: "Isi demo owner",
-    email: "owner@toko.local",
-    password: "owner123",
-  },
-  {
-    label: "Isi demo kasir",
-    email: "cashier@toko.local",
-    password: "cashier123",
-  },
-] as const;
 
 export default function LoginForm() {
   const router = useRouter();
@@ -112,6 +100,7 @@ export default function LoginForm() {
             inputMode="email"
             autoComplete="username"
             enterKeyHint="next"
+            placeholder="nama@meijrverse.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-base"
@@ -124,6 +113,7 @@ export default function LoginForm() {
             type="password"
             autoComplete="current-password"
             enterKeyHint="done"
+            placeholder="••••••••"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-base"
@@ -137,26 +127,6 @@ export default function LoginForm() {
         >
           {loading ? "Login..." : "Login"}
         </button>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-        <span className="text-xs font-semibold text-slate-500">
-          Akun demo:
-        </span>
-        {DEMO_CREDENTIALS.map((credential) => (
-          <button
-            key={credential.email}
-            type="button"
-            onClick={() => {
-              setEmail(credential.email);
-              setPassword(credential.password);
-              setError("");
-            }}
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-[0.98]"
-          >
-            {credential.label}
-          </button>
-        ))}
       </div>
     </form>
   );
