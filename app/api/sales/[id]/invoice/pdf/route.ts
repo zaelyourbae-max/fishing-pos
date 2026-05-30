@@ -1,591 +1,618 @@
 import { requireAuth } from "@/lib/auth-session";
-import { formatDateID, formatDateTimeID } from "@/lib/date-format";
+import { formatDateTimeID } from "@/lib/date-format";
 import { prisma } from "@/lib/prisma";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
-import { getSettings } from "@/lib/settings";
 import { operatorLabel } from "@/lib/transaction-identity";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-// ── PDF constants ────────────────────────────────────────────────────────────
-const PAGE_WIDTH = 595;
-const PAGE_HEIGHT = 842;
-const MARGIN_X = 40;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_X * 2; // 515
-const NAVY = "#0F172A";
-const MUTED = "#64748B";
-const BORDER = "#E2E8F0";
-const TEAL = "#0F9F8A";
-const SOFT_TEAL = "#F0FDFB";
-const SOFT_ROSE = "#FFF1F2";
+// ─── Page & layout ────────────────────────────────────────────────────────────
+const PW  = 595;
+const PH  = 842;
+const MX  = 48;          // margin x
+const CW  = PW - MX * 2; // content width = 499
 
-// ── PDF primitives (identical pattern to existing PDF exports) ───────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const NAVY    = "#0F172A";
+const MUTED   = "#64748B";
+const BORDER  = "#E2E8F0";
+const ROSE    = "#E11D48";
+const AMBER   = "#D97706";
+const EMERALD = "#059669";
 
-function escapeText(value: string) {
-  return value
+// ─── PDF primitives ───────────────────────────────────────────────────────────
+
+function esc(v: string) {
+  return v
     .replace(/[^\x20-\x7E]/g, " ")
     .replaceAll("\\", "\\\\")
     .replaceAll("(", "\\(")
     .replaceAll(")", "\\)");
 }
 
-function color(hex: string) {
-  const v = hex.replace("#", "");
-  const r = parseInt(v.slice(0, 2), 16) / 255;
-  const g = parseInt(v.slice(2, 4), 16) / 255;
-  const b = parseInt(v.slice(4, 6), 16) / 255;
-  return `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`;
+function rgb(hex: string) {
+  const h = hex.replace("#", "");
+  return [
+    (parseInt(h.slice(0, 2), 16) / 255).toFixed(3),
+    (parseInt(h.slice(2, 4), 16) / 255).toFixed(3),
+    (parseInt(h.slice(4, 6), 16) / 255).toFixed(3),
+  ].join(" ");
 }
 
-function text(
-  value: string,
-  x: number,
-  y: number,
-  size = 10,
-  font = "F1",
-  fill = NAVY,
-) {
+function txt(value: string, x: number, y: number, size = 10, bold = false, fill = NAVY) {
+  const font = bold ? "F2" : "F1";
   return [
     "BT",
     `/${font} ${size} Tf`,
-    `${color(fill)} rg`,
-    `${x} ${PAGE_HEIGHT - y} Td`,
-    `(${escapeText(value)}) Tj`,
+    `${rgb(fill)} rg`,
+    `${x} ${PH - y} Td`,
+    `(${esc(value)}) Tj`,
     "ET",
   ].join("\n");
 }
 
-function rect(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  fill: string,
-  stroke?: string,
-) {
-  const yy = PAGE_HEIGHT - y - height;
-  if (!stroke) {
-    return `${color(fill)} rg\n${x} ${yy} ${width} ${height} re f`;
-  }
+function box(x: number, y: number, w: number, h: number, fill: string, stroke?: string) {
+  const yy = PH - y - h;
+  if (!stroke) return `${rgb(fill)} rg\n${x} ${yy} ${w} ${h} re f`;
   return [
-    `${color(fill)} rg`,
-    `${color(stroke)} RG`,
-    "0.8 w",
-    `${x} ${yy} ${width} ${height} re B`,
+    `${rgb(fill)} rg`,
+    `${rgb(stroke)} RG`,
+    "0.5 w",
+    `${x} ${yy} ${w} ${h} re B`,
   ].join("\n");
 }
 
-function line(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  stroke = BORDER,
-) {
-  return `${color(stroke)} RG\n0.8 w\n${x1} ${PAGE_HEIGHT - y1} m\n${x2} ${PAGE_HEIGHT - y2} l\nS`;
+function hline(x1: number, y: number, x2: number, stroke = BORDER) {
+  return `${rgb(stroke)} RG\n0.5 w\n${x1} ${PH - y} m\n${x2} ${PH - y} l\nS`;
 }
 
-function truncate(value: string, max = 20) {
-  return value.length > max ? `${value.slice(0, max - 2)}..` : value;
+function cut(v: string, max: number) {
+  return v.length > max ? v.slice(0, max - 2) + ".." : v;
 }
 
-function rupiah(amount: number) {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function rp(n: number) {
+  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
 }
 
-function formatDate(date: Date) {
-  return formatDateID(date);
-}
+function fmtDate(d: Date) { return formatDateTimeID(d); }
 
-function formatDateTime(date: Date) {
-  return formatDateTimeID(date);
-}
-
-function returnReasonLabel(reason: string) {
+function returnLabel(reason: string) {
   return RETURN_REASON_LABELS[reason as ReturnReason] ?? reason;
 }
 
-// ── PDF assembly (identical to existing exports) ─────────────────────────────
+// ─── Status badge ─────────────────────────────────────────────────────────────
 
-function buildPdfPages(pages: string[]) {
-  const pageObjects = pages.flatMap((content, index) => {
-    const pageObjectNumber = 5 + index * 2;
-    const contentObjectNumber = pageObjectNumber + 1;
-    return [
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`,
-      `<< /Length ${Buffer.byteLength(content, "utf8")} >>\nstream\n${content}\nendstream`,
-    ];
-  });
-
-  const kids = pages.map((_, i) => `${5 + i * 2} 0 R`).join(" ");
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
-    ...pageObjects,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets: number[] = [];
-
-  objects.forEach((obj, index) => {
-    offsets.push(Buffer.byteLength(pdf, "utf8"));
-    pdf += `${index + 1} 0 obj\n${obj}\nendobj\n`;
-  });
-
-  const xrefOffset = Buffer.byteLength(pdf, "utf8");
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-
-  for (const offset of offsets) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  return Buffer.from(pdf, "utf8");
+function statusColors(status: string): { bg: string; fg: string } {
+  if (status === "SUCCESS" || status === "PAID")   return { bg: "#ECFDF5", fg: EMERALD };
+  if (status === "PENDING" || status === "WAITING_PROOF") return { bg: "#FFFBEB", fg: AMBER };
+  if (status === "CANCELLED" || status === "FAILED")      return { bg: "#FFF1F2", fg: ROSE };
+  return { bg: "#F4F4F5", fg: MUTED };
 }
 
-// ── Invoice-specific layout helpers ─────────────────────────────────────────
+function statusBadge(label: string, x: number, y: number): { content: string; width: number } {
+  const { bg, fg } = statusColors(label);
+  const cw  = 5.8;  // approx char width at 8pt Helvetica
+  const pad = 8;
+  const bw  = label.length * cw + pad * 2;
+  const bh  = 16;
+  return {
+    content: [
+      box(x, y - 12, bw, bh, bg),
+      txt(label, x + pad, y, 8, true, fg),
+    ].join("\n"),
+    width: bw,
+  };
+}
 
-function pageFooter(page: number, total: number) {
+// ─── Label + value pair (info grid) ──────────────────────────────────────────
+
+function labelVal(label: string, value: string, x: number, y: number, maxVal = 28) {
   return [
-    line(MARGIN_X, 800, PAGE_WIDTH - MARGIN_X, 800),
-    text("Generated by Meijrverse POS", MARGIN_X, 818, 7.5, "F1", MUTED),
-    text(`Halaman ${page} dari ${total}`, 500, 818, 7.5, "F1", MUTED),
+    txt(label, x, y, 8.5, false, MUTED),
+    txt(cut(value, maxVal), x, y + 15, 10, true, NAVY),
   ].join("\n");
 }
 
-function invoiceHeader(storeName: string, invoiceNumber: string, printedAt: string) {
+// ─── Totals row ───────────────────────────────────────────────────────────────
+
+const TOT_LX = 300;   // label start x for totals block
+const TOT_RX = PW - MX; // right edge = 547
+
+function totalLine(label: string, value: string, y: number, bold = false, valueColor = NAVY) {
+  // right-align value: approximate char width at 10pt ≈ 5.5 px
+  const valX = TOT_RX - value.length * 5.5;
   return [
-    // Store name top-left
-    text(storeName.toUpperCase(), MARGIN_X, 44, 16, "F2", TEAL),
-    text("Invoice Pembelian", MARGIN_X, 64, 10, "F1", MUTED),
-    // Invoice number top-right
-    text("Nomor Invoice", 390, 38, 7.5, "F1", MUTED),
-    text(invoiceNumber, 390, 52, 9.5, "F2", NAVY),
-    text("Dicetak", 390, 66, 7.5, "F1", MUTED),
-    text(printedAt, 390, 80, 8, "F1", NAVY),
-    // Divider
-    line(MARGIN_X, 92, PAGE_WIDTH - MARGIN_X, 92, "#99D6CB"),
+    txt(label, TOT_LX, y, 9.5, bold, bold ? NAVY : MUTED),
+    txt(value, valX, y, 9.5, bold, valueColor),
   ].join("\n");
 }
 
-function detailRow(label: string, value: string, y: number, col: "left" | "right") {
-  const lx = col === "left" ? MARGIN_X : 310;
-  const vx = col === "left" ? 140 : 420;
+// ─── Item table ───────────────────────────────────────────────────────────────
+//  Columns: Item(MX..310) | Qty(310..355) | Harga(355..430) | Diskon(430..490) | Subtotal(490..547)
+
+// Column right edges (sum = CW = 499):
+//   Item 220pt → x 48–268   Qty 45pt → 268–313
+//   Harga 75pt → 313–388    Diskon 65pt → 388–453
+//   Subtotal 94pt → 453–547
+const COL_QTY_R  = 313;
+const COL_HRG_R  = 388;
+const COL_DSC_R  = 453;
+const COL_SUB_R  = 547; // = PW - MX
+const COL_PAD    = 6;   // right padding inside each column so text never touches border
+
+// Right-align helper: anchor to (colRight - COL_PAD), char width ~5pt at 8-9pt Helvetica
+function rax(text: string, colRight: number, charW = 5.0) {
+  return colRight - COL_PAD - text.length * charW;
+}
+
+function itemTableHeader(y: number) {
   return [
-    text(label, lx, y, 8, "F1", MUTED),
-    text(truncate(value, 22), vx, y, 8.5, "F2", NAVY),
+    box(MX, y, CW, 24, NAVY),
+    txt("Item",     MX + 6,                    y + 16, 8.5, true, "#FFFFFF"),
+    txt("Qty",      rax("Qty",      COL_QTY_R, 4.8), y + 16, 8.5, true, "#FFFFFF"),
+    txt("Harga",    rax("Harga",    COL_HRG_R, 4.8), y + 16, 8.5, true, "#FFFFFF"),
+    txt("Diskon",   rax("Diskon",   COL_DSC_R, 4.8), y + 16, 8.5, true, "#FFFFFF"),
+    txt("Subtotal", rax("Subtotal", COL_SUB_R, 4.8), y + 16, 8.5, true, "#FFFFFF"),
   ].join("\n");
 }
 
-function sectionTitle(label: string, y: number) {
-  return text(label.toUpperCase(), MARGIN_X, y, 9, "F2", NAVY);
-}
-
-function tableHeader(y: number) {
-  return [
-    rect(MARGIN_X, y, CONTENT_WIDTH, 24, NAVY),
-    text("Produk", 52, y + 16, 7.5, "F2", "#FFFFFF"),
-    text("SKU", 268, y + 16, 7.5, "F2", "#FFFFFF"),
-    text("Qty", 328, y + 16, 7.5, "F2", "#FFFFFF"),
-    text("Harga Satuan", 368, y + 16, 7.5, "F2", "#FFFFFF"),
-    text("Subtotal", 510, y + 16, 7.5, "F2", "#FFFFFF"),
-  ].join("\n");
-}
+type RowResult = { content: string; height: number };
 
 function itemRow(
   y: number,
-  productName: string,
+  name: string,
   sku: string,
   qty: number,
   price: number,
   subtotal: number,
   discountAmount: number,
-  discountLabel: string,
+  discountTypeLabel: string,
   discountReason: string,
-  fill: string,
-) {
-  const hasDiscount = discountAmount > 0;
-  const rowHeight = hasDiscount ? 40 : 24;
+  alt: boolean,
+): RowResult {
+  const hasDisc   = discountAmount > 0;
+  const hasReason = hasDisc && discountReason.trim().length > 0;
+  const rowH      = hasDisc ? (hasReason ? 54 : 42) : 32;
+  const fillBg    = alt ? "#F8FAFC" : "#FFFFFF";
 
-  const parts = [
-    rect(MARGIN_X, y, CONTENT_WIDTH, rowHeight, fill, BORDER),
-    text(truncate(productName, 32), 52, y + 15, 8, "F2", NAVY),
-    text(truncate(sku || "-", 12), 268, y + 15, 8, "F1", MUTED),
-    text(String(qty), 340, y + 15, 8, "F1", NAVY),
-    text(rupiah(price), 555, y + 15, 8, "F1", NAVY),
-    text(rupiah(subtotal), 555, hasDiscount ? y + 15 : y + 15, 8, "F2", NAVY),
+  const qtyStr  = String(qty);
+  const priceStr = rp(price);
+  const subStr   = rp(subtotal);
+
+  const parts: string[] = [
+    box(MX, y, CW, rowH, fillBg, BORDER),
+    txt(cut(name, 28),       MX + 6,                    y + 18, 9,   true,  NAVY),
+    txt(cut(sku || "-", 20), MX + 6,                    y + 30, 7.5, false, MUTED),
+    txt(qtyStr,   rax(qtyStr,   COL_QTY_R),             y + 18, 9,   false, NAVY),
+    txt(priceStr, rax(priceStr, COL_HRG_R),             y + 18, 9,   false, NAVY),
+    txt(subStr,   rax(subStr,   COL_SUB_R),             y + 18, 9,   true,  NAVY),
   ];
 
-  if (hasDiscount) {
+  if (hasDisc) {
+    const discStr = `-${rp(discountAmount)}`;
     parts.push(
-      text(`Diskon: -${rupiah(discountAmount)} ${discountLabel}`, 52, y + 30, 7, "F1", "#DC2626"),
+      txt(discStr,           rax(discStr,           COL_DSC_R), y + 18, 9, false, ROSE),
+      txt(discountTypeLabel, rax(discountTypeLabel, COL_DSC_R), y + 30, 8, false, MUTED),
     );
-    if (discountReason) {
-      parts.push(
-        text(truncate(`(${discountReason})`, 40), 52, y + 42, 7, "F1", MUTED),
-      );
+    if (hasReason) {
+      parts.push(txt(cut(discountReason, 24), MX + 6, y + 44, 7.5, false, MUTED));
     }
+  } else {
+    parts.push(txt("-", rax("-", COL_DSC_R), y + 18, 9, false, MUTED));
   }
 
-  return { content: parts.join("\n"), height: rowHeight };
+  return { content: parts.join("\n"), height: rowH };
 }
 
-function totalRow(label: string, value: string, y: number, bold = false, color_?: string) {
-  const font = bold ? "F2" : "F1";
-  const labelColor = color_ ?? (bold ? NAVY : MUTED);
-  const valueColor = color_ ?? (bold ? NAVY : NAVY);
+// ─── Returns table ────────────────────────────────────────────────────────────
+
+function returnTableHeader(y: number) {
   return [
-    text(label, 330, y, 8.5, font, labelColor),
-    text(value, 555, y, 8.5, font, valueColor),
+    box(MX, y, CW, 22, "#374151"),
+    txt("Tanggal", MX + 6, y + 14, 8.5, true, "#FFFFFF"),
+    txt("Item",    170,    y + 14, 8.5, true, "#FFFFFF"),
+    txt("Qty",     370,    y + 14, 8.5, true, "#FFFFFF"),
+    txt("Nilai",   415,    y + 14, 8.5, true, "#FFFFFF"),
+    txt("Alasan",  480,    y + 14, 8.5, true, "#FFFFFF"),
   ].join("\n");
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
+// ─── Page footer ──────────────────────────────────────────────────────────────
+
+function pageFooter(page: number, total: number) {
+  return [
+    hline(MX, 812, PW - MX),
+    txt("Generated by Fishing POS", MX, 828, 7.5, false, MUTED),
+    txt(`Halaman ${page} dari ${total}`, PW - MX - 80, 828, 7.5, false, MUTED),
+  ].join("\n");
+}
+
+// ─── PDF assembly ─────────────────────────────────────────────────────────────
+
+function buildPdf(pages: string[]): Buffer {
+  const objs = pages.flatMap((content, i) => {
+    const pn = 5 + i * 2;
+    const cn = pn + 1;
+    return [
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${cn} 0 R >>`,
+      `<< /Length ${Buffer.byteLength(content, "utf8")} >>\nstream\n${content}\nendstream`,
+    ];
+  });
+  const kids    = pages.map((_, i) => `${5 + i * 2} 0 R`).join(" ");
+  const catalog = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    ...objs,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offs: number[] = [];
+  catalog.forEach((o, i) => {
+    offs.push(Buffer.byteLength(pdf, "utf8"));
+    pdf += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(pdf, "utf8");
+  pdf += `xref\n0 ${catalog.length + 1}\n0000000000 65535 f \n`;
+  offs.forEach(o => { pdf += `${String(o).padStart(10, "0")} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${catalog.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(pdf, "utf8");
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
 
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  const { id } = await params;
+  const { id }  = await params;
   const session = auth.session;
 
-  // Fetch sale — cashiers can only access their own sales (same rule as invoice page)
-  const [sale, settings] = await Promise.all([
-    prisma.sale.findFirst({
-      where: {
-        id,
-        ...(session.role === "cashier" ? { cashierId: session.sub } : {}),
-      },
-      include: {
-        cashier: {
-          select: {
-            name: true,
-            email: true,
-            role: {
-              select: { name: true, slug: true },
-            },
-          },
-        },
-        customer: {
-          select: { name: true, phone: true, customerCode: true },
-        },
-        items: {
-          select: {
-            id: true,
-            qty: true,
-            price: true,
-            subtotal: true,
-            discountType: true,
-            discountValue: true,
-            discountAmount: true,
-            discountReason: true,
-            subtotalBeforeDiscount: true,
-            product: {
-              select: { name: true, sku: true },
-            },
-          },
-          orderBy: { id: "asc" },
-        },
-        returns: {
-          where: { returnType: "CUSTOMER_RETURN" },
-          include: {
-            items: {
-              include: {
-                product: { select: { name: true, sku: true } },
-              },
-              orderBy: { createdAt: "asc" },
-            },
-          },
-          orderBy: { createdAt: "desc" },
+  const sale = await prisma.sale.findFirst({
+    where: {
+      id,
+      ...(session.role === "cashier" ? { cashierId: session.sub } : {}),
+    },
+    include: {
+      cashier: {
+        select: {
+          name: true,
+          email: true,
+          role: { select: { name: true, slug: true } },
         },
       },
-    }),
-    getSettings(),
-  ]);
+      customer: {
+        select: { name: true, phone: true, customerCode: true },
+      },
+      cancelledBy: {
+        select: { name: true, email: true },
+      },
+      items: {
+        select: {
+          id: true,
+          qty: true,
+          price: true,
+          subtotal: true,
+          discountType: true,
+          discountValue: true,
+          discountAmount: true,
+          discountReason: true,
+          subtotalBeforeDiscount: true,
+          product: { select: { name: true, sku: true } },
+        },
+        orderBy: { id: "asc" },
+      },
+      returns: {
+        where: { returnType: "CUSTOMER_RETURN" },
+        include: {
+          items: {
+            include: { product: { select: { name: true, sku: true } } },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
 
   if (!sale) {
     return NextResponse.json({ message: "Invoice tidak ditemukan." }, { status: 404 });
   }
+
+  const confirmedSale = sale;
 
   const paymentMethod = await prisma.paymentMethod.findUnique({
     where: { code: sale.paymentMethod },
     select: { name: true },
   });
 
-  // ── Computed values ───────────────────────────────────────────────────────
-  const moneyNumber = (v: unknown) => Math.round(Number(v ?? 0));
+  // ── Computed values ────────────────────────────────────────────────────────
+  const mn = (v: unknown) => Math.round(Number(v ?? 0));
 
-  const totalItemDiscount = sale.items.reduce(
-    (acc, item) => acc + moneyNumber(item.discountAmount),
-    0,
-  );
-  const subtotalBeforeDiscount = sale.items.reduce((acc, item) => {
-    const stored = moneyNumber(item.subtotalBeforeDiscount);
-    return acc + (stored > 0 ? stored : item.price * item.qty);
+  const totalQty              = sale.items.reduce((a, i) => a + i.qty, 0);
+  const totalItemDiscount     = sale.items.reduce((a, i) => a + mn(i.discountAmount), 0);
+  const subtotalBeforeDiscount = sale.items.reduce((a, i) => {
+    const s = mn(i.subtotalBeforeDiscount);
+    return a + (s > 0 ? s : i.price * i.qty);
   }, 0);
   const subtotalBeforeLoyalty =
     sale.subtotalBeforeLoyalty > 0
       ? sale.subtotalBeforeLoyalty
       : Math.max(subtotalBeforeDiscount - totalItemDiscount, 0);
   const changeAmount = Math.max(sale.paidAmount - sale.subtotal, 0);
-  const totalReturn = sale.returns.reduce(
-    (acc, r) => acc + (r.totalRefund ?? 0),
-    0,
-  );
+  const totalReturn  = sale.returns.reduce((a, r) => a + (r.totalRefund ?? 0), 0);
 
-  const storeName = settings.storeName || "Toko Pancing";
-  const printedAt = formatDateTime(new Date());
-  const paymentMethodName = paymentMethod?.name ?? sale.paymentMethod;
-  const cashierName = operatorLabel(sale.cashier);
+  const cashierName  = operatorLabel(sale.cashier);
+  const paymentName  = paymentMethod?.name ?? sale.paymentMethod;
+  const customerName = sale.customer?.name ?? "Walk-in Customer";
+  const customerSub  = sale.customer
+    ? `${sale.customer.customerCode}${sale.customer.phone ? " - " + sale.customer.phone : ""}`
+    : "";
 
-  const statusLabel: string =
-    sale.transactionStatus === "SUCCESS"
-      ? "Lunas"
-      : sale.transactionStatus === "PENDING"
-        ? "Pending"
-        : sale.transactionStatus === "CANCELLED"
-          ? "Dibatalkan"
-          : String(sale.transactionStatus);
-
-  // ── Build PDF ─────────────────────────────────────────────────────────────
+  // ── Page rendering ─────────────────────────────────────────────────────────
   const pages: string[][] = [];
-  const page1: string[] = [];
 
-  // Header
-  page1.push(invoiceHeader(storeName, sale.invoiceNumber, printedAt));
+  function newPage() {
+    const pg: string[] = [];
 
-  // Info grid
-  let y = 112;
-  page1.push(
-    detailRow("Tanggal Transaksi", formatDateTime(sale.createdAt), y, "left"),
-    detailRow("Kasir", cashierName, y, "right"),
-  );
-  y += 18;
-  page1.push(
-    detailRow("Metode Pembayaran", paymentMethodName, y, "left"),
-    detailRow(
-      "Pelanggan",
-      sale.customer?.name ?? "Umum",
-      y,
-      "right",
-    ),
-  );
-  y += 18;
-  page1.push(
-    detailRow("Status", statusLabel, y, "left"),
-  );
-  if (sale.customer?.phone) {
-    page1.push(detailRow("HP Pelanggan", sale.customer.phone, y, "right"));
-  } else if (sale.customer?.customerCode) {
-    page1.push(detailRow("Kode Pelanggan", sale.customer.customerCode, y, "right"));
-  }
+    // "Fishing POS" label
+    pg.push(txt("Fishing POS", MX, 48, 9, false, MUTED));
 
-  // If cancelled
-  if (sale.transactionStatus === "CANCELLED") {
-    y += 22;
-    page1.push(
-      rect(MARGIN_X, y, CONTENT_WIDTH, 28, SOFT_ROSE, "#FECACA"),
-      text("Transaksi ini dibatalkan.", 52, y + 18, 9, "F2", "#DC2626"),
-    );
-    if (sale.cancelReason) {
-      page1.push(text(`Alasan: ${truncate(sale.cancelReason, 50)}`, 52, y + 18, 8, "F1", "#DC2626"));
+    // "Invoice" heading (large)
+    pg.push(txt("Invoice", MX, 76, 24, true, NAVY));
+
+    // Status badges — left side below heading
+    let badgeY = 100;
+    if (confirmedSale.returns.length > 0) {
+      const retW = "Ada Retur".length * 5.8 + 16;
+      pg.push(box(MX, badgeY - 13, retW, 17, "#FFF1F2"));
+      pg.push(txt("Ada Retur", MX + 8, badgeY, 8, true, ROSE));
+      badgeY = 120;
     }
+    let bx = MX;
+    for (const status of [confirmedSale.transactionStatus, confirmedSale.paymentStatus]) {
+      const b = statusBadge(String(status), bx, badgeY);
+      pg.push(b.content);
+      bx += b.width + 6;
+    }
+
+    // Invoice number — right-aligned to right margin
+    const invNumW   = confirmedSale.invoiceNumber.length * 5.5;
+    const invLabelW = "Invoice Number".length * 4.8;
+    pg.push(txt("Invoice Number",          PW - MX - invLabelW, 48, 8.5, false, MUTED));
+    pg.push(txt(confirmedSale.invoiceNumber, PW - MX - invNumW, 66, 10,  true,  NAVY));
+
+    // Divider below header
+    pg.push(hline(MX, 118, PW - MX, "#CBD5E1"));
+
+    pages.push(pg);
   }
 
-  // Items section
-  y += 30;
-  page1.push(
-    line(MARGIN_X, y, PAGE_WIDTH - MARGIN_X, y),
+  newPage();
+  let y = 136;
+
+  // ── Info grid (2 columns) ────────────────────────────────────────────────
+  // Row 1: Tanggal | Payment Method
+  pages[pages.length - 1].push(
+    labelVal("Tanggal Transaksi", fmtDate(sale.createdAt), MX, y, 30),
+    labelVal("Payment Method", cut(paymentName, 26), 305, y, 26),
   );
+  y += 40;
+
+  // Row 2: Payment Status (badges) | Operator
+  pages[pages.length - 1].push(
+    txt("Payment Status", MX, y, 8.5, false, MUTED),
+    txt("Operator",       305, y, 8.5, false, MUTED),
+  );
+  y += 14;
+  let pbx = MX;
+  for (const status of [sale.paymentStatus, sale.transactionStatus]) {
+    const b = statusBadge(String(status), pbx, y);
+    pages[pages.length - 1].push(b.content);
+    pbx += b.width + 6;
+  }
+  pages[pages.length - 1].push(
+    txt(cut(cashierName, 26), 305, y, 10, true, NAVY),
+    txt(cut(sale.cashier.email, 30), 305, y + 14, 8, false, MUTED),
+  );
+  y += 32;
+
+  // Row 3: Customer
+  pages[pages.length - 1].push(
+    txt("Customer", MX, y, 8.5, false, MUTED),
+    txt(cut(customerName, 30), MX, y + 15, 10, true, NAVY),
+  );
+  if (customerSub) {
+    pages[pages.length - 1].push(txt(cut(customerSub, 40), MX, y + 29, 8, false, MUTED));
+    y += 14;
+  }
+  y += 36;
+
+  // ── Cancelled block ──────────────────────────────────────────────────────
+  if (sale.transactionStatus === "CANCELLED") {
+    pages[pages.length - 1].push(hline(MX, y, PW - MX));
+    y += 16;
+    pages[pages.length - 1].push(txt("Transaksi Dibatalkan", MX, y, 11, true, ROSE));
+    y += 18;
+    pages[pages.length - 1].push(
+      box(MX, y - 2, 235, 34, "#FFF1F2", "#FECACA"),
+      txt("Alasan", MX + 8, y + 11, 8, false, "#F43F5E"),
+      txt(cut(sale.cancelReason ?? "-", 30), MX + 8, y + 24, 9, true, "#9F1239"),
+      box(MX + 243, y - 2, 256, 34, "#FFFFFF", BORDER),
+      txt("Dibatalkan Pada", MX + 251, y + 11, 8, false, MUTED),
+      txt(sale.cancelledAt ? fmtDate(sale.cancelledAt) : "-", MX + 251, y + 24, 9, true, NAVY),
+    );
+    y += 42;
+    pages[pages.length - 1].push(
+      box(MX, y - 2, CW, 30, "#FFFFFF", BORDER),
+      txt("Dibatalkan Oleh", MX + 8, y + 11, 8, false, MUTED),
+      txt(cut(sale.cancelledBy?.name ?? "-", 40), MX + 8, y + 23, 9, true, NAVY),
+    );
+    y += 38;
+  }
+
+  // ── Items table ──────────────────────────────────────────────────────────
+  pages[pages.length - 1].push(hline(MX, y, PW - MX));
   y += 16;
-  page1.push(sectionTitle("Item Pembelian", y));
-  y += 18;
-  page1.push(tableHeader(y));
+  pages[pages.length - 1].push(itemTableHeader(y));
   y += 24;
 
-  pages.push(page1);
-
-  // Item rows — may span pages
-  let itemFill = "#FFFFFF";
+  let alt = false;
   for (const item of sale.items) {
-    const discountAmount = moneyNumber(item.discountAmount);
-    const hasDiscount = discountAmount > 0;
-    const discountLabel =
-      item.discountType === "PERCENT"
-        ? `(${moneyNumber(item.discountValue)}%)`
-        : item.discountType === "FIXED"
-          ? "(nominal)"
-          : "";
-    const rowHeight = hasDiscount ? (item.discountReason ? 50 : 40) : 24;
+    const discAmt    = mn(item.discountAmount);
+    const typeLabel  = item.discountType === "PERCENT"
+      ? `${mn(item.discountValue)}%`
+      : item.discountType === "FIXED" ? "Nominal" : "";
+    const hasDisc    = discAmt > 0;
+    const hasReason  = hasDisc && (item.discountReason ?? "").trim().length > 0;
+    const rowH       = hasDisc ? (hasReason ? 54 : 42) : 32;
 
-    if (y + rowHeight > 768) {
+    if (y + rowH > 776) {
       pages[pages.length - 1].push(pageFooter(pages.length, 0));
-      pages.push([
-        invoiceHeader(storeName, sale.invoiceNumber, printedAt),
-        sectionTitle("Item Pembelian (lanjutan)", 112),
-        tableHeader(130),
-      ]);
-      y = 154;
+      newPage();
+      y = 100;
+      pages[pages.length - 1].push(itemTableHeader(y));
+      y += 24;
     }
 
-    const { content } = itemRow(
+    const r = itemRow(
       y,
       item.product.name,
       item.product.sku ?? "",
       item.qty,
       item.price,
       item.subtotal,
-      discountAmount,
-      discountLabel,
+      discAmt,
+      typeLabel,
       item.discountReason ?? "",
-      itemFill,
+      alt,
     );
-    pages[pages.length - 1].push(content);
-    y += rowHeight;
-    itemFill = itemFill === "#FFFFFF" ? "#F8FAFC" : "#FFFFFF";
+    pages[pages.length - 1].push(r.content);
+    y += r.height;
+    alt = !alt;
   }
 
-  // Totals section
-  if (y + 130 > 768) {
+  // ── Totals block ─────────────────────────────────────────────────────────
+  if (y + 130 > 776) {
     pages[pages.length - 1].push(pageFooter(pages.length, 0));
-    pages.push([invoiceHeader(storeName, sale.invoiceNumber, printedAt)]);
-    y = 112;
+    newPage();
+    y = 100;
   }
 
   y += 14;
-  pages[pages.length - 1].push(line(MARGIN_X, y, PAGE_WIDTH - MARGIN_X, y));
-  y += 18;
+  pages[pages.length - 1].push(hline(MX, y, PW - MX));
+  y += 22;
 
-  pages[pages.length - 1].push(
-    totalRow("Subtotal sebelum diskon", rupiah(subtotalBeforeDiscount), y),
-  );
-  y += 16;
+  pages[pages.length - 1].push(totalLine("Total Qty", String(totalQty), y));
+  y += 20;
 
-  if (totalItemDiscount > 0) {
-    pages[pages.length - 1].push(
-      totalRow("Total diskon item", `-${rupiah(totalItemDiscount)}`, y, false, "#DC2626"),
-    );
-    y += 16;
-  }
+  pages[pages.length - 1].push(totalLine("Subtotal", rp(subtotalBeforeDiscount), y));
+  y += 20;
 
-  if (sale.loyaltyApplied && sale.loyaltyDiscountAmount > 0) {
-    const loyaltyLabel = sale.loyaltyMilestone
-      ? `Diskon loyalty (ke-${sale.loyaltyMilestone})`
-      : "Diskon loyalty";
-    pages[pages.length - 1].push(
-      totalRow(loyaltyLabel, `-${rupiah(sale.loyaltyDiscountAmount)}`, y, false, "#DC2626"),
-    );
-    y += 16;
-  }
+  pages[pages.length - 1].push(totalLine("Total Diskon Grosir", `-${rp(totalItemDiscount)}`, y, false, ROSE));
+  y += 20;
 
-  pages[pages.length - 1].push(line(330, y + 4, PAGE_WIDTH - MARGIN_X, y + 4));
-  y += 14;
+  if (sale.loyaltyApplied) {
+    pages[pages.length - 1].push(totalLine("Subtotal Sebelum Loyalty", rp(subtotalBeforeLoyalty), y));
+    y += 20;
 
-  // Grand total
-  pages[pages.length - 1].push(
-    rect(330, y - 4, CONTENT_WIDTH - 290, 24, SOFT_TEAL),
-    totalRow("Grand Total", rupiah(sale.subtotal), y + 14, true),
-  );
-  y += 24;
+    const loyaltyLabel = `Diskon Loyalty${sale.loyaltyMilestone ? ` (ke-${sale.loyaltyMilestone})` : ""}`;
+    pages[pages.length - 1].push(totalLine(loyaltyLabel, `-${rp(sale.loyaltyDiscountAmount)}`, y, false, ROSE));
+    y += 20;
 
-  pages[pages.length - 1].push(
-    totalRow("Dibayar", rupiah(sale.paidAmount), y + 4),
-  );
-  y += 18;
-
-  if (changeAmount > 0) {
-    pages[pages.length - 1].push(
-      totalRow("Kembalian", rupiah(changeAmount), y + 2),
-    );
-    y += 16;
-  }
-
-  // Returns section
-  if (sale.returns.length > 0) {
-    y += 16;
-    if (y + 60 > 768) {
-      pages[pages.length - 1].push(pageFooter(pages.length, 0));
-      pages.push([invoiceHeader(storeName, sale.invoiceNumber, printedAt)]);
-      y = 112;
+    if (sale.loyaltyBenefitNote) {
+      const note = `Catatan Loyalty: ${cut(sale.loyaltyBenefitNote, 50)}`;
+      pages[pages.length - 1].push(
+        box(TOT_LX, y - 2, CW - (TOT_LX - MX), 22, "#FFFBEB", "#FDE68A"),
+        txt(note, TOT_LX + 6, y + 13, 8, false, "#78350F"),
+      );
+      y += 28;
     }
+  }
 
-    pages[pages.length - 1].push(
-      line(MARGIN_X, y, PAGE_WIDTH - MARGIN_X, y),
-    );
+  if (sale.returns.length > 0) {
+    pages[pages.length - 1].push(totalLine("Total Retur", `-${rp(totalReturn)}`, y, false, ROSE));
+    y += 20;
+  }
+
+  // Grand Total row
+  pages[pages.length - 1].push(hline(TOT_LX, y + 4, PW - MX));
+  y += 16;
+  pages[pages.length - 1].push(
+    box(TOT_LX - 2, y - 12, CW - (TOT_LX - MX) + 2, 26, "#F0FDFB"),
+    totalLine("Grand Total", rp(sale.subtotal), y, true),
+  );
+  y += 26;
+
+  pages[pages.length - 1].push(totalLine("Dibayar", rp(sale.paidAmount), y));
+  y += 20;
+
+  pages[pages.length - 1].push(totalLine("Kembali", rp(changeAmount), y));
+  y += 20;
+
+  // ── Returns section ──────────────────────────────────────────────────────
+  if (sale.returns.length > 0) {
     y += 14;
-    pages[pages.length - 1].push(sectionTitle("Retur Barang", y));
+    if (y + 90 > 776) {
+      pages[pages.length - 1].push(pageFooter(pages.length, 0));
+      newPage();
+      y = 100;
+    }
+    pages[pages.length - 1].push(hline(MX, y, PW - MX));
     y += 16;
-
-    // Returns header
-    pages[pages.length - 1].push(
-      rect(MARGIN_X, y, CONTENT_WIDTH, 22, "#374151"),
-      text("Tanggal", 52, y + 15, 7.5, "F2", "#FFFFFF"),
-      text("Produk", 150, y + 15, 7.5, "F2", "#FFFFFF"),
-      text("Qty", 360, y + 15, 7.5, "F2", "#FFFFFF"),
-      text("Nilai Refund", 400, y + 15, 7.5, "F2", "#FFFFFF"),
-      text("Alasan", 470, y + 15, 7.5, "F2", "#FFFFFF"),
-    );
+    pages[pages.length - 1].push(txt("Item Retur", MX, y, 11, true, NAVY));
+    y += 16;
+    pages[pages.length - 1].push(returnTableHeader(y));
     y += 22;
 
     for (const saleReturn of sale.returns) {
       for (const rItem of saleReturn.items) {
-        if (y + 24 > 768) {
+        if (y + 32 > 776) {
           pages[pages.length - 1].push(pageFooter(pages.length, 0));
-          pages.push([invoiceHeader(storeName, sale.invoiceNumber, printedAt)]);
-          y = 112;
+          newPage();
+          y = 100;
+          pages[pages.length - 1].push(returnTableHeader(y));
+          y += 22;
         }
+        const reason = returnLabel(saleReturn.reason);
+        const notes  = saleReturn.notes ? ` ${saleReturn.notes}` : "";
         pages[pages.length - 1].push(
-          rect(MARGIN_X, y, CONTENT_WIDTH, 24, "#FFF1F2", BORDER),
-          text(formatDate(saleReturn.createdAt), 52, y + 16, 7.5, "F1", MUTED),
-          text(truncate(rItem.product.name, 22), 150, y + 16, 7.5, "F1", NAVY),
-          text(String(rItem.qty), 366, y + 16, 7.5, "F1", NAVY),
-          text(rupiah(rItem.subtotal), 460, y + 16, 7.5, "F1", "#DC2626"),
-          text(truncate(returnReasonLabel(saleReturn.reason), 14), 470, y + 16, 7.5, "F1", NAVY),
+          box(MX, y, CW, 28, "#FFF1F2", BORDER),
+          txt(cut(fmtDate(saleReturn.createdAt), 18), MX + 6,  y + 18, 8,   false, MUTED),
+          txt(cut(rItem.product.name, 24),             170,     y + 18, 9,   true,  NAVY),
+          txt(rItem.product.sku ?? "-",                170,     y + 27, 7.5, false, MUTED),
+          txt(String(rItem.qty),                       375,     y + 18, 8.5, false, NAVY),
+          txt(rp(rItem.subtotal),                      452,     y + 18, 8.5, false, ROSE),
+          txt(cut(reason + notes, 16),                 480,     y + 18, 8,   false, NAVY),
         );
-        y += 24;
+        y += 28;
       }
     }
-
-    if (totalReturn > 0) {
-      y += 4;
-      pages[pages.length - 1].push(
-        totalRow("Total Nilai Retur", `-${rupiah(totalReturn)}`, y, true, "#DC2626"),
-      );
-    }
-    y += 16;
   }
 
-  // Thank-you note
-  y += 20;
-  if (y + 30 > 790) {
+  // ── Footer text ───────────────────────────────────────────────────────────
+  y += 22;
+  if (y + 28 > 790) {
     pages[pages.length - 1].push(pageFooter(pages.length, 0));
-    pages.push([invoiceHeader(storeName, sale.invoiceNumber, printedAt)]);
-    y = 112;
+    newPage();
+    y = 100;
   }
   pages[pages.length - 1].push(
-    line(MARGIN_X, y, PAGE_WIDTH - MARGIN_X, y),
-    text("Terima kasih sudah berbelanja!", MARGIN_X, y + 18, 9, "F2", TEAL),
+    hline(MX, y, PW - MX),
+    txt("Terima kasih sudah berbelanja.", MX, y + 18, 10, true, "#0F766E"),
   );
 
-  // Fix page footers with final page count
-  const total = pages.length;
-  const finalPages = pages.map((page, index) =>
-    [...page, pageFooter(index + 1, total)].join("\n"),
-  );
+  // ── Fix footers with real total page count ────────────────────────────────
+  const total      = pages.length;
+  const finalPages = pages.map((pg, i) => [...pg, pageFooter(i + 1, total)].join("\n"));
 
   const filename = `invoice-${sale.invoiceNumber}.pdf`;
 
-  return new NextResponse(new Uint8Array(buildPdfPages(finalPages)), {
+  return new NextResponse(new Uint8Array(buildPdf(finalPages)), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${filename}"`,
