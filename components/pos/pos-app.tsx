@@ -2889,7 +2889,7 @@ export default function PosApp({
                         addToCart(product);
                       }}
                       disabled={product.stock <= 0}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-base font-bold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400 sm:h-9 sm:w-9 sm:rounded-xl"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-base font-bold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400 sm:h-9 sm:w-9 sm:rounded-xl"
                       type="button"
                       aria-label={`Tambah ${product.name}`}
                     >
@@ -3235,93 +3235,6 @@ export default function PosApp({
               </div>
             </section>
 
-            <section
-              ref={mobilePaymentSectionRef}
-              id="mobile-payment-section"
-              tabIndex={-1}
-              className="scroll-mt-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Pembayaran
-                </p>
-                <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {selectedPaymentMethod?.name ?? "Metode belum dipilih"}
-                </p>
-              </div>
-              <div className="grid gap-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Metode Pembayaran
-                  </span>
-                  <span className="relative block">
-                    <select
-                      value={paymentMethod}
-                      onChange={(event) => setPaymentMethod(event.target.value)}
-                      className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                    >
-                      {paymentMethods.map((method) => (
-                        <option key={method.code} value={method.code}>
-                          {method.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                  </span>
-                </label>
-
-                <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Dibayar
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={formatRupiahIntegerInput(paidAmount)}
-                    onChange={handlePaidAmountChange}
-                    placeholder={formatRupiahIntegerInput(String(grandTotal))}
-                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
-                  />
-                </label>
-              </div>
-
-              {selectedPaymentMethod?.type === "BANK_TRANSFER" ? (
-                <div className="mt-2 rounded-xl bg-slate-50 p-2 text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800">
-                  <p className="font-semibold">Transfer Bank</p>
-                  <p className="mt-1">
-                    Detail rekening tampil di modal checkout.
-                  </p>
-                </div>
-              ) : null}
-
-              {selectedPaymentMethod?.type === "QRIS" ? (
-                <div className="mt-2 rounded-xl bg-slate-50 p-2 text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800">
-                  <p className="font-semibold">QRIS Statis</p>
-                  <p className="mt-1">
-                    QRIS besar tampil setelah kasir klik Checkout.
-                  </p>
-                </div>
-              ) : null}
-
-              <button
-                onClick={initiateCheckout}
-                disabled={loadingCheckout || cart.length === 0}
-                className="mt-3 inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
-                type="button"
-              >
-                <span className="inline-flex min-w-0 items-center gap-2">
-                  <ShoppingBag className="h-5 w-5 shrink-0" />
-                  <span className="truncate">
-                    {loadingCheckout ? "Memproses..." : "Checkout & Konfirmasi"}
-                  </span>
-                </span>
-                <span className="shrink-0 text-xs font-semibold">
-                  {cartItemCount} item
-                </span>
-              </button>
-            </section>
-
             <details
               ref={mobileCustomerAutocompleteRef}
               data-customer-form
@@ -3494,6 +3407,93 @@ export default function PosApp({
                 ) : null}
               </div>
             </details>
+
+            <section
+              ref={mobilePaymentSectionRef}
+              id="mobile-payment-section"
+              tabIndex={-1}
+              className="scroll-mt-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Pembayaran
+                </p>
+                <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {selectedPaymentMethod?.name ?? "Metode belum dipilih"}
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Metode Pembayaran
+                  </span>
+                  <span className="relative block">
+                    <select
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value)}
+                      className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                    >
+                      {paymentMethods.map((method) => (
+                        <option key={method.code} value={method.code}>
+                          {method.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </span>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Dibayar
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={formatRupiahIntegerInput(paidAmount)}
+                    onChange={handlePaidAmountChange}
+                    placeholder={formatRupiahIntegerInput(String(grandTotal))}
+                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  />
+                </label>
+              </div>
+
+              {selectedPaymentMethod?.type === "BANK_TRANSFER" ? (
+                <div className="mt-2 rounded-xl bg-slate-50 p-2 text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800">
+                  <p className="font-semibold">Transfer Bank</p>
+                  <p className="mt-1">
+                    Detail rekening tampil di modal checkout.
+                  </p>
+                </div>
+              ) : null}
+
+              {selectedPaymentMethod?.type === "QRIS" ? (
+                <div className="mt-2 rounded-xl bg-slate-50 p-2 text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800">
+                  <p className="font-semibold">QRIS Statis</p>
+                  <p className="mt-1">
+                    QRIS besar tampil setelah kasir klik Checkout.
+                  </p>
+                </div>
+              ) : null}
+
+              <button
+                onClick={initiateCheckout}
+                disabled={loadingCheckout || cart.length === 0}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                type="button"
+              >
+                <span className="inline-flex min-w-0 items-center gap-2">
+                  <ShoppingBag className="h-5 w-5 shrink-0" />
+                  <span className="truncate">
+                    {loadingCheckout ? "Memproses..." : "Bayar Sekarang"}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold">
+                  {cartItemCount} item
+                </span>
+              </button>
+            </section>
           </div>
 
           <div
@@ -4034,7 +4034,7 @@ export default function PosApp({
                 <span className="inline-flex min-w-0 items-center gap-2">
                   <ShoppingBag className="h-5 w-5 shrink-0" />
                   <span className="truncate">
-                    {loadingCheckout ? "Memproses..." : "Checkout & Konfirmasi"}
+                    {loadingCheckout ? "Memproses..." : "Bayar Sekarang"}
                   </span>
                 </span>
                 <span className="shrink-0 tabular-nums">{rupiah(grandTotal)}</span>
