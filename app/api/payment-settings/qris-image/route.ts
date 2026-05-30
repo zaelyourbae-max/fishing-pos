@@ -1,4 +1,4 @@
-import { requireCashier } from "@/lib/auth-session";
+﻿import { requireCashier } from "@/lib/auth-session";
 import { getQrisImageSource } from "@/lib/payments";
 import { NextResponse } from "next/server";
 
@@ -27,7 +27,7 @@ function imageResponse(dataUrl: string) {
 }
 
 export async function GET(req: Request) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;

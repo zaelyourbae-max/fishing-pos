@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { mkdir, writeFile } from "fs/promises";
 import { randomUUID } from "crypto";
 import path from "path";
@@ -13,7 +13,7 @@ const MIME_EXTENSION = new Map([
 ]);
 
 export async function POST(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

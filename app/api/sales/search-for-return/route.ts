@@ -1,10 +1,10 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import {
   getOwnerReportSummary,
@@ -411,7 +411,7 @@ function addRows(
 }
 
 export async function GET(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

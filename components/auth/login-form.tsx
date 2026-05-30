@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -22,6 +23,7 @@ export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -72,60 +74,93 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={login}
-      className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_36px_rgba(15,23,42,0.055)] sm:rounded-3xl sm:p-8"
+      className="w-full rounded-[1.75rem] border border-white/80 bg-white/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.11)] backdrop-blur sm:p-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-0"
     >
-      <div className="mb-5 sm:mb-7">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">
-          MEIJRVERSE Retail System
-        </p>
-        <h1 className="mt-2.5 font-sans text-2xl font-extrabold tracking-tight text-slate-950 sm:mt-3 sm:text-3xl">
-          Fishing POS
-        </h1>
+      <div className="mb-5 text-center sm:mb-6">
+        <div className="mb-5 lg:hidden">
+          <h1 className="text-3xl font-black tracking-tight text-slate-950">
+            MEIJRVERSE°
+          </h1>
+          <p className="mt-1 text-xs font-bold uppercase tracking-[0.22em] text-teal-700">
+            Retail Operating System
+          </p>
+        </div>
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-700 ring-1 ring-teal-100">
+          <LockKeyhole className="h-6 w-6" />
+        </div>
+        <h2 className="mt-4 font-sans text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+          Welcome Back
+        </h2>
         <p className="mt-2 text-sm font-medium text-slate-500">
-          Login sistem kasir dan operasional toko.
+          Login untuk melanjutkan ke sistem
         </p>
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {error}
         </div>
       ) : null}
 
-      <div className="space-y-3.5 sm:space-y-4">
+      <div className="space-y-3.5">
         <div>
-          <label className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">Email</label>
-          <input
-            type="email"
-            inputMode="email"
-            autoComplete="username"
-            enterKeyHint="next"
-            placeholder="nama@meijrverse.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-base"
-          />
+          <label className="mb-1.5 block text-sm font-bold text-slate-800">
+            Email
+          </label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="username"
+              enterKeyHint="next"
+              placeholder="nama@meijrverse.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-11 py-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15"
+            />
+          </div>
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">Password</label>
-          <input
-            type="password"
-            autoComplete="current-password"
-            enterKeyHint="done"
-            placeholder="••••••••"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-950 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-500/15 sm:min-h-12 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-base"
-          />
+          <label className="mb-1.5 block text-sm font-bold text-slate-800">
+            Password
+          </label>
+          <div className="relative">
+            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              type={passwordVisible ? "text" : "password"}
+              autoComplete="current-password"
+              enterKeyHint="done"
+              placeholder="••••••••"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-12 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15"
+            />
+            <button
+              type="button"
+              onClick={() => setPasswordVisible((current) => !current)}
+              className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              aria-label={
+                passwordVisible ? "Sembunyikan password" : "Tampilkan password"
+              }
+            >
+              {passwordVisible ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="min-h-11 w-full rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 active:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:rounded-2xl sm:py-3 sm:text-base"
+          className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 active:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Login..." : "Login"}
+          <span>{loading ? "Login..." : "Login"}</span>
+          <ArrowRight className="h-5 w-5" />
         </button>
       </div>
     </form>

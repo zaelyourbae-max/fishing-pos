@@ -51,3 +51,11 @@ export function canManageUsers(role: string | null) {
 export function canAccessSuppliers(role: string | null) {
   return isOwnerRole(role);
 }
+
+export function canAccessStockOpname(role: string | null) {
+  return isRoleSlug(role);
+}
+
+export function canManageStockOpname(role: string | null) {
+  return isOwnerRole(role);
+}

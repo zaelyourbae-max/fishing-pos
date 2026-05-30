@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import {
   buildProductImportPreview,
   PRODUCT_IMPORT_MAX_FILE_SIZE_BYTES,
@@ -104,7 +104,7 @@ function parseProductsSheet(workbook: ExcelJS.Workbook) {
 }
 
 export async function POST(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

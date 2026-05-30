@@ -10,7 +10,7 @@ export async function POST(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;

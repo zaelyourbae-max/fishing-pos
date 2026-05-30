@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { PRODUCT_IMPORT_HEADERS } from "@/lib/product-import";
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
@@ -63,7 +63,7 @@ const examples = [
 ];
 
 export async function GET(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

@@ -9,7 +9,7 @@ export async function PATCH(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = requireOwner(request);
+  const auth = await requireOwner(request);
 
   if (!auth.ok) {
     return auth.response;

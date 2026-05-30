@@ -1,4 +1,4 @@
-import { requireCashier } from "@/lib/auth-session";
+﻿import { requireCashier } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { operatorLabel } from "@/lib/transaction-identity";
@@ -28,7 +28,7 @@ function isOwnerRole(role: string | null) {
 }
 
 export async function GET(req: Request) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;

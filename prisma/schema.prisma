@@ -23,6 +23,19 @@ enum SaleItemDiscountType {
   PERCENT
 }
 
+enum StockOpnameStatus {
+  DRAFT
+  COUNTING
+  REVIEW
+  APPROVED
+  CANCELLED
+}
+
+enum StockOpnameMode {
+  IMPORT_EXCEL
+  MANUAL
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -56,6 +69,7 @@ model Product {
   supplierReturnItems SupplierReturnItem[]
   purchaseItems       PurchaseItem[]
   stockMovements      StockMovement[]
+  stockOpnameItems    StockOpnameItem[]
 
   @@index([supplierId])
   @@map("products")
@@ -399,6 +413,8 @@ model StockMovement {
   purchaseItemId       String?             @map("purchase_item_id")
   supplierReturnId     String?             @map("supplier_return_id")
   supplierReturnItemId String?             @map("supplier_return_item_id")
+  stockOpnameSessionId String?             @map("stock_opname_session_id")
+  stockOpnameItemId    String?             @map("stock_opname_item_id")
   createdById          Int?                @map("created_by_id")
   type                 String
   qty                  Int
@@ -414,6 +430,8 @@ model StockMovement {
   purchaseItem         PurchaseItem?       @relation(fields: [purchaseItemId], references: [id])
   supplierReturn       SupplierReturn?     @relation(fields: [supplierReturnId], references: [id])
   supplierReturnItem   SupplierReturnItem? @relation(fields: [supplierReturnItemId], references: [id])
+  stockOpnameSession   StockOpnameSession? @relation(fields: [stockOpnameSessionId], references: [id])
+  stockOpnameItem      StockOpnameItem?    @relation(fields: [stockOpnameItemId], references: [id])
   createdBy            User?               @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
 
   @@index([productId, createdAt])
@@ -421,8 +439,72 @@ model StockMovement {
   @@index([saleId])
   @@index([purchaseId])
   @@index([supplierReturnId])
+  @@index([stockOpnameSessionId])
+  @@index([stockOpnameItemId])
   @@index([createdById, createdAt])
   @@map("stock_movements")
+}
+
+model StockOpnameSession {
+  id            String              @id @default(cuid())
+  opnameNumber  String              @unique @map("opname_number")
+  mode          StockOpnameMode      @default(IMPORT_EXCEL)
+  status        StockOpnameStatus    @default(COUNTING)
+  title         String?
+  notes         String?
+  snapshotAt    DateTime            @default(now()) @map("snapshot_at")
+  createdById   Int                 @map("created_by_id")
+  approvedById  Int?                @map("approved_by_id")
+  cancelledById Int?                @map("cancelled_by_id")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  approvedAt    DateTime?           @map("approved_at")
+  cancelledAt   DateTime?           @map("cancelled_at")
+  cancelReason  String?             @map("cancel_reason")
+  createdBy     User                @relation("StockOpnameCreatedBy", fields: [createdById], references: [id])
+  approvedBy    User?               @relation("StockOpnameApprovedBy", fields: [approvedById], references: [id])
+  cancelledBy   User?               @relation("StockOpnameCancelledBy", fields: [cancelledById], references: [id])
+  items         StockOpnameItem[]
+  stockMovements StockMovement[]
+
+  @@index([status, createdAt])
+  @@index([createdById, createdAt])
+  @@index([approvedById, approvedAt])
+  @@map("stock_opname_sessions")
+}
+
+model StockOpnameItem {
+  id                   String              @id @default(cuid())
+  sessionId            String              @map("session_id")
+  productId            Int                 @map("product_id")
+  productSkuSnapshot   String?             @map("product_sku_snapshot")
+  barcodeSnapshot      String?             @map("barcode_snapshot")
+  productNameSnapshot  String              @map("product_name_snapshot")
+  categorySnapshot     String?             @map("category_snapshot")
+  unitSnapshot         String?             @map("unit_snapshot")
+  rackLocationSnapshot String?             @map("rack_location_snapshot")
+  systemStock          Int                 @map("system_stock")
+  physicalStock        Int?                @map("physical_stock")
+  difference           Int?
+  notes                String?
+  countedById          Int?                @map("counted_by_id")
+  countedAt            DateTime?           @map("counted_at")
+  source               String?
+  approvalStockBefore  Int?                @map("approval_stock_before")
+  approvalStockAfter   Int?                @map("approval_stock_after")
+  approvalDelta        Int?                @map("approval_delta")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  session              StockOpnameSession  @relation(fields: [sessionId], references: [id])
+  product              Product             @relation(fields: [productId], references: [id])
+  countedBy            User?               @relation("StockOpnameCountedBy", fields: [countedById], references: [id])
+  stockMovements       StockMovement[]
+
+  @@unique([sessionId, productId])
+  @@index([sessionId])
+  @@index([productId])
+  @@index([countedById, countedAt])
+  @@map("stock_opname_items")
 }
 
 model Role {
@@ -463,6 +545,10 @@ model User {
   purchases                 Purchase[]        @relation("PurchaseCreatedBy")
   supplierReturns           SupplierReturn[]  @relation("SupplierReturnCreatedBy")
   stockMovements            StockMovement[]   @relation("StockMovementCreatedBy")
+  stockOpnamesCreated       StockOpnameSession[] @relation("StockOpnameCreatedBy")
+  stockOpnamesApproved      StockOpnameSession[] @relation("StockOpnameApprovedBy")
+  stockOpnamesCancelled     StockOpnameSession[] @relation("StockOpnameCancelledBy")
+  stockOpnameCounts         StockOpnameItem[]    @relation("StockOpnameCountedBy")
 
   @@map("users")
 }

@@ -1,4 +1,4 @@
-import { canAccessCustomers, isOwnerRole, requireCashier } from "@/lib/auth-session";
+﻿import { canAccessCustomers, isOwnerRole, requireCashier } from "@/lib/auth-session";
 import { loyaltyProgressFromValidCount } from "@/lib/loyalty";
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
@@ -43,7 +43,7 @@ async function getCustomerLoyaltyProgress(customerId: number) {
 }
 
 export async function GET(req: Request) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;

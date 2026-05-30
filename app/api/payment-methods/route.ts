@@ -1,4 +1,4 @@
-import { requireCashier, requireOwner } from "@/lib/auth-session";
+﻿import { requireCashier, requireOwner } from "@/lib/auth-session";
 import {
   DEFAULT_PAYMENT_METHODS,
   getActivePaymentMethods,
@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 const ALLOWED_TYPES = ["CASH", "BANK_TRANSFER", "QRIS"];
 
 export async function GET(req: Request) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

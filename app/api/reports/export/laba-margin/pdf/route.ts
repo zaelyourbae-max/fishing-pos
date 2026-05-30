@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { serializeProfitSummary } from "@/lib/report-profit-detail";
 import { getOwnerReportSummary, type OwnerReportRange } from "@/lib/reports";
@@ -305,7 +305,7 @@ function buildPdfPages(pages: string[]) {
 }
 
 export async function GET(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

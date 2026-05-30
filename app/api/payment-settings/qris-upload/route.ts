@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { updateQrisImage } from "@/lib/payments";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
@@ -9,7 +9,7 @@ const ALLOWED_TYPES = ["image/png", "image/jpeg"];
 const MAX_SIZE = 2 * 1024 * 1024;
 
 export async function POST(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

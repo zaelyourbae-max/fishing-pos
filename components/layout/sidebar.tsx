@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   BarChart3,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   Menu,
@@ -28,6 +29,7 @@ import {
   canAccessReturns,
   canAccessSettings,
   canAccessSuppliers,
+  canAccessStockOpname,
   canManageUsers,
   type RoleSlug,
 } from "@/lib/permissions";
@@ -62,6 +64,10 @@ function buildMenus(role: RoleSlug): MenuItem[] {
     { name: "Produk", href: "/products", icon: Package },
     { name: "Penjualan", href: "/sales", icon: FileText },
   ];
+
+  if (canAccessStockOpname(role)) {
+    menus.push({ name: "Stock Opname", href: "/stock-opname", icon: ClipboardList });
+  }
 
   if (canAccessReturns(role)) {
     menus.push({ name: "Retur", href: "/returns", icon: RotateCcw });

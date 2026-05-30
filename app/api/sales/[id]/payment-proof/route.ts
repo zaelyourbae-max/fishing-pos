@@ -1,5 +1,10 @@
 import { requireCashier } from "@/lib/auth-session";
 import {
+  closingDateFromInput,
+  dateInputValue,
+  isClosingLockedForDate,
+} from "@/lib/daily-closing";
+import {
   dataUrlImageResponse,
   getPaymentProofDataUrl,
   paymentProofDataKey,
@@ -25,7 +30,7 @@ export async function GET(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -84,7 +89,7 @@ export async function POST(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -127,6 +132,7 @@ export async function POST(
       transactionStatus: true,
       paymentStatus: true,
       expiredAt: true,
+      createdAt: true,
     },
   });
 
@@ -166,6 +172,17 @@ export async function POST(
       {
         message:
           "Transaksi pending sudah melewati batas 15 menit. Jalankan auto-expire atau buat transaksi baru.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const saleDate = closingDateFromInput(dateInputValue(sale.createdAt));
+  if (saleDate && (await isClosingLockedForDate(prisma, saleDate))) {
+    return NextResponse.json(
+      {
+        message:
+          "Tanggal transaksi ini sudah closing. Reopen closing terlebih dahulu sebelum mengonfirmasi pembayaran.",
       },
       { status: 409 },
     );

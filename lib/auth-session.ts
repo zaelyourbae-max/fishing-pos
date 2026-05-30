@@ -4,6 +4,7 @@ import {
   canUsePOS,
   isOwnerRole,
 } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
 
 export {
   canAccessCustomers,
@@ -142,31 +143,43 @@ export function requireSession(request: Request) {
   return token ? verifySessionToken(token) : null;
 }
 
-export function requireAuth(request: Request): GuardResult {
+function unauthenticatedResponse(clearCookie = false) {
+  const res = NextResponse.json({ message: "Unauthenticated." }, { status: 401 });
+
+  if (clearCookie) {
+    res.cookies.set("pos_session", "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+  }
+
+  return res;
+}
+
+export async function requireAuth(request: Request): Promise<GuardResult> {
   const session = requireSession(request);
 
   if (!session) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        {
-          message: "Unauthenticated.",
-        },
-        {
-          status: 401,
-        },
-      ),
-    };
+    return { ok: false, response: unauthenticatedResponse() };
   }
 
-  return {
-    ok: true,
-    session,
-  };
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { isActive: true, deletedAt: true },
+  });
+
+  if (!user || !user.isActive || user.deletedAt !== null) {
+    return { ok: false, response: unauthenticatedResponse(true) };
+  }
+
+  return { ok: true, session };
 }
 
-export function requireOwner(request: Request): GuardResult {
-  const auth = requireAuth(request);
+export async function requireOwner(request: Request): Promise<GuardResult> {
+  const auth = await requireAuth(request);
 
   if (!auth.ok) {
     return auth;
@@ -175,22 +188,15 @@ export function requireOwner(request: Request): GuardResult {
   if (!isOwnerRole(auth.session.role)) {
     return {
       ok: false,
-      response: NextResponse.json(
-        {
-          message: "Forbidden.",
-        },
-        {
-          status: 403,
-        },
-      ),
+      response: NextResponse.json({ message: "Forbidden." }, { status: 403 }),
     };
   }
 
   return auth;
 }
 
-export function requireCashier(request: Request): GuardResult {
-  const auth = requireAuth(request);
+export async function requireCashier(request: Request): Promise<GuardResult> {
+  const auth = await requireAuth(request);
 
   if (!auth.ok) {
     return auth;
@@ -199,14 +205,7 @@ export function requireCashier(request: Request): GuardResult {
   if (!canUsePOS(auth.session.role)) {
     return {
       ok: false,
-      response: NextResponse.json(
-        {
-          message: "Forbidden.",
-        },
-        {
-          status: 403,
-        },
-      ),
+      response: NextResponse.json({ message: "Forbidden." }, { status: 403 }),
     };
   }
 

@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { isReturnReason } from "@/lib/returns";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
@@ -12,7 +12,7 @@ type ReturnItemInput = {
 };
 
 export async function GET(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -97,7 +97,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

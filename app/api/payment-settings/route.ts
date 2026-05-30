@@ -1,4 +1,4 @@
-import { requireCashier, requireOwner } from "@/lib/auth-session";
+﻿import { requireCashier, requireOwner } from "@/lib/auth-session";
 import {
   clearQrisImage,
   getPaymentSettings,
@@ -7,7 +7,7 @@ import {
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
-  const auth = requireCashier(req);
+  const auth = await requireCashier(req);
 
   if (!auth.ok) {
     return auth.response;
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

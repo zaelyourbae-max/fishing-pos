@@ -24,7 +24,7 @@ export async function POST(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

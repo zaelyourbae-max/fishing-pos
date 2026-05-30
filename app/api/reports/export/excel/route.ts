@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import { formatDateTimeID } from "@/lib/date-format";
 import {
   getOwnerReportReturns,
@@ -145,7 +145,7 @@ function addEmptyState(worksheet: ExcelJS.Worksheet, columnCount: number) {
 }
 
 export async function GET(req: Request) {
-  const auth = requireOwner(req);
+  const auth = await requireOwner(req);
 
   if (!auth.ok) {
     return auth.response;

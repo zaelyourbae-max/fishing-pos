@@ -7,7 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "seed": "node --experimental-strip-types prisma/seed.ts",
-    "expire-pending-sales": "node --experimental-strip-types scripts/expire-pending-sales.ts",
+    "expire-pending-sales": "node scripts/expire-pending-sales.mjs",
     "lint": "eslint"
   },
   "dependencies": {
