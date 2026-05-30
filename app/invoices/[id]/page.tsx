@@ -192,13 +192,22 @@ export default async function InvoicePage({
       <div className="mx-auto max-w-3xl">
         <div className="mb-4 flex flex-col gap-3 print:hidden sm:flex-row sm:items-center sm:justify-between">
           <Link
-            href="/pos"
+            href="/sales"
             className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-center text-sm font-semibold hover:bg-zinc-50"
           >
-            Back to POS
+            ← Kembali
           </Link>
 
-          <PrintInvoiceButton />
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`/api/sales/${sale.id}/invoice/pdf`}
+              download
+              className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            >
+              Download PDF
+            </a>
+            <PrintInvoiceButton />
+          </div>
         </div>
         <div className="mb-4 print:hidden">
           <SaleMessageActions saleId={sale.id} />
