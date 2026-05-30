@@ -157,8 +157,8 @@ export default function PaymentConfirmationModal({
               : isCash
                 ? "Selesaikan Transaksi"
                 : isQris
-                  ? "Buat Transaksi Pending"
-                : "Buat Transaksi Pending"}
+                  ? "Konfirmasi — Tunggu Bukti QRIS"
+                : "Konfirmasi — Tunggu Bukti Transfer"}
           </button>
         </div>
       </div>

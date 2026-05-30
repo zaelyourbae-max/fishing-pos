@@ -25,11 +25,11 @@ export default function StockOpnameApproveDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
       <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950">
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-          Approve Stock Opname?
+          Setujui Stock Opname?
         </h2>
         <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-          Approval akan mengubah stok produk dan membuat StockMovement otomatis.
-          Session yang sudah approved tidak bisa diedit lagi.
+          Setelah disetujui, stok semua produk akan diperbarui sesuai hasil
+          hitung fisik. Tindakan ini tidak bisa dibatalkan.
         </p>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
@@ -64,7 +64,7 @@ export default function StockOpnameApproveDialog({
             disabled={loading}
             className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
-            {loading ? "Approving..." : "Approve"}
+            {loading ? "Menyetujui..." : "Setujui & Update Stok"}
           </button>
         </div>
       </div>

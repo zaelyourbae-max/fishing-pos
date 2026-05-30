@@ -50,6 +50,7 @@ export default function StockOpnameDetail({
 }) {
   const router = useRouter();
   const [approveOpen, setApproveOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [loadingAction, setLoadingAction] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -105,10 +106,13 @@ export default function StockOpnameDetail({
     setLoadingAction("");
 
     if (!response.ok) {
-      const staleInfo =
+      const staleCount =
         payload.details?.total && payload.details?.items
-          ? ` (${payload.details.total} item stale)`
-          : "";
+          ? payload.details.total
+          : null;
+      const staleInfo = staleCount
+        ? ` ${staleCount} produk sudah berubah stoknya saat proses berjalan — muat ulang halaman dan coba lagi.`
+        : "";
       setError(`${payload.message ?? "Aksi gagal."}${staleInfo}`);
       return;
     }
@@ -149,17 +153,17 @@ export default function StockOpnameDetail({
               disabled={loadingAction !== ""}
               className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
             >
-              Approve
+              Setujui Stock Opname
             </button>
           ) : null}
           {canCancel ? (
             <button
               type="button"
-              onClick={() => postAction("cancel")}
+              onClick={() => setCancelConfirmOpen(true)}
               disabled={loadingAction !== ""}
               className="rounded-2xl border border-rose-200 px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-500/10"
             >
-              {loadingAction === "cancel" ? "Membatalkan..." : "Cancel"}
+              {loadingAction === "cancel" ? "Membatalkan..." : "Batalkan Sesi"}
             </button>
           ) : null}
         </div>
@@ -218,6 +222,41 @@ export default function StockOpnameDetail({
         onClose={() => setApproveOpen(false)}
         onConfirm={() => postAction("approve")}
       />
+
+      {cancelConfirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Batalkan sesi ini?
+            </h2>
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              Semua data hitungan dalam sesi ini akan hilang dan tidak bisa
+              dikembalikan.
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setCancelConfirmOpen(false)}
+                disabled={loadingAction === "cancel"}
+                className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                Kembali
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelConfirmOpen(false);
+                  void postAction("cancel");
+                }}
+                disabled={loadingAction === "cancel"}
+                className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+              >
+                Ya, Batalkan Sesi
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
