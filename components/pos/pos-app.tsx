@@ -2917,7 +2917,7 @@ export default function PosApp({
                           {formatCategoryLabel(product.category)}
                         </span>
                         <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold tabular-nums text-slate-700 dark:text-slate-300 sm:text-xs">
-                          Stok {product.stock} {product.unit}
+                          Sisa {product.stock} {product.unit}
                         </span>
                       </div>
                     </div>
