@@ -3423,25 +3423,27 @@ export default function PosApp({
                 </p>
               </div>
               <div className="grid gap-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <div>
+                  <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     Metode Pembayaran
                   </span>
-                  <span className="relative block">
-                    <select
-                      value={paymentMethod}
-                      onChange={(event) => setPaymentMethod(event.target.value)}
-                      className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                    >
-                      {paymentMethods.map((method) => (
-                        <option key={method.code} value={method.code}>
-                          {method.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                  </span>
-                </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {paymentMethods.map((method) => (
+                      <button
+                        key={method.code}
+                        type="button"
+                        onClick={() => setPaymentMethod(method.code)}
+                        className={
+                          paymentMethod === method.code
+                            ? "min-h-9 rounded-full bg-teal-600 px-4 py-1.5 text-sm font-semibold text-slate-50 shadow-sm transition-colors duration-150 dark:bg-teal-500 dark:text-slate-950"
+                            : "min-h-9 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors duration-150 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-teal-500/50 dark:hover:bg-teal-500/10"
+                        }
+                      >
+                        {method.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -3969,23 +3971,25 @@ export default function PosApp({
                 </div>
                 <div className="grid gap-2.5">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
                       Metode Pembayaran
-                    </label>
-                    <label className="relative block">
-                      <select
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-medium text-slate-900 outline-none transition-colors duration-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:px-4 sm:pr-10"
-                      >
-                        {paymentMethods.map((method) => (
-                          <option key={method.code} value={method.code}>
-                            {method.name}
-                          </option>
-                        ))}
-                      </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-4" />
-                    </label>
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {paymentMethods.map((method) => (
+                        <button
+                          key={method.code}
+                          type="button"
+                          onClick={() => setPaymentMethod(method.code)}
+                          className={
+                            paymentMethod === method.code
+                              ? "min-h-9 rounded-full bg-teal-600 px-4 py-1.5 text-sm font-semibold text-slate-50 shadow-sm transition-colors duration-150 dark:bg-teal-500 dark:text-slate-950"
+                              : "min-h-9 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors duration-150 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-teal-500/50 dark:hover:bg-teal-500/10"
+                          }
+                        >
+                          {method.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
