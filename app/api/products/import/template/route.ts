@@ -95,24 +95,15 @@ export async function GET(req: Request) {
       right: { style: "thin", color: { argb: "FFCBD5E1" } },
     };
   });
-  sheet.addRows(examples);
+  // Sheet Products sengaja dibiarkan kosong (hanya header) agar owner
+  // langsung mengisi data produk sendiri mulai dari baris ke-2.
   sheet.views = [{ state: "frozen", ySplit: 1 }];
 
-  for (const row of sheet.getRows(2, examples.length) ?? []) {
-    row.eachCell((cell) => {
-      cell.alignment = { vertical: "middle" };
-      cell.border = {
-        top: { style: "thin", color: { argb: "FFE2E8F0" } },
-        left: { style: "thin", color: { argb: "FFE2E8F0" } },
-        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-        right: { style: "thin", color: { argb: "FFE2E8F0" } },
-      };
-    });
-  }
-
   const guideSheet = workbook.addWorksheet("Panduan");
+
+  // ── Bagian 1: Aturan kolom ─────────────────────────────────────────────
   guideSheet.columns = [
-    { header: "Kolom", key: "column", width: 24 },
+    { header: "Kolom", key: "column", width: 26 },
     { header: "Status", key: "status", width: 14 },
     { header: "Aturan", key: "rules", width: 70 },
   ];
@@ -141,6 +132,78 @@ export async function GET(req: Request) {
     { column: "notes", status: "OPSIONAL", rules: "Catatan produk." },
     { column: "Formula Excel", status: "DILARANG", rules: "Jangan gunakan formula. Gunakan nilai final biasa." },
   ]);
+
+  // ── Bagian 2: Contoh data produk ──────────────────────────────────────
+  // Baris kosong sebagai pemisah
+  guideSheet.addRow([]);
+
+  // Judul bagian contoh
+  const exampleTitleRow = guideSheet.addRow(["CONTOH DATA PRODUK"]);
+  exampleTitleRow.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  exampleTitleRow.getCell(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E3A5F" },
+  };
+  exampleTitleRow.getCell(1).alignment = { vertical: "middle" };
+
+  // Header kolom contoh (sama persis dengan sheet Products)
+  const exampleHeaderRow = guideSheet.addRow([
+    "sku", "barcode", "name", "category", "brand", "type", "size",
+    "variant", "supplier", "rackLocation", "unit", "costPrice",
+    "sellPrice", "stock", "minStock", "notes",
+  ]);
+  exampleHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF374151" },
+    };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFCBD5E1" } },
+      left: { style: "thin", color: { argb: "FFCBD5E1" } },
+      bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+      right: { style: "thin", color: { argb: "FFCBD5E1" } },
+    };
+  });
+
+  // Baris contoh produk
+  const exampleDataRows = [
+    [
+      "HOOK-001", "899100100001", "Kail Carbon No. 3", "Kail",
+      "HookMaster", "Carbon", "No. 3", "Hitam",
+      "Supplier Utama", "A-01", "pack", 8000, 12000, 50, 10,
+      "Isi 10 pcs",
+    ],
+    [
+      "LINE-010", "899100100002", "Senar Nylon 100m", "Senar",
+      "RiverLine", "Nylon", "0.30 mm", "Bening",
+      "Supplier Utama", "B-04", "roll", 18000, 25000, 20, 5,
+      "Ukuran 0.30 mm",
+    ],
+    [
+      "", "", "Pelampung Kayu", "Aksesoris",
+      "", "Pelampung", "M", "",
+      "", "C-02", "pcs", 3000, 5000, 30, 8,
+      "SKU otomatis jika kosong",
+    ],
+  ];
+
+  for (const data of exampleDataRows) {
+    const dataRow = guideSheet.addRow(data);
+    dataRow.eachCell((cell) => {
+      cell.alignment = { vertical: "middle" };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFE2E8F0" } },
+        left: { style: "thin", color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+        right: { style: "thin", color: { argb: "FFE2E8F0" } },
+      };
+    });
+  }
+
   guideSheet.views = [{ state: "frozen", ySplit: 1 }];
 
   const buffer = await workbook.xlsx.writeBuffer();
