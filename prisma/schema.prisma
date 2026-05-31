@@ -486,6 +486,7 @@ model StockOpnameItem {
   systemStock          Int                 @map("system_stock")
   physicalStock        Int?                @map("physical_stock")
   difference           Int?
+  costPriceSnapshot    Int                 @default(0) @map("cost_price_snapshot")
   notes                String?
   countedById          Int?                @map("counted_by_id")
   countedAt            DateTime?           @map("counted_at")
