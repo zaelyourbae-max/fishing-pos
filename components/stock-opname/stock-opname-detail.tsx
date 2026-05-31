@@ -342,6 +342,8 @@ export default function StockOpnameDetail({
         loading={loadingAction === "approve"}
         totalItems={stats.total}
         changedItems={stats.changedItems}
+        netNilaiSelisih={stats.netNilaiSelisih}
+        itemsWithZeroHpp={stats.itemsWithZeroHpp}
         onClose={() => setApproveOpen(false)}
         onConfirm={() => postAction("approve")}
       />
