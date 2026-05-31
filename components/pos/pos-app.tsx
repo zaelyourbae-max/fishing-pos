@@ -2884,9 +2884,23 @@ export default function PosApp({
                     </h3>
 
                     {(product.type || product.size || product.variant) && (
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {[product.type, product.size, product.variant].filter(Boolean).join(" · ")}
-                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1 mb-1">
+                        {product.type && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                            {product.type}
+                          </span>
+                        )}
+                        {product.size && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                            {product.size}
+                          </span>
+                        )}
+                        {product.variant && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                            {product.variant}
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-slate-100">
