@@ -2857,39 +2857,18 @@ export default function PosApp({
                     productView === "grid" ? "p-2" : "p-2.5"
                   }`}
                 >
-                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
+                  <div className="flex items-center justify-between mb-1.5">
                     <ProductThumb
                       product={product}
-                      className={
-                        productView === "grid"
-                          ? "h-9 w-9 rounded-lg sm:h-12 sm:w-12 sm:rounded-2xl"
-                          : "h-12 w-12 rounded-xl sm:rounded-2xl"
-                      }
+                      className="h-7 w-7 rounded-lg"
                     />
-                    <div className="min-w-0">
-                      <p className="truncate text-[10px] font-medium text-slate-400 dark:text-slate-500 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-wide sm:text-slate-500 sm:dark:text-slate-400">
-                        {productCodeLabel(product) || "Tanpa SKU"}
-                      </p>
-                      <h3 className="mt-0.5 line-clamp-2 break-words text-[13px] font-semibold leading-snug text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-sm">
-                        {product.name}
-                      </h3>
-                      {productCompactMeta(product) ? (
-                        <p
-                          className={`mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400 ${
-                            productView === "grid" ? "hidden sm:block" : "block"
-                          }`}
-                        >
-                          {productCompactMeta(product)}
-                        </p>
-                      ) : null}
-                    </div>
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
                         addToCart(product);
                       }}
                       disabled={product.stock <= 0}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-base font-bold text-white shadow-sm shadow-teal-600/15 transition-colors duration-200 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400 sm:h-9 sm:w-9 sm:rounded-xl"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white text-base font-bold hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
                       type="button"
                       aria-label={`Tambah ${product.name}`}
                     >
@@ -2897,30 +2876,35 @@ export default function PosApp({
                     </button>
                   </div>
 
-                  <div className="mt-1 flex min-w-0 flex-1 flex-col justify-end sm:mt-3">
-                    <div className="rounded-xl border border-transparent bg-transparent p-0 dark:bg-transparent sm:rounded-2xl sm:border-slate-100 sm:bg-slate-50/80 sm:p-3 sm:dark:border-slate-800 sm:dark:bg-slate-900/70">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="hidden text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:block">
-                            Harga jual
-                          </p>
-                          <p className="metric-value truncate text-[13px] leading-tight text-teal-600 dark:text-teal-400 sm:mt-1 sm:text-base sm:text-slate-900 sm:dark:text-slate-100">
-                            {rupiah(product.price)}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:bg-white sm:px-2.5 sm:py-1 sm:text-xs sm:ring-1 sm:ring-slate-200 sm:dark:bg-slate-950 sm:dark:ring-slate-800">
-                          / {product.unit}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 pt-1 dark:border-slate-800 sm:mt-3 sm:gap-3 sm:border-slate-200/80 sm:pt-2">
-                        <span className="min-w-0 truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
-                          {formatCategoryLabel(product.category)}
-                        </span>
-                        <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold tabular-nums text-slate-700 dark:text-slate-300 sm:text-xs">
-                          Sisa {product.stock} {product.unit}
-                        </span>
-                      </div>
-                    </div>
+                  <p className="text-[10px] font-semibold text-teal-600">
+                    {product.brand || product.category || "—"}
+                  </p>
+
+                  <h3 className="text-[13px] font-semibold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
+                    {product.name}
+                  </h3>
+
+                  {(product.type || product.size || product.variant) && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {[product.type, product.size, product.variant].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-slate-100">
+                    <span className="text-[13px] font-semibold text-teal-600">
+                      {rupiah(product.price)}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[11px]",
+                        product.stock <= product.minStock
+                          ? "text-red-500"
+                          : "text-slate-400"
+                      )}
+                    >
+                      {product.stock <= product.minStock && "⚠ "}Sisa{" "}
+                      {product.stock} {product.unit}
+                    </span>
                   </div>
                 </article>
               ))}
