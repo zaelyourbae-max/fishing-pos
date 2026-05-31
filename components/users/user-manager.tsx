@@ -142,15 +142,19 @@ export default function UserManager({ users }: UserManagerProps) {
   );
 
   const filteredUsers = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const keywords = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
     return users.filter((user) => {
       const matchesQuery =
-        !normalizedQuery ||
-        user.name.toLowerCase().includes(normalizedQuery) ||
-        user.email.toLowerCase().includes(normalizedQuery) ||
-        user.role.slug.toLowerCase().includes(normalizedQuery) ||
-        user.role.name.toLowerCase().includes(normalizedQuery);
+        keywords.length === 0 ||
+        keywords.every((kw) =>
+          [
+            user.name.toLowerCase(),
+            user.email.toLowerCase(),
+            user.role.slug.toLowerCase(),
+            user.role.name.toLowerCase(),
+          ].some((f) => f.includes(kw)),
+        );
       const matchesRole =
         roleFilter === "all" || user.role.slug === roleFilter;
       const matchesStatus =

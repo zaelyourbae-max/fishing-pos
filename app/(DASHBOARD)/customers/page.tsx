@@ -29,33 +29,29 @@ function formatDate(date: Date) {
 }
 
 function customerWhere(q: string): Prisma.CustomerWhereInput {
-  const normalizedPhone = normalizeIndonesianPhone(q);
+  const keywords = q.trim().split(/\s+/).filter(Boolean);
 
   return {
     isActive: true,
     deletedAt: null,
-    ...(q
+    ...(keywords.length > 0
       ? {
-          OR: [
-            {
-              name: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-            {
-              phone: {
-                contains: normalizedPhone || q,
-                mode: "insensitive",
-              },
-            },
-            {
-              customerCode: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-          ],
+          AND: keywords.map((kw) => {
+            const normalizedPhone = normalizeIndonesianPhone(kw);
+
+            return {
+              OR: [
+                { name: { contains: kw, mode: "insensitive" as const } },
+                {
+                  phone: {
+                    contains: normalizedPhone || kw,
+                    mode: "insensitive" as const,
+                  },
+                },
+                { customerCode: { contains: kw, mode: "insensitive" as const } },
+              ],
+            };
+          }),
         }
       : {}),
   };

@@ -178,30 +178,17 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
     ...(dateFilter ? { createdAt: dateFilter } : {}),
     ...(q
       ? {
-          OR: [
-            {
-              invoiceNumber: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-            {
-              customer: {
-                name: {
-                  contains: q,
-                  mode: "insensitive",
-                },
-              },
-            },
-            {
-              customer: {
-                phone: {
-                  contains: q,
-                  mode: "insensitive",
-                },
-              },
-            },
-          ],
+          AND: q
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((kw) => ({
+              OR: [
+                { invoiceNumber: { contains: kw, mode: "insensitive" as const } },
+                { customer: { name: { contains: kw, mode: "insensitive" as const } } },
+                { customer: { phone: { contains: kw, mode: "insensitive" as const } } },
+              ],
+            })),
         }
       : {}),
   };

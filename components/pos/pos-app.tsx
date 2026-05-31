@@ -1395,7 +1395,7 @@ export default function PosApp({
     );
   }, [products]);
   const filteredProducts = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+    const keywords = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
     return products.filter((product) => {
       const categoryMatched =
@@ -1410,15 +1410,12 @@ export default function PosApp({
       const variant = product.variant?.toLowerCase() || "";
       const category = categoryFilterKey(product.category);
       const keywordMatched =
-        !keyword ||
-        name.includes(keyword) ||
-        sku.includes(keyword) ||
-        barcode.includes(keyword) ||
-        brand.includes(keyword) ||
-        type.includes(keyword) ||
-        size.includes(keyword) ||
-        variant.includes(keyword) ||
-        category.includes(keyword);
+        keywords.length === 0 ||
+        keywords.every((kw) =>
+          [name, sku, barcode, brand, type, size, variant, category].some((f) =>
+            f.includes(kw),
+          ),
+        );
 
       return categoryMatched && keywordMatched;
     });

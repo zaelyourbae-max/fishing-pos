@@ -59,28 +59,21 @@ export default async function SupplierReturnPage({
     prisma.supplierReturn.findMany({
       where: q
         ? {
-            OR: [
-              {
-                returnNumber: {
-                  contains: q,
-                  mode: "insensitive",
-                },
-              },
-              {
-                reason: {
-                  contains: q,
-                  mode: "insensitive",
-                },
-              },
-              {
-                supplier: {
-                  name: {
-                    contains: q,
-                    mode: "insensitive",
+            AND: q
+              .trim()
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((kw) => ({
+                OR: [
+                  { returnNumber: { contains: kw, mode: "insensitive" as const } },
+                  { reason: { contains: kw, mode: "insensitive" as const } },
+                  {
+                    supplier: {
+                      name: { contains: kw, mode: "insensitive" as const },
+                    },
                   },
-                },
-              },
-            ],
+                ],
+              })),
           }
         : {},
       orderBy: {

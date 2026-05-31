@@ -48,42 +48,30 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
     sale: saleWhere,
     ...(q
       ? {
-          OR: [
-            {
-              sale: {
-                invoiceNumber: {
-                  contains: q,
-                  mode: "insensitive",
-                },
-              },
-            },
-            {
-              sale: {
-                customer: {
-                  name: {
-                    contains: q,
-                    mode: "insensitive",
+          AND: q
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((kw) => ({
+              OR: [
+                {
+                  sale: {
+                    invoiceNumber: { contains: kw, mode: "insensitive" as const },
                   },
                 },
-              },
-            },
-            {
-              sale: {
-                customer: {
-                  phone: {
-                    contains: q,
-                    mode: "insensitive",
+                {
+                  sale: {
+                    customer: { name: { contains: kw, mode: "insensitive" as const } },
                   },
                 },
-              },
-            },
-            {
-              reason: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-          ],
+                {
+                  sale: {
+                    customer: { phone: { contains: kw, mode: "insensitive" as const } },
+                  },
+                },
+                { reason: { contains: kw, mode: "insensitive" as const } },
+              ],
+            })),
         }
       : {}),
   };

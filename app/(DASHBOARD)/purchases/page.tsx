@@ -38,22 +38,16 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
   const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
   const purchaseWhere = q
     ? {
-        OR: [
-          {
-            purchaseNumber: {
-              contains: q,
-              mode: "insensitive" as const,
-            },
-          },
-          {
-            supplier: {
-              name: {
-                contains: q,
-                mode: "insensitive" as const,
-              },
-            },
-          },
-        ],
+        AND: q
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean)
+          .map((kw) => ({
+            OR: [
+              { purchaseNumber: { contains: kw, mode: "insensitive" as const } },
+              { supplier: { name: { contains: kw, mode: "insensitive" as const } } },
+            ],
+          })),
       }
     : {};
   const [suppliers, products, recentPurchases, totalPurchases] = await Promise.all([

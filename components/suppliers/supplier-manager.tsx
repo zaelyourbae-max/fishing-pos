@@ -47,25 +47,24 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
     setPage(1);
   }, []);
   const filteredSuppliers = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+    const keywords = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-    if (!keyword) {
+    if (keywords.length === 0) {
       return suppliers;
     }
 
-    return suppliers.filter((supplier) =>
-      [
+    return suppliers.filter((supplier) => {
+      const fields = [
         supplier.code,
         supplier.name,
         supplier.type,
         supplier.phone ?? "",
         supplier.address ?? "",
         supplier.notes ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(keyword),
-    );
+      ].map((f) => f.toLowerCase());
+
+      return keywords.every((kw) => fields.some((f) => f.includes(kw)));
+    });
   }, [search, suppliers]);
   const pageCount = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);

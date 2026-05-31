@@ -242,32 +242,22 @@ export default async function ProductsPage({
     ...(analyticsWhere ? { AND: [analyticsWhere] } : {}),
     ...(q
       ? {
-          OR: [
-            {
-              name: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-            {
-              sku: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-            {
-              barcode: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-            {
-              category: {
-                contains: q,
-                mode: "insensitive",
-              },
-            },
-          ],
+          AND: q
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((kw) => ({
+              OR: [
+                { name: { contains: kw, mode: "insensitive" as const } },
+                { sku: { contains: kw, mode: "insensitive" as const } },
+                { barcode: { contains: kw, mode: "insensitive" as const } },
+                { category: { contains: kw, mode: "insensitive" as const } },
+                { brand: { contains: kw, mode: "insensitive" as const } },
+                { type: { contains: kw, mode: "insensitive" as const } },
+                { size: { contains: kw, mode: "insensitive" as const } },
+                { variant: { contains: kw, mode: "insensitive" as const } },
+              ],
+            })),
         }
       : {}),
   };
