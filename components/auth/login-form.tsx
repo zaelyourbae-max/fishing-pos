@@ -9,17 +9,14 @@ type LoginResponse = {
   user: {
     name: string;
     email: string;
-    role?: {
-      name: string;
-      slug: string;
-    } | null;
+    role?: { name: string; slug: string } | null;
   };
 };
 
 const TOKEN_KEY = "fishing_pos_token";
 const USER_KEY = "fishing_pos_user";
 
-export default function LoginForm() {
+export default function LoginForm({ dark, mobile = false }: { dark: boolean; mobile?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,18 +32,10 @@ export default function LoginForm() {
     try {
       const response = await fetch("/api/login", {
         method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
-      const data = (await response.json().catch(() => ({}))) as Partial<LoginResponse> & {
-        message?: string;
-      };
+      const data = (await response.json().catch(() => ({}))) as Partial<LoginResponse> & { message?: string };
 
       if (!response.ok || !data.access_token || !data.user) {
         throw new Error(data.message ?? "Login gagal.");
@@ -71,44 +60,64 @@ export default function LoginForm() {
     }
   }
 
+  const inputClass = dark
+    ? "border border-white/10 bg-white/[0.07] text-white placeholder:text-slate-600 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20"
+    : "border border-slate-200 bg-white text-slate-950 placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15";
+
   return (
     <form
       onSubmit={login}
-      className="w-full rounded-[1.75rem] border border-white/80 bg-white/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.11)] backdrop-blur sm:p-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-0"
+      className={`w-full rounded-[1.75rem] p-5 shadow-[0_20px_60px_rgba(15,23,42,0.18)] transition-colors duration-500 sm:p-8 lg:rounded-none lg:p-0 lg:shadow-none lg:border-0 ${
+        dark
+          ? "border border-white/10 bg-[#0b1120] lg:bg-transparent"
+          : "border border-teal-100 bg-white lg:bg-transparent"
+      }`}
     >
-      <div className="mb-5 text-center sm:mb-6">
-        <div className="mb-5 lg:hidden">
-          <h1 className="text-3xl font-black tracking-tight text-slate-950">
+      {/* Mobile branding — hanya tampil di desktop mobile view (bukan hero), skip kalau sudah ada hero */}
+      {!mobile && (
+        <div className="mb-5 lg:hidden sm:mb-6">
+          <h1 className={`text-3xl font-black tracking-tight ${dark ? "text-white" : "text-slate-950"}`}>
             MEIJRVERSE°
           </h1>
-          <p className="mt-1 text-xs font-bold uppercase tracking-[0.22em] text-teal-700">
+          <p className={`mt-1 text-xs font-bold uppercase tracking-[0.22em] ${dark ? "text-teal-400" : "text-teal-700"}`}>
             Retail Operating System
           </p>
         </div>
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-700 ring-1 ring-teal-100">
-          <LockKeyhole className="h-6 w-6" />
+      )}
+
+      {/* Lock icon + title */}
+      <div className="mb-5 text-center sm:mb-6">
+        <div
+          className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl"
+          style={{
+            background: "linear-gradient(135deg, #0d9488, #0f766e)",
+            boxShadow: dark ? "0 0 28px rgba(20,184,166,0.45)" : "0 4px 14px rgba(13,148,136,0.3)",
+          }}
+        >
+          <LockKeyhole className="h-6 w-6 text-white" />
         </div>
-        <h2 className="mt-4 font-sans text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-          Welcome Back
+        <h2 className={`mt-4 font-sans text-2xl font-black tracking-tight sm:text-3xl transition-colors duration-500 ${dark ? "text-white" : "text-slate-900"}`}>
+          Masuk ke Sistem
         </h2>
-        <p className="mt-2 text-sm font-medium text-slate-500">
-          Login untuk melanjutkan ke sistem
+        <p className={`mt-2 text-sm font-medium transition-colors duration-500 ${dark ? "text-slate-400" : "text-slate-500"}`}>
+          Masukkan kredensial Anda untuk melanjutkan
         </p>
       </div>
 
       {error ? (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400">
           {error}
         </div>
       ) : null}
 
       <div className="space-y-3.5">
+        {/* Email */}
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-slate-800">
+          <label className={`mb-1.5 block text-sm font-bold transition-colors duration-500 ${dark ? "text-slate-300" : "text-slate-700"}`}>
             Email
           </label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Mail className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${dark ? "text-slate-500" : "text-slate-400"}`} />
             <input
               type="email"
               inputMode="email"
@@ -116,53 +125,59 @@ export default function LoginForm() {
               enterKeyHint="next"
               placeholder="nama@meijrverse.com"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-11 py-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15"
+              onChange={(e) => setEmail(e.target.value)}
+              className={`min-h-12 w-full rounded-xl px-11 py-3 text-sm font-medium outline-none transition-all duration-300 ${inputClass}`}
             />
           </div>
         </div>
 
+        {/* Password */}
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-slate-800">
+          <label className={`mb-1.5 block text-sm font-bold transition-colors duration-500 ${dark ? "text-slate-300" : "text-slate-700"}`}>
             Password
           </label>
           <div className="relative">
-            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <LockKeyhole className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${dark ? "text-slate-500" : "text-slate-400"}`} />
             <input
               type={passwordVisible ? "text" : "password"}
               autoComplete="current-password"
               enterKeyHint="done"
               placeholder="••••••••"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-12 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15"
+              onChange={(e) => setPassword(e.target.value)}
+              className={`min-h-12 w-full rounded-xl py-3 pl-11 pr-12 text-sm font-medium outline-none transition-all duration-300 ${inputClass}`}
             />
             <button
               type="button"
-              onClick={() => setPasswordVisible((current) => !current)}
-              className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              aria-label={
-                passwordVisible ? "Sembunyikan password" : "Tampilkan password"
-              }
+              onClick={() => setPasswordVisible((v) => !v)}
+              className={`absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg transition ${
+                dark ? "text-slate-500 hover:bg-white/10 hover:text-slate-300" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              }`}
+              aria-label={passwordVisible ? "Sembunyikan password" : "Tampilkan password"}
             >
-              {passwordVisible ? (
-                <EyeOff className="h-5 w-5" />
-              ) : (
-                <Eye className="h-5 w-5" />
-              )}
+              {passwordVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition-colors duration-200 hover:bg-teal-700 active:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            background: "linear-gradient(135deg, #0d9488, #0f766e)",
+            boxShadow: dark ? "0 4px 24px rgba(20,184,166,0.4)" : "0 4px 14px rgba(13,148,136,0.3)",
+          }}
         >
           <span>{loading ? "Login..." : "Login"}</span>
           <ArrowRight className="h-5 w-5" />
         </button>
       </div>
+
+      <p className={`mt-5 text-center text-xs font-semibold lg:hidden ${dark ? "text-slate-600" : "text-slate-400"}`}>
+        © 2026 MEIJRVERSE°. All rights reserved.
+      </p>
     </form>
   );
 }

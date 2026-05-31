@@ -1255,7 +1255,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   ];
   const currentHour = new Date().getHours();
   const greeting =
-    currentHour < 11 ? "Selamat pagi" : currentHour < 15 ? "Selamat siang" : "Selamat sore";
+    currentHour < 11 ? "Selamat pagi" : currentHour < 15 ? "Selamat siang" : currentHour < 18 ? "Selamat sore" : "Selamat malam";
   const ownerName = currentUser?.name ?? settings.ownerName ?? "Owner";
   const storeName = settings.storeName || "Toko Pancing";
   const headerDate = formatHeaderDate(selectedDate);

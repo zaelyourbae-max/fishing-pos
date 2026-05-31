@@ -2500,11 +2500,8 @@ export default function PosApp({
       <header className="mb-3 flex flex-col gap-2 px-1 py-0.5 sm:mb-5 sm:gap-3 sm:py-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="font-sans text-xl font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
-            Fishing POS
+            POS
           </h1>
-          <p className="mt-1 hidden text-sm text-slate-500 dark:text-slate-400 sm:block">
-            Sistem kasir toko pancing
-          </p>
         </div>
 
         <div className="hidden flex-wrap items-center justify-end gap-2 sm:flex">
