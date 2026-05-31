@@ -2895,12 +2895,7 @@ export default function PosApp({
                       {rupiah(product.price)}
                     </span>
                     <span
-                      className={cn(
-                        "text-[11px]",
-                        product.stock <= product.minStock
-                          ? "text-red-500"
-                          : "text-slate-400"
-                      )}
+                      className={`text-[11px] ${product.stock <= product.minStock ? "text-red-500" : "text-slate-400"}`}
                     >
                       {product.stock <= product.minStock && "⚠ "}Sisa{" "}
                       {product.stock} {product.unit}
