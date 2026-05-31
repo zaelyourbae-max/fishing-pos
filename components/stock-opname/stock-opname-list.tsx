@@ -148,54 +148,100 @@ export default function StockOpnameList({
             Belum ada sesi Stock Opname.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                <tr>
-                  <th className="px-5 py-3">Sesi</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Progress</th>
-                  <th className="px-5 py-3">Selisih</th>
-                  <th className="px-5 py-3">Dibuat</th>
-                  <th className="px-5 py-3">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {sessions.map((session) => (
-                  <tr key={session.id}>
-                    <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">
-                        {session.title || session.opnameNumber}
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {session.opnameNumber}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <StockOpnameStatusBadge status={session.status} />
-                    </td>
-                    <td className="px-5 py-4 text-slate-700 dark:text-slate-200">
-                      {session.countedItems}/{session.totalItems} item
-                    </td>
-                    <td className="px-5 py-4 font-semibold text-slate-900 dark:text-slate-100">
-                      {session.totalDifference}
-                    </td>
-                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                      {formatDate(session.createdAt)}
-                    </td>
-                    <td className="px-5 py-4">
-                      <Link
-                        href={`/stock-opname/${session.id}`}
-                        className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
-                      >
-                        Buka
-                      </Link>
-                    </td>
+          <>
+            {/* Desktop table — hidden on mobile */}
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-3">Sesi</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Progress</th>
+                    <th className="px-5 py-3">Selisih</th>
+                    <th className="px-5 py-3">Dibuat</th>
+                    <th className="px-5 py-3">Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {sessions.map((session) => (
+                    <tr key={session.id}>
+                      <td className="px-5 py-4">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100">
+                          {session.title || session.opnameNumber}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          {session.opnameNumber}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <StockOpnameStatusBadge status={session.status} />
+                      </td>
+                      <td className="px-5 py-4 text-slate-700 dark:text-slate-200">
+                        {session.countedItems}/{session.totalItems} item
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-900 dark:text-slate-100">
+                        {session.totalDifference}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                        {formatDate(session.createdAt)}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Link
+                          href={`/stock-opname/${session.id}`}
+                          className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
+                        >
+                          Buka
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card list — hidden on sm+ */}
+            <div className="divide-y divide-slate-200 sm:hidden dark:divide-slate-800">
+              {sessions.map((session) => (
+                <Link
+                  key={session.id}
+                  href={`/stock-opname/${session.id}`}
+                  className="block p-4 transition-colors hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 dark:active:bg-slate-900"
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                        {session.title || session.opnameNumber}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                        {session.opnameNumber}
+                      </p>
+                    </div>
+                    <StockOpnameStatusBadge status={session.status} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                    <div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Progress</span>
+                      <p className="font-medium text-slate-700 dark:text-slate-200">
+                        {session.countedItems}/{session.totalItems} item
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Selisih</span>
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">
+                        {session.totalDifference}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Dibuat</span>
+                      <p className="text-slate-600 dark:text-slate-300">
+                        {formatDate(session.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>
