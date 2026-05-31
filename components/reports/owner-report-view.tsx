@@ -822,8 +822,8 @@ function TopProducts({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-100">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-100">
+      <table className="w-full min-w-[400px] text-left text-sm">
         <thead className="bg-slate-50 text-xs font-bold text-slate-500">
           <tr>
             <th className="w-12 px-4 py-3">#</th>
@@ -950,8 +950,8 @@ function LowStockList({ rows, mobile = false }: { rows: LowStockRow[]; mobile?: 
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-100">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-100">
+      <table className="w-full min-w-[360px] text-left text-sm">
         <thead className="bg-slate-50 text-xs font-bold text-slate-500">
           <tr>
             <th className="px-4 py-3">Produk</th>
