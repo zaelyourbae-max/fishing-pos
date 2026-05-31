@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { formatRupiahInput, normalizeRupiahInput } from "@/lib/rupiah-input";
 
 type SupplierOption = {
   id: number;
@@ -283,13 +284,12 @@ export default function PurchaseForm({
               <div>
                 <label className="text-xs font-medium text-slate-700 dark:text-slate-400">Harga beli</label>
                 <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={row.costPrice}
+                  type="text"
+                  inputMode="numeric"
+                  value={formatRupiahInput(row.costPrice)}
                   onChange={(event) =>
                     updateRow(index, {
-                      costPrice: event.target.value,
+                      costPrice: normalizeRupiahInput(event.target.value),
                     })
                   }
                   className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-slate-900 outline-none dark:text-slate-100"

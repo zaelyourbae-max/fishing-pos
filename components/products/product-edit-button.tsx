@@ -3,6 +3,7 @@
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatRupiahInput, normalizeRupiahInput, parseRupiahInput } from "@/lib/rupiah-input";
 
 type ProductEditButtonProps = {
   product: {
@@ -106,8 +107,8 @@ export default function ProductEditButton({
         },
         body: JSON.stringify({
           ...form,
-          price: Number(form.price),
-          costPrice: Number(form.costPrice),
+          price: parseRupiahInput(form.price),
+          costPrice: parseRupiahInput(form.costPrice),
           stock: product.stock,
           minStock: Number(form.minStock),
           imageUrl: uploadedImageUrl,
@@ -241,10 +242,10 @@ export default function ProductEditButton({
                   placeholder="Unit utama (pcs, meter, gram, dll)"
                 />
                 <input
-                  type="number"
-                  min="0"
-                  value={form.price}
-                  onChange={(event) => updateForm("price", event.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  value={formatRupiahInput(form.price)}
+                  onChange={(event) => updateForm("price", normalizeRupiahInput(event.target.value))}
                   className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
                   placeholder="Harga jual / sellPrice"
                 />
@@ -253,10 +254,10 @@ export default function ProductEditButton({
                     Harga Modal / HPP
                   </span>
                   <input
-                    type="number"
-                    min="0"
-                    value={form.costPrice}
-                    onChange={(event) => updateForm("costPrice", event.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatRupiahInput(form.costPrice)}
+                    onChange={(event) => updateForm("costPrice", normalizeRupiahInput(event.target.value))}
                     className="min-h-10 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
                     placeholder="Harga modal / HPP"
                   />

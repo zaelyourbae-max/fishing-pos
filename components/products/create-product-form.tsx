@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatRupiahInput, normalizeRupiahInput, parseRupiahInput } from "@/lib/rupiah-input";
 
 async function uploadProductImage(file: File) {
   const formData = new FormData();
@@ -78,8 +79,8 @@ export default function CreateProductForm() {
             supplier,
             rackLocation,
             unit,
-            price,
-            costPrice,
+            price: parseRupiahInput(price),
+            costPrice: parseRupiahInput(costPrice),
             stock,
             minStock,
             description,
@@ -245,10 +246,10 @@ export default function CreateProductForm() {
             <label className="space-y-2">
               <span className="text-sm text-slate-600 dark:text-slate-300">Harga Jual / sellPrice *</span>
               <input
-                type="number"
-                min={0}
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                type="text"
+                inputMode="numeric"
+                value={formatRupiahInput(price)}
+                onChange={(e) => setPrice(normalizeRupiahInput(e.target.value))}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 placeholder="Harga jual"
               />
@@ -256,10 +257,10 @@ export default function CreateProductForm() {
             <label className="space-y-2">
               <span className="text-sm text-slate-600 dark:text-slate-300">HPP / costPrice *</span>
               <input
-                type="number"
-                min={0}
-                value={costPrice}
-                onChange={(e) => setCostPrice(e.target.value)}
+                type="text"
+                inputMode="numeric"
+                value={formatRupiahInput(costPrice)}
+                onChange={(e) => setCostPrice(normalizeRupiahInput(e.target.value))}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 placeholder="Harga modal / HPP"
               />
