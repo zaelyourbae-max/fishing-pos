@@ -2855,51 +2855,123 @@ export default function PosApp({
                   }}
                   className={`group mobile-card-surface flex min-h-0 cursor-pointer flex-col hover:border-teal-200 hover:bg-teal-50/20 active:bg-teal-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950 sm:min-h-[190px] sm:rounded-2xl sm:p-3 ${
                     productView === "grid" ? "p-2" : "p-2.5"
-                  }`}
+                  } ${product.stock <= 5 ? "sm:border-red-200 dark:sm:border-red-900/60" : ""}`}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <ProductThumb
-                      product={product}
-                      className="h-7 w-7 rounded-lg"
-                    />
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        addToCart(product);
-                      }}
-                      disabled={product.stock <= 0}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white text-base font-bold hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      type="button"
-                      aria-label={`Tambah ${product.name}`}
-                    >
-                      +
-                    </button>
+                  {/* Mobile layout */}
+                  <div className="sm:hidden">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <ProductThumb
+                        product={product}
+                        className="h-7 w-7 rounded-lg"
+                      />
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          addToCart(product);
+                        }}
+                        disabled={product.stock <= 0}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white text-base font-bold hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="button"
+                        aria-label={`Tambah ${product.name}`}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] font-semibold text-teal-600">
+                      {product.brand || product.category || "—"}
+                    </p>
+
+                    <h3 className="text-[13px] font-semibold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
+                      {product.name}
+                    </h3>
+
+                    {(product.type || product.size || product.variant) && (
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {[product.type, product.size, product.variant].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-slate-100">
+                      <span className="text-[13px] font-semibold text-teal-600">
+                        {rupiah(product.price)}
+                      </span>
+                      <span
+                        className={`text-[11px] ${product.stock <= 5 ? "text-red-500" : "text-slate-400"}`}
+                      >
+                        {product.stock <= 5 && "⚠ "}Sisa{" "}
+                        {product.stock} {product.unit}
+                      </span>
+                    </div>
                   </div>
 
-                  <p className="text-[10px] font-semibold text-teal-600">
-                    {product.brand || product.category || "—"}
-                  </p>
+                  {/* Desktop layout (sm:) */}
+                  <div className="hidden sm:flex sm:flex-col sm:h-full">
+                    {/* Baris atas: icon + info + tombol */}
+                    <div className="flex items-start gap-2.5">
+                      <ProductThumb
+                        product={product}
+                        className="h-11 w-11 shrink-0 rounded-xl"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-teal-600 truncate">
+                          {product.brand || product.category || "—"}
+                        </p>
+                        <h3 className="text-[13px] font-semibold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
+                          {product.name}
+                        </h3>
+                      </div>
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          addToCart(product);
+                        }}
+                        disabled={product.stock <= 0}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white text-base font-bold hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="button"
+                        aria-label={`Tambah ${product.name}`}
+                      >
+                        +
+                      </button>
+                    </div>
 
-                  <h3 className="text-[13px] font-semibold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
-                    {product.name}
-                  </h3>
+                    {/* Baris tengah: pill tags */}
+                    {(product.type || product.size || product.variant || product.category) && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {product.type && (
+                          <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            {product.type}
+                          </span>
+                        )}
+                        {product.size && (
+                          <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            {product.size}
+                          </span>
+                        )}
+                        {product.variant && (
+                          <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            {product.variant}
+                          </span>
+                        )}
+                        {product.category && !product.type && !product.size && !product.variant && (
+                          <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            {product.category}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                  {(product.type || product.size || product.variant) && (
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      {[product.type, product.size, product.variant].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-
-                  <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-slate-100">
-                    <span className="text-[13px] font-semibold text-teal-600">
-                      {rupiah(product.price)}
-                    </span>
-                    <span
-                      className={`text-[11px] ${product.stock <= 5 ? "text-red-500" : "text-slate-400"}`}
-                    >
-                      {product.stock <= 5 && "⚠ "}Sisa{" "}
-                      {product.stock} {product.unit}
-                    </span>
+                    {/* Baris bawah: harga + stok */}
+                    <div className="flex items-center justify-between pt-2 mt-auto border-t border-slate-100 dark:border-slate-800">
+                      <span className="text-base font-semibold text-teal-600 dark:text-teal-400">
+                        {rupiah(product.price)}
+                      </span>
+                      <span
+                        className={`text-xs ${product.stock <= 5 ? "text-red-500" : "text-slate-400"}`}
+                      >
+                        {product.stock <= 5 && "⚠ "}Sisa {product.stock} {product.unit}
+                      </span>
+                    </div>
                   </div>
                 </article>
               ))}
