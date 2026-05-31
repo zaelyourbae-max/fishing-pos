@@ -2867,10 +2867,10 @@ export default function PosApp({
                       }
                     />
                     <div className="min-w-0">
-                      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-[11px]">
+                      <p className="truncate text-[10px] font-medium text-slate-400 dark:text-slate-500 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-wide sm:text-slate-500 sm:dark:text-slate-400">
                         {productCodeLabel(product) || "Tanpa SKU"}
                       </p>
-                      <h3 className="mt-0.5 line-clamp-2 break-words text-[12px] font-bold leading-snug text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-sm">
+                      <h3 className="mt-0.5 line-clamp-2 break-words text-[13px] font-semibold leading-snug text-slate-950 dark:text-slate-50 sm:mt-1 sm:text-sm">
                         {product.name}
                       </h3>
                       {productCompactMeta(product) ? (
@@ -2904,7 +2904,7 @@ export default function PosApp({
                           <p className="hidden text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:block">
                             Harga jual
                           </p>
-                          <p className="metric-value truncate text-[13px] leading-tight sm:mt-1 sm:text-base">
+                          <p className="metric-value truncate text-[13px] leading-tight text-teal-600 dark:text-teal-400 sm:mt-1 sm:text-base sm:text-slate-900 sm:dark:text-slate-100">
                             {rupiah(product.price)}
                           </p>
                         </div>
