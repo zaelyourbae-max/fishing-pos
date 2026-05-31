@@ -54,6 +54,7 @@ export default async function StockOpnameDetailPage({
           systemStock: item.systemStock,
           physicalStock: item.physicalStock,
           difference: item.difference,
+          costPriceSnapshot: item.costPriceSnapshot,
           notes: item.notes,
         })),
       }}

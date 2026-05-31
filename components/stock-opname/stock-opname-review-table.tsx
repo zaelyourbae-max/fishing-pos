@@ -14,6 +14,7 @@ export type StockOpnameItemRow = {
   systemStock: number;
   physicalStock: number | null;
   difference: number | null;
+  costPriceSnapshot: number;
   notes: string | null;
 };
 
@@ -173,6 +174,7 @@ export default function StockOpnameReviewTable({
               <th className="px-4 py-3">Sistem</th>
               <th className="px-4 py-3">Fisik</th>
               <th className="px-4 py-3">Selisih</th>
+              <th className="px-4 py-3">Nilai Selisih</th>
               <th className="px-4 py-3">Catatan</th>
               <th className="px-4 py-3">Aksi</th>
             </tr>
@@ -238,6 +240,31 @@ export default function StockOpnameReviewTable({
                     >
                       {difference ?? "-"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 font-semibold tabular-nums">
+                    {(difference ?? 0) === 0 ? (
+                      <span className="text-slate-400">—</span>
+                    ) : item.costPriceSnapshot === 0 ? (
+                      <span
+                        className="text-xs font-medium text-amber-600 dark:text-amber-400"
+                        title="HPP belum diisi saat opname dibuat"
+                      >
+                        ⚠ HPP 0
+                      </span>
+                    ) : (
+                      <span
+                        className={
+                          (difference ?? 0) > 0
+                            ? "text-emerald-600 dark:text-emerald-300"
+                            : "text-rose-600 dark:text-rose-300"
+                        }
+                      >
+                        {((difference ?? 0) * item.costPriceSnapshot).toLocaleString(
+                          "id-ID",
+                          { style: "currency", currency: "IDR", maximumFractionDigits: 0 },
+                        )}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <input

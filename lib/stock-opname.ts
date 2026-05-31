@@ -156,6 +156,7 @@ export async function createStockOpnameSession(input: {
           unit: true,
           rackLocation: true,
           stock: true,
+          costPrice: true,
         },
       });
 
@@ -190,6 +191,7 @@ export async function createStockOpnameSession(input: {
           unitSnapshot: product.unit,
           rackLocationSnapshot: product.rackLocation,
           systemStock: product.stock,
+          costPriceSnapshot: product.costPrice,
           source: null,
         })),
       });

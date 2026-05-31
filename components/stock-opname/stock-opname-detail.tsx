@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+function rupiah(amount: number) {
+  return `Rp ${Math.abs(amount).toLocaleString("id-ID")}`;
+}
+
 import StockOpnameApproveDialog from "@/components/stock-opname/stock-opname-approve-dialog";
 import StockOpnameImportPanel from "@/components/stock-opname/stock-opname-import-panel";
 import StockOpnameReviewTable, {
@@ -67,12 +71,42 @@ export default function StockOpnameDetail({
       (item) => (item.difference ?? 0) !== 0,
     ).length;
 
+    // Nilai selisih berdasarkan costPriceSnapshot
+    const itemsWithDiff = session.items.filter((item) => (item.difference ?? 0) !== 0);
+    const totalProdukSelisih = itemsWithDiff.length;
+
+    const minusItems = itemsWithDiff.filter((item) => (item.difference ?? 0) < 0);
+    const plusItems  = itemsWithDiff.filter((item) => (item.difference ?? 0) > 0);
+
+    const totalQtyMinus   = minusItems.reduce((s, i) => s + (i.difference ?? 0), 0);
+    const totalNilaiMinus = minusItems.reduce(
+      (s, i) => s + (i.difference ?? 0) * i.costPriceSnapshot,
+      0,
+    );
+    const totalQtyPlus   = plusItems.reduce((s, i) => s + (i.difference ?? 0), 0);
+    const totalNilaiPlus = plusItems.reduce(
+      (s, i) => s + (i.difference ?? 0) * i.costPriceSnapshot,
+      0,
+    );
+    const netNilaiSelisih = totalNilaiMinus + totalNilaiPlus;
+
+    const itemsWithZeroHpp = itemsWithDiff.filter(
+      (item) => item.costPriceSnapshot === 0,
+    ).length;
+
     return {
       total: session.items.length,
       counted,
       remaining: session.items.length - counted,
       totalDifference,
       changedItems,
+      totalProdukSelisih,
+      totalQtyMinus,
+      totalNilaiMinus,
+      totalQtyPlus,
+      totalNilaiPlus,
+      netNilaiSelisih,
+      itemsWithZeroHpp,
     };
   }, [session.items]);
 
@@ -200,6 +234,95 @@ export default function StockOpnameDetail({
           </div>
         ))}
       </section>
+
+      {/* Panel nilai selisih — tampil di REVIEW dan APPROVED */}
+      {(session.status === "REVIEW" || session.status === "APPROVED") &&
+        stats.totalProdukSelisih > 0 ? (
+        <section className="surface-panel rounded-3xl p-5 sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                Estimasi Nilai Selisih
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Berdasarkan HPP (cost price) saat sesi dibuat ·{" "}
+                {stats.totalProdukSelisih} produk selisih
+              </p>
+            </div>
+            {stats.itemsWithZeroHpp > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                ⚠ {stats.itemsWithZeroHpp} produk HPP = 0, nilai tidak dihitung
+              </span>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {/* Minus */}
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-rose-500 dark:text-rose-400">
+                Selisih Minus (kurang)
+              </p>
+              <p className="mt-2 text-xl font-bold tabular-nums text-rose-700 dark:text-rose-300">
+                {stats.totalQtyMinus} pcs
+              </p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                {rupiah(stats.totalNilaiMinus)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-rose-400 dark:text-rose-500">
+                Estimasi kerugian HPP
+              </p>
+            </div>
+
+            {/* Plus */}
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                Selisih Plus (lebih)
+              </p>
+              <p className="mt-2 text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                +{stats.totalQtyPlus} pcs
+              </p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                +{rupiah(stats.totalNilaiPlus)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-emerald-500 dark:text-emerald-600">
+                Estimasi surplus HPP
+              </p>
+            </div>
+
+            {/* Net */}
+            <div
+              className={`rounded-2xl border p-4 ${
+                stats.netNilaiSelisih < 0
+                  ? "border-rose-200 bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/15"
+                  : stats.netNilaiSelisih > 0
+                    ? "border-emerald-200 bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/15"
+                    : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Net Nilai Selisih
+              </p>
+              <p
+                className={`mt-2 text-xl font-bold tabular-nums ${
+                  stats.netNilaiSelisih < 0
+                    ? "text-rose-700 dark:text-rose-300"
+                    : stats.netNilaiSelisih > 0
+                      ? "text-emerald-700 dark:text-emerald-300"
+                      : "text-slate-700 dark:text-slate-300"
+                }`}
+              >
+                {stats.netNilaiSelisih > 0 ? "+" : ""}
+                {stats.netNilaiSelisih === 0
+                  ? "Rp 0"
+                  : rupiah(stats.netNilaiSelisih)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
+                Minus + Plus (estimasi HPP)
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <StockOpnameImportPanel
         sessionId={session.id}
