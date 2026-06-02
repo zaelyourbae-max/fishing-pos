@@ -337,9 +337,9 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
                 <span className="text-xs font-bold" style={{ color: C.muted }}>Periode laporan</span>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
-                <input type="date" value={period.from} max={period.to} onChange={(e) => setPeriod({ ...period, from: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
+                <input type="date" value={period.from} max={period.to} onChange={(e) => setPeriod({ ...period, from: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none lg:h-9 lg:text-xs lg:px-3" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
                 <span style={{ color: C.muted }}>–</span>
-                <input type="date" value={period.to} min={period.from} max={iso(today)} onChange={(e) => setPeriod({ ...period, to: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
+                <input type="date" value={period.to} min={period.from} max={iso(today)} onChange={(e) => setPeriod({ ...period, to: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none lg:h-9 lg:text-xs lg:px-3" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
                 <span className="ml-1 flex flex-wrap items-center gap-1.5">
                   {([
                     { label: "Hari Ini", from: iso(today), to: iso(today) },
@@ -347,7 +347,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
                     { label: "Tahun Ini", from: iso(new Date(today.getFullYear(), 0, 1)), to: iso(today) },
                   ] as const).map((q) => {
                     const on = period.from === q.from && period.to === q.to;
-                    return <button key={q.label} type="button" onClick={() => setPeriod({ from: q.from, to: q.to })} className="rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors" style={{ background: on ? C.gold + "22" : "transparent", color: on ? C.gold : C.muted, border: `1px solid ${on ? C.gold + "55" : C.border}` }}>{q.label}</button>;
+                    return <button key={q.label} type="button" onClick={() => setPeriod({ from: q.from, to: q.to })} className="rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors lg:px-3 lg:py-1.5 lg:text-xs" style={{ background: on ? C.gold + "22" : "transparent", color: on ? C.gold : C.muted, border: `1px solid ${on ? C.gold + "55" : C.border}` }}>{q.label}</button>;
                   })}
                 </span>
               </div>
@@ -395,21 +395,21 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
             </div>
 
             {/* Satu grafik adaptif (satuan mengikuti periode) */}
-            <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
+            <div className="space-y-3 p-3 sm:space-y-4 sm:p-4 lg:space-y-5 lg:p-5 xl:p-6">
               {sections.map((s) => {
                 const st = styles[s.id] ?? "spike";
                 const labels = s.labels, income = s.income, expense = s.expense;
                 const totInc = income.reduce((a, b) => a + b, 0), totExp = expense.reduce((a, b) => a + b, 0), selisih = totInc - totExp;
                 return (
                   <div key={s.id} className="rounded-2xl" style={card3d}>
-                    <div className="flex flex-col gap-2.5 border-b p-3 sm:p-4" style={{ borderColor: C.border }}>
+                    <div className="flex flex-col gap-2.5 border-b p-3 sm:p-4 lg:p-5" style={{ borderColor: C.border }}>
                       <div className="flex items-center justify-between gap-2">
                         <div><p className="text-sm font-extrabold lg:text-base xl:text-lg">Chart {s.title}</p><p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>{s.rangeNote}</p></div>
-                        <select value={st} onChange={(e) => setStyles((p) => ({ ...p, [s.id]: e.target.value as Style }))} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
+                        <select value={st} onChange={(e) => setStyles((p) => ({ ...p, [s.id]: e.target.value as Style }))} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none lg:h-10 lg:px-3 lg:text-sm" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
                           {styleChoices.map((c) => <option key={c.v} value={c.v} style={{ background: C.panel }}>{c.label}</option>)}
                         </select>
                       </div>
-                      {compare ? <div className="flex flex-wrap items-center gap-3 text-[11px]" style={{ color: C.muted }}><span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: C.income }} />Pemasukan</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: C.expense }} />Pengeluaran</span></div> : null}
+                      {compare ? <div className="flex flex-wrap items-center gap-3 text-[11px] lg:text-sm" style={{ color: C.muted }}><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full lg:h-2.5 lg:w-2.5" style={{ background: C.income }} />Pemasukan</span><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full lg:h-2.5 lg:w-2.5" style={{ background: C.expense }} />Pengeluaran</span></div> : null}
                     </div>
 
                     {labels.length === 0 ? (
@@ -419,19 +419,19 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
                     )}
 
                     {compare ? (
-                      <div className="grid grid-cols-3 gap-2 px-3 pt-3 sm:px-4">
-                        <div className="rounded-xl px-2 py-2 text-center" style={inset}><p className="text-[10px]" style={{ color: C.muted }}>Pemasukan</p><p className="mt-0.5 text-sm font-bold tabular-nums" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div>
-                        <div className="rounded-xl px-2 py-2 text-center" style={inset}><p className="text-[10px]" style={{ color: C.muted }}>Pengeluaran</p><p className="mt-0.5 text-sm font-bold tabular-nums" style={{ color: C.expense }}>{rpShort(unitVal(totExp, s.unit))}</p></div>
-                        <div className="rounded-xl px-2 py-2 text-center" style={inset}><p className="text-[10px]" style={{ color: C.muted }}>Arus Kas</p><p className="mt-0.5 text-sm font-bold tabular-nums" style={{ color: selisih >= 0 ? C.up : C.down }}>{rpShort(unitVal(selisih, s.unit))}</p></div>
+                      <div className="grid grid-cols-3 gap-2 px-3 pt-3 sm:px-4 lg:gap-3 lg:px-5 lg:pt-4">
+                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-[10px] lg:text-xs xl:text-sm" style={{ color: C.muted }}>Pemasukan</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div>
+                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-[10px] lg:text-xs xl:text-sm" style={{ color: C.muted }}>Pengeluaran</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: C.expense }}>{rpShort(unitVal(totExp, s.unit))}</p></div>
+                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-[10px] lg:text-xs xl:text-sm" style={{ color: C.muted }}>Arus Kas</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: selisih >= 0 ? C.up : C.down }}>{rpShort(unitVal(selisih, s.unit))}</p></div>
                       </div>
                     ) : (
-                      <div className="px-3 pt-3 sm:px-4"><div className="rounded-xl px-3 py-2 text-center" style={inset}><p className="text-[10px]" style={{ color: C.muted }}>Total {s.title}</p><p className="mt-0.5 text-base font-extrabold tabular-nums" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div></div>
+                      <div className="px-3 pt-3 sm:px-4 lg:px-5"><div className="rounded-xl px-3 py-2 text-center lg:py-3" style={inset}><p className="text-[10px] lg:text-xs" style={{ color: C.muted }}>Total {s.title}</p><p className="mt-0.5 text-base font-extrabold tabular-nums lg:text-xl" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div></div>
                     )}
 
-                    <div className="p-3 sm:p-4">
+                    <div className="p-3 sm:p-4 lg:p-5">
                       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                        <p className="text-[11px] font-bold" style={{ color: C.muted }}>Rincian per {UNIT_WORD[s.id]} (terbaru)</p>
-                        <p className="text-[10px]" style={{ color: C.muted }}>{compare ? "Arus Kas = Masuk − Keluar" : `Tren = vs ${UNIT_WORD[s.id].toLowerCase()} sebelumnya`}</p>
+                        <p className="text-[11px] font-bold lg:text-sm" style={{ color: C.muted }}>Rincian per {UNIT_WORD[s.id]} (terbaru)</p>
+                        <p className="text-[10px] lg:text-xs" style={{ color: C.muted }}>{compare ? "Arus Kas = Masuk − Keluar" : `Tren = vs ${UNIT_WORD[s.id].toLowerCase()} sebelumnya`}</p>
                       </div>
                       {(() => {
                         // prev dihitung dari deret PENUH (bukan yang sudah dipotong zoom),
