@@ -302,10 +302,17 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
           <h1 className="page-title" style={flipped ? { color: C.text } : undefined}>SeaHorse Company</h1>
           <p className="mobile-section-copy" style={flipped ? { color: C.muted } : undefined}>by MeijrVerse°</p>
         </div>
-        <button type="button" onClick={() => setFlipped((v) => !v)} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-bold shadow-lg transition-all duration-300 active:scale-95" style={{ color: "#fff", background: flipped ? C.panel2 : "linear-gradient(135deg,#16c784,#0ea5e9)", boxShadow: flipped ? "0 0 0 1px " + C.border : "0 10px 30px rgba(14,165,233,0.35)" }}>
-          <Sparkles className="h-4 w-4" style={{ color: flipped ? C.gold : "#fff" }} />
-          {flipped ? "Tampilan Normal" : "Mode Analitik"}
-        </button>
+        {flipped ? (
+          <button type="button" onClick={() => router.push("/reports")} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-bold shadow-lg transition-all duration-300 active:scale-95" style={{ color: "#fff", background: C.panel2, boxShadow: "0 0 0 1px " + C.border }}>
+            <Sparkles className="h-4 w-4" style={{ color: C.gold }} />
+            Kembali ke Laporan
+          </button>
+        ) : (
+          <button type="button" onClick={() => setFlipped(true)} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-bold shadow-lg transition-all duration-300 active:scale-95" style={{ color: "#fff", background: "linear-gradient(135deg,#16c784,#0ea5e9)", boxShadow: "0 10px 30px rgba(14,165,233,0.35)" }}>
+            <Sparkles className="h-4 w-4" style={{ color: "#fff" }} />
+            Mode Analitik
+          </button>
+        )}
       </div>
 
       <div className="relative">
