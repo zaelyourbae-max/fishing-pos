@@ -33,9 +33,10 @@ export default async function ReportsPreviewPage({ searchParams }: PageProps) {
 
   const params = (await searchParams) ?? {};
   const today = startOfDay(new Date());
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  // Default: HARI INI (from = to = hari ini).
-  const rawFrom = parseInputDate(params.from, today);
+  // Default: BULAN INI (awal bulan → hari ini) supaya grafik langsung berisi.
+  const rawFrom = parseInputDate(params.from, monthStart);
   const rawTo = parseInputDate(params.to, today);
   // clamp: tidak melebihi hari ini, dan from <= to
   const from = startOfDay(rawFrom > today ? today : rawFrom);
