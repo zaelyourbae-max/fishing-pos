@@ -318,23 +318,23 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
 
         <div className={`transition-all duration-500 ${flipped ? "opacity-100" : "pointer-events-none absolute inset-0 translate-y-2 opacity-0"}`}>
           <div className="overflow-hidden rounded-3xl" style={{ background: "radial-gradient(120% 60% at 50% 0%, #101a2e 0%, " + C.bg + " 60%)", border: `1px solid ${C.border}`, color: C.text, boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
-            <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6" style={{ borderColor: C.border }}>
-              <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 shrink-0" style={{ color: C.gold }} />
-                <span className="text-base font-extrabold tracking-wide sm:text-lg">Terminal Analitik</span>
+            <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 lg:py-4" style={{ borderColor: C.border }}>
+              <div className="flex items-center gap-2 lg:gap-3">
+                <Activity className="h-5 w-5 shrink-0 lg:h-6 lg:w-6" style={{ color: C.gold }} />
+                <span className="text-base font-extrabold tracking-wide sm:text-lg lg:text-2xl xl:text-3xl">Terminal Analitik</span>
               </div>
               {/* toggle Perbandingan / Tunggal */}
-              <button type="button" onClick={() => setCompare((v) => !v)} className="inline-flex h-9 w-fit items-center gap-2 rounded-xl px-3 text-xs font-bold transition-colors" style={{ background: compare ? C.income + "22" : C.panel2, color: compare ? C.income : C.muted, border: `1px solid ${compare ? C.income + "55" : C.border}` }}>
-                <GitCompareArrows className="h-4 w-4" />
+              <button type="button" onClick={() => setCompare((v) => !v)} className="inline-flex h-9 w-fit items-center gap-2 rounded-xl px-3 text-xs font-bold transition-colors lg:h-11 lg:gap-2.5 lg:rounded-2xl lg:px-5 lg:text-sm" style={{ background: compare ? C.income + "22" : C.panel2, color: compare ? C.income : C.muted, border: `1px solid ${compare ? C.income + "55" : C.border}` }}>
+                <GitCompareArrows className="h-4 w-4 lg:h-5 lg:w-5" />
                 {compare ? "Mode: Perbandingan" : "Mode: Tunggal"}
               </button>
             </div>
 
             {/* Periode global — satu rentang tanggal untuk SEMUA grafik di bawah */}
-            <div className="flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6" style={{ borderColor: C.border }}>
-              <div className="flex items-center gap-2">
-                <CalendarRange className="h-4 w-4 shrink-0" style={{ color: C.gold }} />
-                <span className="text-xs font-bold" style={{ color: C.muted }}>Periode laporan</span>
+            <div className="flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 lg:py-4" style={{ borderColor: C.border }}>
+              <div className="flex items-center gap-2 lg:gap-3">
+                <CalendarRange className="h-4 w-4 shrink-0 lg:h-5 lg:w-5" style={{ color: C.gold }} />
+                <span className="text-xs font-bold lg:text-sm xl:text-base" style={{ color: C.muted }}>Periode laporan</span>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <input type="date" value={period.from} max={period.to} onChange={(e) => setPeriod({ ...period, from: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none lg:h-9 lg:text-xs lg:px-3" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />

@@ -71,7 +71,7 @@ function formatPercent(value: number) {
 function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
   const now = new Date();
   const today = startOfDay(now);
-  const preset = params?.preset ?? "30d";
+  const preset = params?.preset ?? "today";
 
   if (preset === "today") {
     return {
@@ -134,8 +134,11 @@ function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
 
   if (preset === "custom") {
     const fallbackFrom = addDays(today, -29);
-    const from = parseInputDate(params?.from, fallbackFrom);
-    const to = parseInputDate(params?.to, today);
+    const rawFrom = parseInputDate(params?.from, fallbackFrom);
+    const rawTo = parseInputDate(params?.to, today);
+    // Clamp future dates to today (safety net against URL tampering)
+    const from = rawFrom > today ? today : rawFrom;
+    const to = rawTo > today ? today : rawTo;
 
     return {
       preset,
@@ -156,38 +159,44 @@ function buildTrend(
   from: Date,
   to: Date,
 ) {
-  const days: {
-    key: string;
-    label: string;
-    omzet: number;
-    transactions: number;
-  }[] = [];
-  const cursor = startOfDay(from);
+  const daySpan = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 
-  while (cursor <= to && days.length < 31) {
-    const key = dateInputValue(cursor);
-    days.push({
-      key,
-      label: formatDateID(cursor),
-      omzet: 0,
-      transactions: 0,
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  const dayMap = new Map(days.map((day) => [day.key, day]));
-
-  for (const sale of transactions) {
-    const key = dateInputValue(sale.createdAt);
-    const day = dayMap.get(key);
-
-    if (day) {
-      day.omzet += sale.subtotal;
-      day.transactions += 1;
+  if (daySpan <= 31) {
+    // Harian
+    const days: { key: string; label: string; omzet: number; transactions: number }[] = [];
+    const cursor = startOfDay(from);
+    while (cursor <= to) {
+      const key = dateInputValue(cursor);
+      days.push({ key, label: formatDateID(new Date(cursor)), omzet: 0, transactions: 0 });
+      cursor.setDate(cursor.getDate() + 1);
     }
+    const map = new Map(days.map((d) => [d.key, d]));
+    for (const sale of transactions) {
+      const key = dateInputValue(sale.createdAt);
+      const d = map.get(key);
+      if (d) { d.omzet += sale.subtotal; d.transactions += 1; }
+    }
+    return days.length > 0 ? days : [{ label: "-", omzet: 0, transactions: 0 }];
   }
 
-  return days.length > 0 ? days : [{ label: "-", omzet: 0, transactions: 0 }];
+  // Bulanan — untuk periode > 31 hari
+  // Label pakai DD/MM/YYYY hari pertama bulan agar groupTrendRowsByMonth bisa parse
+  const months: { key: string; label: string; omzet: number; transactions: number }[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+  const toMonth = new Date(to.getFullYear(), to.getMonth(), 1);
+  while (cursor <= toMonth) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+    months.push({ key, label: formatDateID(new Date(cursor)), omzet: 0, transactions: 0 });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  const map = new Map(months.map((m) => [m.key, m]));
+  for (const sale of transactions) {
+    const d = sale.createdAt;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const m = map.get(key);
+    if (m) { m.omzet += sale.subtotal; m.transactions += 1; }
+  }
+  return months.length > 0 ? months : [{ label: "-", omzet: 0, transactions: 0 }];
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
@@ -201,7 +210,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   };
   const [report, transactions] = await Promise.all([
     getOwnerReportSummary(range),
-    getOwnerReportTransactions(200, range),
+    getOwnerReportTransactions(2000, range),
   ]);
   const grossOmzet = report.month.grossOmzet;
   const customerReturn = report.month.returnValue;
