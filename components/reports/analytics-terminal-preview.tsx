@@ -245,22 +245,22 @@ type Props = {
 
 export default function AnalyticsTerminalPreview({ kpis, chart, period: initialPeriod }: Props) {
   const router = useRouter();
-  // Satu grafik adaptif dari data asli (satuan otomatis sesuai periode).
-  const section: Section = {
-    id: chart.granularity,
-    title: chart.title,
-    rangeNote: chart.rangeNote,
+  // 3 grafik (Harian/Bulanan/Tahunan) dari data asli, semuanya mengikuti periode.
+  const sections: Section[] = chart.series.map((s) => ({
+    id: s.id,
+    title: s.title,
+    rangeNote: s.rangeNote,
     unit: "rp",
     defaultStyle: "spike",
     ranges: [],
-    labels: chart.labels,
-    income: chart.income,
-    expense: chart.expense,
-  };
+    labels: s.labels,
+    income: s.income,
+    expense: s.expense,
+  }));
 
   const [flipped, setFlipped] = useState(true);
   const [compare, setCompare] = useState(true);
-  const [style, setStyle] = useState<Style>("spike");
+  const [styles, setStyles] = useState<Record<string, Style>>({});
   // Periode global: dipakai server untuk mengambil data. Diatur lewat URL (?from&to).
   const today = new Date();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -395,8 +395,8 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
 
             {/* Satu grafik adaptif (satuan mengikuti periode) */}
             <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
-              {[section].map((s) => {
-                const st = style;
+              {sections.map((s) => {
+                const st = styles[s.id] ?? "spike";
                 const labels = s.labels, income = s.income, expense = s.expense;
                 const totInc = income.reduce((a, b) => a + b, 0), totExp = expense.reduce((a, b) => a + b, 0), selisih = totInc - totExp;
                 return (
@@ -404,7 +404,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
                     <div className="flex flex-col gap-2.5 border-b p-3 sm:p-4" style={{ borderColor: C.border }}>
                       <div className="flex items-center justify-between gap-2">
                         <div><p className="text-sm font-extrabold">Penjualan vs Pembelian · {s.title}</p><p className="text-[11px]" style={{ color: C.muted }}>{s.rangeNote}</p></div>
-                        <select value={st} onChange={(e) => setStyle(e.target.value as Style)} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
+                        <select value={st} onChange={(e) => setStyles((p) => ({ ...p, [s.id]: e.target.value as Style }))} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
                           {styleChoices.map((c) => <option key={c.v} value={c.v} style={{ background: C.panel }}>{c.label}</option>)}
                         </select>
                       </div>
