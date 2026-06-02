@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { TerminalKpis } from "@/lib/analytics-terminal";
+import type { TerminalChartData, TerminalKpis, TerminalSpark } from "@/lib/analytics-terminal";
 import {
   Activity,
   ArrowDownRight,
@@ -62,34 +62,25 @@ const styleChoices: { v: Style; label: string }[] = [
 /* ── KPI ticker ──────────────────────────────────────────────────────────── */
 type Ticker = { name: string; value: string; changePct: number; goodWhen: "up" | "down" | "neutral"; high?: string; low?: string; spark?: number[]; sub?: string };
 
-const HOURLY = [320, 540, 610, 880, 1240, 1480, 1120, 1350, 1680, 1520, 1390, 1610, 980];
-const DAILY = Array.from({ length: 30 }, (_, i) => Math.round((8 + 4.5 * Math.sin(i * 0.55) + i * 0.18) * 10) / 10);
-const WEEKLY = Array.from({ length: 12 }, (_, i) => Math.round((55 + 16 * Math.sin(i * 0.7) + i * 2) * 10) / 10);
-const MONTHLY = [210, 232, 198, 256, 268, 240, 288, 274, 262, 305, 318, 296];
-const YEARLY = [820, 940, 1120, 1080, 1310];
-const expenseOf = (inc: number[]) => inc.map((v, i) => Math.round(v * (0.5 + 0.12 * Math.sin(i * 0.9)) * 10) / 10);
-
-const hourLabels = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"];
-const dayLabels = Array.from({ length: 30 }, (_, i) => `${i + 1}/5`);
-const weekLabels = Array.from({ length: 12 }, (_, i) => `Mgg ${i + 1}`);
-const monthLabels = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-const yearLabels = ["2022", "2023", "2024", "2025", "2026"];
-
 type Section = {
-  id: string; title: string; rangeNote: string; unit: "rb" | "jt";
+  id: string; title: string; rangeNote: string; unit: Unit;
   labels: string[]; income: number[]; expense: number[]; defaultStyle: Style;
   ranges: { label: string; count: number }[];
 };
-const sections: Section[] = [
-  { id: "jam", title: "Per Jam", rangeNote: "Hari ini · sejak buka", unit: "rb", labels: hourLabels, income: HOURLY, expense: expenseOf(HOURLY), defaultStyle: "spike", ranges: [{ label: "3 Jam", count: 3 }, { label: "6 Jam", count: 6 }, { label: "12 Jam", count: 12 }, { label: "Hari Ini", count: 13 }] },
-  { id: "harian", title: "Harian", rangeNote: "Per hari", unit: "jt", labels: dayLabels, income: DAILY, expense: expenseOf(DAILY), defaultStyle: "spike", ranges: [{ label: "7 Hari", count: 7 }, { label: "14 Hari", count: 14 }, { label: "30 Hari", count: 30 }] },
-  { id: "mingguan", title: "Mingguan", rangeNote: "Per minggu", unit: "jt", labels: weekLabels, income: WEEKLY, expense: expenseOf(WEEKLY), defaultStyle: "spike", ranges: [{ label: "4 Mgg", count: 4 }, { label: "8 Mgg", count: 8 }, { label: "12 Mgg", count: 12 }] },
-  { id: "bulanan", title: "Bulanan", rangeNote: "Per bulan", unit: "jt", labels: monthLabels, income: MONTHLY, expense: expenseOf(MONTHLY), defaultStyle: "spike", ranges: [{ label: "3 Bln", count: 3 }, { label: "6 Bln", count: 6 }, { label: "12 Bln", count: 12 }] },
-  { id: "tahunan", title: "Tahunan", rangeNote: "Per tahun", unit: "jt", labels: yearLabels, income: YEARLY, expense: expenseOf(YEARLY), defaultStyle: "spike", ranges: [{ label: "3 Thn", count: 3 }, { label: "5 Thn", count: 5 }] },
+
+// Metadata statis tiap kotak grafik. Angka (labels/income/expense) diisi data asli.
+type SectionMeta = Omit<Section, "labels" | "income" | "expense">;
+const SECTION_META: SectionMeta[] = [
+  { id: "jam", title: "Per Jam", rangeNote: "Hari ini · sejak buka", unit: "rp", defaultStyle: "spike", ranges: [{ label: "3 Jam", count: 3 }, { label: "6 Jam", count: 6 }, { label: "12 Jam", count: 12 }, { label: "Hari Ini", count: 24 }] },
+  { id: "harian", title: "Harian", rangeNote: "Per hari", unit: "rp", defaultStyle: "spike", ranges: [{ label: "7 Hari", count: 7 }, { label: "14 Hari", count: 14 }, { label: "30 Hari", count: 30 }] },
+  { id: "mingguan", title: "Mingguan", rangeNote: "Per minggu", unit: "rp", defaultStyle: "spike", ranges: [{ label: "4 Mgg", count: 4 }, { label: "8 Mgg", count: 8 }, { label: "12 Mgg", count: 12 }] },
+  { id: "bulanan", title: "Bulanan", rangeNote: "Per bulan", unit: "rp", defaultStyle: "spike", ranges: [{ label: "3 Bln", count: 3 }, { label: "6 Bln", count: 6 }, { label: "12 Bln", count: 12 }] },
+  { id: "tahunan", title: "Tahunan", rangeNote: "Per tahun", unit: "rp", defaultStyle: "spike", ranges: [{ label: "3 Thn", count: 3 }, { label: "5 Thn", count: 5 }] },
 ];
 
 const UNIT_WORD: Record<string, string> = { jam: "Jam", harian: "Hari", mingguan: "Minggu", bulanan: "Bulan", tahunan: "Tahun" };
-const unitVal = (v: number, u: "rb" | "jt") => (u === "rb" ? v * 1000 : v * 1_000_000);
+type Unit = "rb" | "jt" | "rp";
+const unitVal = (v: number, u: Unit) => (u === "rb" ? v * 1000 : u === "jt" ? v * 1_000_000 : v);
 function rpShort(n: number) {
   const a = Math.abs(n);
   if (a >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(2)}M`;
@@ -118,7 +109,7 @@ function Spark({ data, color }: { data: number[]; color: string }) {
 }
 
 /* ── Chart serbaguna ────────────────────────────────────────────────────── */
-function Chart({ style, labels, income, expense, unit, compare }: { style: Style; labels: string[]; income: number[]; expense: number[]; unit: "rb" | "jt"; compare: boolean }) {
+function Chart({ style, labels, income, expense, unit, compare }: { style: Style; labels: string[]; income: number[]; expense: number[]; unit: Unit; compare: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const W = 760, H = 250, pad = { t: 18, r: 24, b: 28, l: 72 };
@@ -232,18 +223,19 @@ function changePct(cur: number, prev: number) {
   return cur > 0 ? 100 : 0;
 }
 
-function buildTickers(k: TerminalKpis): Ticker[] {
+function buildTickers(k: TerminalKpis, sp: TerminalSpark): Ticker[] {
   const c = k.current, p = k.previous;
-  const money = (name: string, goodWhen: Ticker["goodWhen"], cur: number, prev: number): Ticker => ({ name, value: rpShort(cur), changePct: round1(changePct(cur, prev)), goodWhen, spark: [prev, cur], sub: `Periode lalu ${rpShort(prev)}` });
-  const count = (name: string, goodWhen: Ticker["goodWhen"], cur: number, prev: number): Ticker => ({ name, value: cur.toLocaleString("id-ID"), changePct: round1(changePct(cur, prev)), goodWhen, spark: [prev, cur], sub: `Periode lalu ${prev.toLocaleString("id-ID")}` });
+  const atvSpark = sp.transactions.map((t, i) => (t > 0 ? Math.round(sp.grossRevenue[i] / t) : 0));
+  const money = (name: string, goodWhen: Ticker["goodWhen"], cur: number, prev: number, spark: number[]): Ticker => ({ name, value: rpShort(cur), changePct: round1(changePct(cur, prev)), goodWhen, spark, sub: `Periode lalu ${rpShort(prev)}` });
+  const count = (name: string, goodWhen: Ticker["goodWhen"], cur: number, prev: number, spark: number[]): Ticker => ({ name, value: cur.toLocaleString("id-ID"), changePct: round1(changePct(cur, prev)), goodWhen, spark, sub: `Periode lalu ${prev.toLocaleString("id-ID")}` });
   return [
-    money("Omzet Bersih", "up", c.netRevenue, p.netRevenue),
-    money("Omzet Kotor", "up", c.grossRevenue, p.grossRevenue),
-    count("Total Transaksi", "up", c.transactions, p.transactions),
-    count("Produk Terjual", "up", c.itemsSold, p.itemsSold),
-    money("ATV", "up", c.atv, p.atv),
-    money("Total Retur", "down", c.returnsValue, p.returnsValue),
-    money("Total Pembelian", "neutral", c.purchases, p.purchases),
+    money("Omzet Bersih", "up", c.netRevenue, p.netRevenue, sp.netRevenue),
+    money("Omzet Kotor", "up", c.grossRevenue, p.grossRevenue, sp.grossRevenue),
+    count("Total Transaksi", "up", c.transactions, p.transactions, sp.transactions),
+    count("Produk Terjual", "up", c.itemsSold, p.itemsSold, sp.itemsSold),
+    money("ATV", "up", c.atv, p.atv, atvSpark),
+    money("Total Retur", "down", c.returnsValue, p.returnsValue, sp.returnsValue),
+    money("Total Pembelian", "neutral", c.purchases, p.purchases, sp.purchases),
   ];
 }
 
@@ -259,14 +251,22 @@ function buildTodayVsYesterday(k: TerminalKpis): { name: string; today: number; 
 
 type Props = {
   kpis: TerminalKpis;
+  chart: TerminalChartData;
   period: { from: string; to: string };
 };
 
-export default function AnalyticsTerminalPreview({ kpis, period: initialPeriod }: Props) {
+export default function AnalyticsTerminalPreview({ kpis, chart, period: initialPeriod }: Props) {
   const router = useRouter();
+  // Gabungkan metadata statis tiap kotak dengan deret data asli dari server.
+  const seriesById = new Map<string, TerminalChartData["series"][number]>(chart.series.map((s) => [s.id, s]));
+  const sections: Section[] = SECTION_META.map((m) => {
+    const d = seriesById.get(m.id);
+    return { ...m, labels: d?.labels ?? [], income: d?.income ?? [], expense: d?.expense ?? [] };
+  });
+
   const [flipped, setFlipped] = useState(true);
   const [compare, setCompare] = useState(true);
-  const [styles, setStyles] = useState<Record<string, Style>>(Object.fromEntries(sections.map((s) => [s.id, s.defaultStyle])));
+  const [styles, setStyles] = useState<Record<string, Style>>(Object.fromEntries(SECTION_META.map((s) => [s.id, s.defaultStyle])));
   const [vis, setVis] = useState<Record<string, number>>(Object.fromEntries(sections.map((s) => [s.id, s.labels.length])));
   // Periode global: satu rentang tanggal yang dipakai server untuk mengambil data.
   // Diatur lewat URL (?from&to) supaya halaman mengambil ulang data dari database.
@@ -279,7 +279,7 @@ export default function AnalyticsTerminalPreview({ kpis, period: initialPeriod }
   };
 
   // angka KPI & "Hari ini vs Kemarin" dari data asli
-  const tickers = buildTickers(kpis);
+  const tickers = buildTickers(kpis, chart.spark);
   const todayVsYesterday = buildTodayVsYesterday(kpis);
 
   const zoom = (id: string, total: number, dir: 1 | -1) =>
