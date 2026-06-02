@@ -276,24 +276,18 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
 
   // Saat Mode Analitik aktif, gelapkan latar seluruh halaman (shell + root) supaya
   // terminal menyatu dengan background. Dipulihkan saat kembali ke Tampilan Normal.
+  // Saat halaman ini dibuka, paksa dark mode. Saat navigasi keluar, pulihkan tema asli.
   useEffect(() => {
-    // <main> = kolom konten (tanpa sidebar); root = area overscroll.
+    const wasDark = document.documentElement.classList.contains("dark");
+    document.documentElement.classList.add("dark");
     const main = document.querySelector<HTMLElement>("main");
     const targets = [main, document.body, document.documentElement].filter(Boolean) as HTMLElement[];
-    // transisi halus saat gelap ↔ terang (selaras dengan animasi flip konten 500ms)
-    targets.forEach((el) => el.style.setProperty("transition", "background-color 500ms ease", "important"));
-    if (flipped) {
-      targets.forEach((el) => el.style.setProperty("background-color", C.bg, "important"));
-    } else {
-      targets.forEach((el) => el.style.removeProperty("background-color"));
-    }
+    targets.forEach((el) => el.style.setProperty("background-color", C.bg, "important"));
     return () => {
-      targets.forEach((el) => {
-        el.style.removeProperty("background-color");
-        el.style.removeProperty("transition");
-      });
+      document.documentElement.classList.toggle("dark", wasDark);
+      targets.forEach((el) => el.style.removeProperty("background-color"));
     };
-  }, [flipped]);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -360,19 +354,19 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
             </div>
 
             {/* KPI ticker (tetap) — kartu 3D */}
-            <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 sm:gap-3 sm:p-4 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:gap-4 lg:p-5 xl:grid-cols-4">
               {tickers.map((t) => {
                 const col = changeColor(t), up = t.changePct >= 0;
                 return (
-                  <div key={t.name} className="rounded-xl p-3" style={{ border: card3d.border, boxShadow: card3d.boxShadow, background: `radial-gradient(130% 90% at 100% 0%, ${col}26, transparent 55%), linear-gradient(180deg, #16213a 0%, #0d1320 72%)` }}>
-                    <div className="flex items-start justify-between gap-2"><span className="text-xs font-bold leading-tight" style={{ color: C.muted }}>{t.name}</span>{t.spark ? <Spark data={t.spark} color={col} /> : null}</div>
-                    <div className="mt-1 flex items-end justify-between gap-2"><span className="text-lg font-extrabold tracking-tight">{t.value}</span>
-                      <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold" style={{ background: col + "22", color: col }}>{t.goodWhen === "neutral" ? <Minus className="h-3 w-3" /> : up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}{up ? "+" : ""}{t.changePct}%</span>
+                  <div key={t.name} className="rounded-xl p-3 lg:p-4 xl:p-5" style={{ border: card3d.border, boxShadow: card3d.boxShadow, background: `radial-gradient(130% 90% at 100% 0%, ${col}26, transparent 55%), linear-gradient(180deg, #16213a 0%, #0d1320 72%)` }}>
+                    <div className="flex items-start justify-between gap-2"><span className="text-xs font-bold leading-tight lg:text-sm" style={{ color: C.muted }}>{t.name}</span>{t.spark ? <Spark data={t.spark} color={col} /> : null}</div>
+                    <div className="mt-1 flex items-end justify-between gap-2"><span className="text-lg font-extrabold tracking-tight lg:text-2xl xl:text-3xl">{t.value}</span>
+                      <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold lg:text-sm" style={{ background: col + "22", color: col }}>{t.goodWhen === "neutral" ? <Minus className="h-3 w-3" /> : up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}{up ? "+" : ""}{t.changePct}%</span>
                     </div>
                     {t.high && t.low ? (
-                      <div className="mt-2 flex items-center justify-between text-[10px]" style={{ color: C.muted }}><span>Tertinggi {t.high}</span><span>Terendah {t.low}</span></div>
+                      <div className="mt-2 flex items-center justify-between text-[10px] lg:text-xs" style={{ color: C.muted }}><span>Tertinggi {t.high}</span><span>Terendah {t.low}</span></div>
                     ) : t.sub ? (
-                      <div className="mt-2 text-[10px]" style={{ color: C.muted }}>{t.sub}</div>
+                      <div className="mt-2 text-[10px] lg:text-xs" style={{ color: C.muted }}>{t.sub}</div>
                     ) : null}
                   </div>
                 );
@@ -382,17 +376,17 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
             {/* Hari ini vs Kemarin */}
             <div className="px-3 sm:px-4">
               <div className="rounded-2xl p-3 sm:p-4" style={card3d}>
-                <p className="mb-2 text-sm font-extrabold">Hari Ini vs Kemarin</p>
+                <p className="mb-2 text-sm font-extrabold lg:text-base xl:text-lg">Hari Ini vs Kemarin</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {todayVsYesterday.map((m) => {
                     const diff = m.today - m.yest, pct = m.yest ? (diff / m.yest) * 100 : 0;
                     const good = m.invert ? diff <= 0 : diff >= 0, col = good ? C.up : C.down;
                     const fmt = (v: number) => (m.isCount ? String(v) : rpShort(v));
                     return (
-                      <div key={m.name} className="rounded-xl p-2.5" style={inset}>
-                        <p className="text-[11px] font-bold" style={{ color: C.muted }}>{m.name}</p>
-                        <p className="mt-1 text-base font-extrabold">{fmt(m.today)}</p>
-                        <div className="mt-1 flex items-center justify-between text-[10px]" style={{ color: C.muted }}><span>Kmrn {fmt(m.yest)}</span><span className="font-bold" style={{ color: col }}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span></div>
+                      <div key={m.name} className="rounded-xl p-2.5 lg:p-4" style={inset}>
+                        <p className="text-[11px] font-bold lg:text-xs xl:text-sm" style={{ color: C.muted }}>{m.name}</p>
+                        <p className="mt-1 text-base font-extrabold lg:text-xl xl:text-2xl">{fmt(m.today)}</p>
+                        <div className="mt-1 flex items-center justify-between text-[10px] lg:text-xs" style={{ color: C.muted }}><span>Kmrn {fmt(m.yest)}</span><span className="font-bold" style={{ color: col }}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span></div>
                       </div>
                     );
                   })}
@@ -410,7 +404,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
                   <div key={s.id} className="rounded-2xl" style={card3d}>
                     <div className="flex flex-col gap-2.5 border-b p-3 sm:p-4" style={{ borderColor: C.border }}>
                       <div className="flex items-center justify-between gap-2">
-                        <div><p className="text-sm font-extrabold">Penjualan vs Pembelian · {s.title}</p><p className="text-[11px]" style={{ color: C.muted }}>{s.rangeNote}</p></div>
+                        <div><p className="text-sm font-extrabold lg:text-base xl:text-lg">Chart {s.title}</p><p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>{s.rangeNote}</p></div>
                         <select value={st} onChange={(e) => setStyles((p) => ({ ...p, [s.id]: e.target.value as Style }))} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
                           {styleChoices.map((c) => <option key={c.v} value={c.v} style={{ background: C.panel }}>{c.label}</option>)}
                         </select>
@@ -449,7 +443,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
                           .slice(-6);
                         return (
                           <div className="overflow-hidden rounded-xl" style={inset}>
-                            <div className="grid items-center gap-2 px-3 py-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: C.muted, borderBottom: `1px solid ${C.border}`, gridTemplateColumns: cols }}>
+                            <div className="grid items-center gap-2 px-3 py-2 text-[10px] font-bold uppercase tracking-wide lg:text-xs" style={{ color: C.muted, borderBottom: `1px solid ${C.border}`, gridTemplateColumns: cols }}>
                               <span>{UNIT_WORD[s.id]}</span>
                               <span className="text-right">Masuk</span>
                               {compare ? <span className="text-right">Keluar</span> : null}
@@ -459,7 +453,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
                               const sel = r.inc - r.exp;
                               const dpct = r.prev != null && r.prev !== 0 ? ((r.inc - r.prev) / r.prev) * 100 : null;
                               return (
-                                <div key={r.lb} className="grid items-center gap-2 px-3 py-2.5 text-xs" style={{ gridTemplateColumns: cols, borderTop: idx ? `1px solid ${C.border}66` : "none" }}>
+                                <div key={r.lb} className="grid items-center gap-2 px-3 py-2.5 text-xs lg:py-3 lg:text-sm" style={{ gridTemplateColumns: cols, borderTop: idx ? `1px solid ${C.border}66` : "none" }}>
                                   <span className="truncate font-bold">{r.lb}</span>
                                   <span className="text-right font-bold tabular-nums" style={{ color: C.income }}>{rpShort(unitVal(r.inc, s.unit))}</span>
                                   {compare ? <span className="text-right font-bold tabular-nums" style={{ color: C.expense }}>{rpShort(unitVal(r.exp, s.unit))}</span> : null}
