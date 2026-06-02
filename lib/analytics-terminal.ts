@@ -86,12 +86,7 @@ function endOfDay(date: Date) {
    pembelian stok. Semua nilai dalam rupiah penuh.
    ──────────────────────────────────────────────────────────────────────── */
 
-export type TerminalSeries = {
-  id: "jam" | "harian" | "mingguan" | "bulanan" | "tahunan";
-  labels: string[];
-  income: number[];
-  expense: number[];
-};
+export type TerminalGranularity = "jam" | "harian" | "mingguan" | "bulanan" | "tahunan";
 
 export type TerminalSpark = {
   netRevenue: number[];
@@ -102,8 +97,14 @@ export type TerminalSpark = {
   purchases: number[];
 };
 
+// Satu grafik adaptif: satuan dipilih otomatis dari panjang periode.
 export type TerminalChartData = {
-  series: TerminalSeries[];
+  granularity: TerminalGranularity;
+  title: string;
+  rangeNote: string;
+  labels: string[];
+  income: number[];
+  expense: number[];
   spark: TerminalSpark;
 };
 
@@ -131,110 +132,94 @@ function weekStart(d: Date) {
 }
 const weekKey = (d: Date) => dayKey(weekStart(d));
 
-export async function getTerminalSeries(): Promise<TerminalChartData> {
+function diffDaysInclusive(from: Date, to: Date) {
+  const a = new Date(from); a.setHours(0, 0, 0, 0);
+  const b = new Date(to); b.setHours(0, 0, 0, 0);
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1;
+}
+
+function chooseGranularity(from: Date, to: Date): TerminalGranularity {
+  const days = diffDaysInclusive(from, to);
+  if (days <= 1) return "jam";
+  if (days <= 45) return "harian";
+  if (days <= 182) return "mingguan";
+  if (days <= 1095) return "bulanan";
+  return "tahunan";
+}
+
+const GRAN_TITLE: Record<TerminalGranularity, string> = {
+  jam: "Per Jam", harian: "Per Hari", mingguan: "Per Minggu", bulanan: "Per Bulan", tahunan: "Per Tahun",
+};
+const GRAN_LOWER: Record<TerminalGranularity, string> = {
+  jam: "jam", harian: "hari", mingguan: "minggu", bulanan: "bulan", tahunan: "tahun",
+};
+
+export async function getTerminalSeries(range: {
+  from: Date;
+  to: Date;
+}): Promise<TerminalChartData> {
+  const { from, to } = range;
   const now = new Date();
-  const fiveYearsAgo = new Date(now.getFullYear() - 4, 0, 1);
-  const spark0 = new Date(now);
-  spark0.setDate(spark0.getDate() - 13);
-  spark0.setHours(0, 0, 0, 0);
+  const granularity = chooseGranularity(from, to);
 
-  const saleWhere = { createdAt: { gte: fiveYearsAgo }, ...FINAL_SALE_STATUS_WHERE };
+  // Susun daftar bucket (titik grafik) yang menutup [from, to] pada satuan terpilih.
+  const starts: Date[] = [];
+  const labels: string[] = [];
+  let keyOf: (d: Date) => string;
 
-  const [sales, purchases, sparkItems, sparkReturns] = await Promise.all([
-    prisma.sale.findMany({ where: saleWhere, select: { createdAt: true, subtotal: true } }),
-    prisma.purchase.findMany({ where: { createdAt: { gte: fiveYearsAgo } }, select: { createdAt: true, total: true } }),
-    prisma.saleItem.findMany({
-      where: { sale: { createdAt: { gte: spark0 }, ...FINAL_SALE_STATUS_WHERE } },
-      select: { qty: true, sale: { select: { createdAt: true } } },
-    }),
-    prisma.saleReturn.findMany({
-      where: { returnType: "CUSTOMER_RETURN", createdAt: { gte: spark0 }, sale: FINAL_SALE_STATUS_WHERE },
-      select: { createdAt: true, totalRefund: true },
-    }),
+  if (granularity === "jam") {
+    const base = from;
+    const lastHour = dayKey(base) === dayKey(now) ? now.getHours() : 23;
+    for (let h = 0; h <= lastHour; h++) {
+      starts.push(new Date(base.getFullYear(), base.getMonth(), base.getDate(), h));
+      labels.push(`${String(h).padStart(2, "0")}.00`);
+    }
+    keyOf = hourKey;
+  } else if (granularity === "harian") {
+    const d = new Date(from); d.setHours(0, 0, 0, 0);
+    const end = new Date(to); end.setHours(0, 0, 0, 0);
+    while (d <= end) { starts.push(new Date(d)); labels.push(`${d.getDate()}/${d.getMonth() + 1}`); d.setDate(d.getDate() + 1); }
+    keyOf = dayKey;
+  } else if (granularity === "mingguan") {
+    const d = weekStart(from); const end = weekStart(to);
+    while (d <= end) { starts.push(new Date(d)); labels.push(`${d.getDate()}/${d.getMonth() + 1}`); d.setDate(d.getDate() + 7); }
+    keyOf = weekKey;
+  } else if (granularity === "bulanan") {
+    const multiYear = from.getFullYear() !== to.getFullYear();
+    const d = new Date(from.getFullYear(), from.getMonth(), 1);
+    const end = new Date(to.getFullYear(), to.getMonth(), 1);
+    while (d <= end) { starts.push(new Date(d)); labels.push(MONTH_SHORT[d.getMonth()] + (multiYear ? ` '${String(d.getFullYear()).slice(2)}` : "")); d.setMonth(d.getMonth() + 1); }
+    keyOf = monthKey;
+  } else {
+    const d = new Date(from.getFullYear(), 0, 1);
+    const end = new Date(to.getFullYear(), 0, 1);
+    while (d <= end) { starts.push(new Date(d)); labels.push(String(d.getFullYear())); d.setFullYear(d.getFullYear() + 1); }
+    keyOf = yearKey;
+  }
+
+  // Sparkline KPI: selalu 14 hari terakhir (indikator momentum, lepas dari periode).
+  const spark0 = new Date(now); spark0.setDate(spark0.getDate() - 13); spark0.setHours(0, 0, 0, 0);
+
+  const [sales, purchases, sparkSales, sparkPurchases, sparkItems, sparkReturns] = await Promise.all([
+    prisma.sale.findMany({ where: { createdAt: { gte: from, lte: to }, ...FINAL_SALE_STATUS_WHERE }, select: { createdAt: true, subtotal: true } }),
+    prisma.purchase.findMany({ where: { createdAt: { gte: from, lte: to } }, select: { createdAt: true, total: true } }),
+    prisma.sale.findMany({ where: { createdAt: { gte: spark0 }, ...FINAL_SALE_STATUS_WHERE }, select: { createdAt: true, subtotal: true } }),
+    prisma.purchase.findMany({ where: { createdAt: { gte: spark0 } }, select: { createdAt: true, total: true } }),
+    prisma.saleItem.findMany({ where: { sale: { createdAt: { gte: spark0 }, ...FINAL_SALE_STATUS_WHERE } }, select: { qty: true, sale: { select: { createdAt: true } } } }),
+    prisma.saleReturn.findMany({ where: { returnType: "CUSTOMER_RETURN", createdAt: { gte: spark0 }, sale: FINAL_SALE_STATUS_WHERE }, select: { createdAt: true, totalRefund: true } }),
   ]);
 
-  const buildSeries = (
-    id: TerminalSeries["id"],
-    starts: Date[],
-    labels: string[],
-    keyOf: (d: Date) => string,
-  ): TerminalSeries => {
-    const inc = bucketSum(sales, (s) => keyOf(s.createdAt), (s) => s.subtotal);
-    const exp = bucketSum(purchases, (p) => keyOf(p.createdAt), (p) => p.total);
-    return {
-      id,
-      labels,
-      income: starts.map((d) => inc.get(keyOf(d)) ?? 0),
-      expense: starts.map((d) => exp.get(keyOf(d)) ?? 0),
-    };
-  };
+  const inc = bucketSum(sales, (s) => keyOf(s.createdAt), (s) => s.subtotal);
+  const exp = bucketSum(purchases, (p) => keyOf(p.createdAt), (p) => p.total);
+  const income = starts.map((d) => inc.get(keyOf(d)) ?? 0);
+  const expense = starts.map((d) => exp.get(keyOf(d)) ?? 0);
 
-  // Per Jam: hari ini, jam 0..jam sekarang
-  const hourStarts: Date[] = [];
-  const hourLabels: string[] = [];
-  for (let h = 0; h <= now.getHours(); h++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h);
-    hourStarts.push(d);
-    hourLabels.push(String(h).padStart(2, "0"));
-  }
-
-  // Harian: 30 hari terakhir
-  const dayStarts: Date[] = [];
-  const dayLabels: string[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    dayStarts.push(d);
-    dayLabels.push(`${d.getDate()}/${d.getMonth() + 1}`);
-  }
-
-  // Mingguan: 12 minggu terakhir (mulai Senin)
-  const weekStarts: Date[] = [];
-  const weekLabels: string[] = [];
-  const thisWeek = weekStart(now);
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(thisWeek);
-    d.setDate(d.getDate() - i * 7);
-    weekStarts.push(d);
-    weekLabels.push(`${d.getDate()}/${d.getMonth() + 1}`);
-  }
-
-  // Bulanan: 12 bulan terakhir
-  const monthStarts: Date[] = [];
-  const monthLabels: string[] = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    monthStarts.push(d);
-    monthLabels.push(MONTH_SHORT[d.getMonth()]);
-  }
-
-  // Tahunan: 5 tahun terakhir
-  const yearStarts: Date[] = [];
-  const yearLabels: string[] = [];
-  for (let i = 4; i >= 0; i--) {
-    const d = new Date(now.getFullYear() - i, 0, 1);
-    yearStarts.push(d);
-    yearLabels.push(String(d.getFullYear()));
-  }
-
-  const series: TerminalSeries[] = [
-    buildSeries("jam", hourStarts, hourLabels, hourKey),
-    buildSeries("harian", dayStarts, dayLabels, dayKey),
-    buildSeries("mingguan", weekStarts, weekLabels, weekKey),
-    buildSeries("bulanan", monthStarts, monthLabels, monthKey),
-    buildSeries("tahunan", yearStarts, yearLabels, yearKey),
-  ];
-
-  // Sparkline KPI: 14 hari terakhir
+  // Sparkline 14 hari
   const sparkDays: Date[] = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    sparkDays.push(d);
-  }
-  const revByDay = bucketSum(sales, (s) => dayKey(s.createdAt), (s) => s.subtotal);
-  const txnByDay = bucketSum(sales, (s) => dayKey(s.createdAt), () => 1);
-  const purByDay = bucketSum(purchases, (p) => dayKey(p.createdAt), (p) => p.total);
+  for (let i = 13; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); sparkDays.push(d); }
+  const revByDay = bucketSum(sparkSales, (s) => dayKey(s.createdAt), (s) => s.subtotal);
+  const txnByDay = bucketSum(sparkSales, (s) => dayKey(s.createdAt), () => 1);
+  const purByDay = bucketSum(sparkPurchases, (p) => dayKey(p.createdAt), (p) => p.total);
   const itemByDay = bucketSum(sparkItems, (it) => dayKey(it.sale.createdAt), (it) => it.qty);
   const retByDay = bucketSum(sparkReturns, (r) => dayKey(r.createdAt), (r) => r.totalRefund ?? 0);
 
@@ -249,7 +234,15 @@ export async function getTerminalSeries(): Promise<TerminalChartData> {
     purchases: sparkDays.map((d) => purByDay.get(dayKey(d)) ?? 0),
   };
 
-  return { series, spark };
+  return {
+    granularity,
+    title: GRAN_TITLE[granularity],
+    rangeNote: `Otomatis dikelompokkan per ${GRAN_LOWER[granularity]}`,
+    labels,
+    income,
+    expense,
+    spark,
+  };
 }
 
 export async function getTerminalKpis(range: {

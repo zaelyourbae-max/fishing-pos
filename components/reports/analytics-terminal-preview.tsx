@@ -11,8 +11,6 @@ import {
   GitCompareArrows,
   Minus,
   Sparkles,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -67,16 +65,6 @@ type Section = {
   labels: string[]; income: number[]; expense: number[]; defaultStyle: Style;
   ranges: { label: string; count: number }[];
 };
-
-// Metadata statis tiap kotak grafik. Angka (labels/income/expense) diisi data asli.
-type SectionMeta = Omit<Section, "labels" | "income" | "expense">;
-const SECTION_META: SectionMeta[] = [
-  { id: "jam", title: "Per Jam", rangeNote: "Hari ini · sejak buka", unit: "rp", defaultStyle: "spike", ranges: [{ label: "3 Jam", count: 3 }, { label: "6 Jam", count: 6 }, { label: "12 Jam", count: 12 }, { label: "Hari Ini", count: 24 }] },
-  { id: "harian", title: "Harian", rangeNote: "Per hari", unit: "rp", defaultStyle: "spike", ranges: [{ label: "7 Hari", count: 7 }, { label: "14 Hari", count: 14 }, { label: "30 Hari", count: 30 }] },
-  { id: "mingguan", title: "Mingguan", rangeNote: "Per minggu", unit: "rp", defaultStyle: "spike", ranges: [{ label: "4 Mgg", count: 4 }, { label: "8 Mgg", count: 8 }, { label: "12 Mgg", count: 12 }] },
-  { id: "bulanan", title: "Bulanan", rangeNote: "Per bulan", unit: "rp", defaultStyle: "spike", ranges: [{ label: "3 Bln", count: 3 }, { label: "6 Bln", count: 6 }, { label: "12 Bln", count: 12 }] },
-  { id: "tahunan", title: "Tahunan", rangeNote: "Per tahun", unit: "rp", defaultStyle: "spike", ranges: [{ label: "3 Thn", count: 3 }, { label: "5 Thn", count: 5 }] },
-];
 
 const UNIT_WORD: Record<string, string> = { jam: "Jam", harian: "Hari", mingguan: "Minggu", bulanan: "Bulan", tahunan: "Tahun" };
 type Unit = "rb" | "jt" | "rp";
@@ -257,19 +245,23 @@ type Props = {
 
 export default function AnalyticsTerminalPreview({ kpis, chart, period: initialPeriod }: Props) {
   const router = useRouter();
-  // Gabungkan metadata statis tiap kotak dengan deret data asli dari server.
-  const seriesById = new Map<string, TerminalChartData["series"][number]>(chart.series.map((s) => [s.id, s]));
-  const sections: Section[] = SECTION_META.map((m) => {
-    const d = seriesById.get(m.id);
-    return { ...m, labels: d?.labels ?? [], income: d?.income ?? [], expense: d?.expense ?? [] };
-  });
+  // Satu grafik adaptif dari data asli (satuan otomatis sesuai periode).
+  const section: Section = {
+    id: chart.granularity,
+    title: chart.title,
+    rangeNote: chart.rangeNote,
+    unit: "rp",
+    defaultStyle: "spike",
+    ranges: [],
+    labels: chart.labels,
+    income: chart.income,
+    expense: chart.expense,
+  };
 
   const [flipped, setFlipped] = useState(true);
   const [compare, setCompare] = useState(true);
-  const [styles, setStyles] = useState<Record<string, Style>>(Object.fromEntries(SECTION_META.map((s) => [s.id, s.defaultStyle])));
-  const [vis, setVis] = useState<Record<string, number>>(Object.fromEntries(sections.map((s) => [s.id, s.labels.length])));
-  // Periode global: satu rentang tanggal yang dipakai server untuk mengambil data.
-  // Diatur lewat URL (?from&to) supaya halaman mengambil ulang data dari database.
+  const [style, setStyle] = useState<Style>("spike");
+  // Periode global: dipakai server untuk mengambil data. Diatur lewat URL (?from&to).
   const today = new Date();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -281,9 +273,6 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
   // angka KPI & "Hari ini vs Kemarin" dari data asli
   const tickers = buildTickers(kpis, chart.spark);
   const todayVsYesterday = buildTodayVsYesterday(kpis);
-
-  const zoom = (id: string, total: number, dir: 1 | -1) =>
-    setVis((p) => ({ ...p, [id]: Math.max(4, Math.min(total, (p[id] ?? total) + (dir === 1 ? -2 : 2))) }));
 
   // Saat Mode Analitik aktif, gelapkan latar seluruh halaman (shell + root) supaya
   // terminal menyatu dengan background. Dipulihkan saat kembali ke Tampilan Normal.
@@ -349,7 +338,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
               <div className="flex flex-wrap items-center gap-1.5">
                 <input type="date" value={period.from} max={period.to} onChange={(e) => setPeriod({ ...period, from: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
                 <span style={{ color: C.muted }}>–</span>
-                <input type="date" value={period.to} min={period.from} onChange={(e) => setPeriod({ ...period, to: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
+                <input type="date" value={period.to} min={period.from} max={iso(today)} onChange={(e) => setPeriod({ ...period, to: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
                 <span className="ml-1 flex flex-wrap items-center gap-1.5">
                   {([
                     { label: "Hari Ini", from: iso(today), to: iso(today) },
@@ -404,38 +393,29 @@ export default function AnalyticsTerminalPreview({ kpis, chart, period: initialP
               </div>
             </div>
 
-            {/* Section per rentang */}
+            {/* Satu grafik adaptif (satuan mengikuti periode) */}
             <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
-              {sections.map((s) => {
-                const st = styles[s.id], v = vis[s.id] ?? s.labels.length;
-                const labels = s.labels.slice(-v), income = s.income.slice(-v), expense = s.expense.slice(-v);
+              {[section].map((s) => {
+                const st = style;
+                const labels = s.labels, income = s.income, expense = s.expense;
                 const totInc = income.reduce((a, b) => a + b, 0), totExp = expense.reduce((a, b) => a + b, 0), selisih = totInc - totExp;
                 return (
                   <div key={s.id} className="rounded-2xl" style={card3d}>
                     <div className="flex flex-col gap-2.5 border-b p-3 sm:p-4" style={{ borderColor: C.border }}>
                       <div className="flex items-center justify-between gap-2">
-                        <div><p className="text-sm font-extrabold">{s.title}</p><p className="text-[11px]" style={{ color: C.muted }}>{s.rangeNote}</p></div>
-                        <div className="flex items-center gap-2">
-                          <div className="inline-flex rounded-lg p-0.5" style={inset}>
-                            <button type="button" onClick={() => zoom(s.id, s.labels.length, -1)} className="rounded-md p-1.5" style={{ color: C.muted }} aria-label="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></button>
-                            <button type="button" onClick={() => zoom(s.id, s.labels.length, 1)} className="rounded-md p-1.5" style={{ color: C.muted }} aria-label="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></button>
-                          </div>
-                          <select value={st} onChange={(e) => setStyles((p) => ({ ...p, [s.id]: e.target.value as Style }))} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
-                            {styleChoices.map((c) => <option key={c.v} value={c.v} style={{ background: C.panel }}>{c.label}</option>)}
-                          </select>
-                        </div>
+                        <div><p className="text-sm font-extrabold">Penjualan vs Pembelian · {s.title}</p><p className="text-[11px]" style={{ color: C.muted }}>{s.rangeNote}</p></div>
+                        <select value={st} onChange={(e) => setStyle(e.target.value as Style)} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
+                          {styleChoices.map((c) => <option key={c.v} value={c.v} style={{ background: C.panel }}>{c.label}</option>)}
+                        </select>
                       </div>
-                      {/* rentang cepat (zoom mundur) */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {s.ranges.map((r) => {
-                          const on = v === r.count;
-                          return <button key={r.label} type="button" onClick={() => setVis((p) => ({ ...p, [s.id]: r.count }))} className="rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors" style={{ background: on ? C.income + "22" : "transparent", color: on ? C.income : C.muted, border: `1px solid ${on ? C.income + "55" : C.border}` }}>{r.label}</button>;
-                        })}
-                        {compare ? <span className="ml-auto flex items-center gap-3 text-[11px]" style={{ color: C.muted }}><span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: C.income }} />Pemasukan</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: C.expense }} />Pengeluaran</span></span> : null}
-                      </div>
+                      {compare ? <div className="flex flex-wrap items-center gap-3 text-[11px]" style={{ color: C.muted }}><span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: C.income }} />Pemasukan</span><span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: C.expense }} />Pengeluaran</span></div> : null}
                     </div>
 
+                    {labels.length === 0 ? (
+                      <div className="px-3 py-10 text-center text-[12px]" style={{ color: C.muted }}>Belum ada data pada periode ini.</div>
+                    ) : (
                     <div className="px-2 pt-3 sm:px-3"><div className="rounded-xl px-1 py-2" style={inset}><Chart style={st} labels={labels} income={income} expense={expense} unit={s.unit} compare={compare} /></div></div>
+                    )}
 
                     {compare ? (
                       <div className="grid grid-cols-3 gap-2 px-3 pt-3 sm:px-4">

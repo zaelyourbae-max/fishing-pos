@@ -33,9 +33,9 @@ export default async function ReportsPreviewPage({ searchParams }: PageProps) {
 
   const params = (await searchParams) ?? {};
   const today = startOfDay(new Date());
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const rawFrom = parseInputDate(params.from, monthStart);
+  // Default: HARI INI (from = to = hari ini).
+  const rawFrom = parseInputDate(params.from, today);
   const rawTo = parseInputDate(params.to, today);
   // clamp: tidak melebihi hari ini, dan from <= to
   const from = startOfDay(rawFrom > today ? today : rawFrom);
@@ -43,7 +43,7 @@ export default async function ReportsPreviewPage({ searchParams }: PageProps) {
 
   const [kpis, chart] = await Promise.all([
     getTerminalKpis({ from, to }),
-    getTerminalSeries(),
+    getTerminalSeries({ from, to }),
   ]);
 
   return (

@@ -18,13 +18,14 @@ import {
   Search,
   ShoppingBag,
   SlidersHorizontal,
+  Sparkles,
   Wallet,
   X,
   type LucideIcon,
 } from "lucide-react";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
 import { downloadOwnerReportPdf } from "@/components/reports/download-owner-report-pdf";
-import { formatDateID, parseIDDateInput } from "@/lib/date-format";
+import { formatDateID, isFutureDateInput, parseIDDateInput } from "@/lib/date-format";
 import { operatorLabel, transactionIdentityLabel } from "@/lib/transaction-identity";
 
 type KpiTone = "emerald" | "rose" | "blue" | "violet" | "amber";
@@ -394,6 +395,11 @@ function ReportPeriodFilter({
 
     if (compareIsoDate(parsedFrom, parsedTo) > 0) {
       setError("Tanggal awal tidak boleh lebih besar dari tanggal akhir.");
+      return;
+    }
+
+    if (isFutureDateInput(parsedFrom) || isFutureDateInput(parsedTo)) {
+      setError("Tidak bisa memilih tanggal di masa depan.");
       return;
     }
 
@@ -1348,7 +1354,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
     }
 
     startTransition(() => {
-      router.push(`/reports?${params.toString()}`);
+      router.push(`/reports?${params.toString()}`, { scroll: false });
     });
   }
 
@@ -1367,7 +1373,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
       );
     } catch (error) {
       window.alert(
-        error instanceof Error ? error.message : "Export PDF gagal.",
+        error instanceof Error ? error.message : "Download PDF gagal.",
       );
     } finally {
       setExporting(false);
@@ -1464,35 +1470,35 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
 
           .dark .reports-page {
             background:
-              radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 28rem),
-              #020617;
-            color: #e2e8f0;
+              radial-gradient(circle at top right, color-mix(in oklab, var(--color-teal-500) 10%, transparent), transparent 28rem),
+              var(--background);
+            color: var(--foreground);
           }
 
           .dark .reports-page [class~="bg-white"] {
-            background-color: rgba(2, 6, 23, 0.72) !important;
+            background-color: var(--card) !important;
           }
 
           .dark .reports-page [class~="bg-slate-50"],
           .dark .reports-page [class~="bg-slate-50/70"],
           .dark .reports-page [class~="bg-gray-50"] {
-            background-color: rgba(15, 23, 42, 0.74) !important;
+            background-color: var(--secondary) !important;
           }
 
           .dark .reports-page [class~="bg-slate-100"],
           .dark .reports-page [class~="bg-gray-100"] {
-            background-color: rgba(30, 41, 59, 0.9) !important;
+            background-color: var(--muted) !important;
           }
 
           .dark .reports-page [class~="border-slate-200"],
           .dark .reports-page [class~="border-slate-100"],
           .dark .reports-page [class~="border-gray-200"] {
-            border-color: rgba(30, 41, 59, 0.95) !important;
+            border-color: var(--border) !important;
           }
 
           .dark .reports-page [class~="divide-slate-100"] > :not([hidden]) ~ :not([hidden]),
           .dark .reports-page [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) {
-            border-color: rgba(30, 41, 59, 0.95) !important;
+            border-color: var(--border) !important;
           }
 
           .dark .reports-page [class~="text-slate-950"],
@@ -1521,42 +1527,43 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           }
 
           .dark .reports-page [class~="bg-emerald-50"] {
-            background-color: rgba(16, 185, 129, 0.14) !important;
+            background-color: color-mix(in oklab, var(--color-teal-500) 16%, transparent) !important;
           }
 
+          /* Angka/label "uang" tetap hijau (semantik), bukan ikut palet. */
           .dark .reports-page [class~="text-emerald-700"],
           .dark .reports-page [class~="text-emerald-600"] {
             color: #a7f3d0 !important;
           }
 
           .dark .reports-page [class~="border-emerald-100"] {
-            border-color: rgba(16, 185, 129, 0.28) !important;
+            border-color: color-mix(in oklab, var(--color-teal-500) 28%, transparent) !important;
           }
 
           .dark .reports-page [class~="bg-blue-50"] {
-            background-color: rgba(37, 99, 235, 0.16) !important;
+            background-color: color-mix(in oklab, var(--color-teal-500) 18%, transparent) !important;
           }
 
           .dark .reports-page [class~="text-blue-700"],
           .dark .reports-page [class~="text-blue-600"] {
-            color: #93c5fd !important;
+            color: var(--color-teal-300) !important;
           }
 
           .dark .reports-page [class~="border-blue-100"],
           .dark .reports-page [class~="border-blue-200"] {
-            border-color: rgba(59, 130, 246, 0.34) !important;
+            border-color: color-mix(in oklab, var(--color-teal-500) 34%, transparent) !important;
           }
 
           .dark .reports-page [class~="bg-violet-50"] {
-            background-color: rgba(124, 58, 237, 0.16) !important;
+            background-color: color-mix(in oklab, var(--color-teal-500) 18%, transparent) !important;
           }
 
           .dark .reports-page [class~="text-violet-700"] {
-            color: #c4b5fd !important;
+            color: var(--color-teal-300) !important;
           }
 
           .dark .reports-page [class~="border-violet-100"] {
-            border-color: rgba(124, 58, 237, 0.34) !important;
+            border-color: color-mix(in oklab, var(--color-teal-500) 34%, transparent) !important;
           }
 
           .dark .reports-page [class~="bg-rose-50"] {
@@ -1575,18 +1582,18 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
 
           .dark .reports-page [class~="bg-orange-50"],
           .dark .reports-page [class~="bg-amber-50"] {
-            background-color: rgba(245, 158, 11, 0.14) !important;
+            background-color: color-mix(in oklab, var(--color-teal-500) 16%, transparent) !important;
           }
 
           .dark .reports-page [class~="text-orange-700"],
           .dark .reports-page [class~="text-amber-700"],
           .dark .reports-page [class~="text-amber-800"] {
-            color: #fcd34d !important;
+            color: var(--color-teal-300) !important;
           }
 
           .dark .reports-page [class~="border-orange-100"],
           .dark .reports-page [class~="border-amber-200"] {
-            border-color: rgba(245, 158, 11, 0.32) !important;
+            border-color: color-mix(in oklab, var(--color-teal-500) 32%, transparent) !important;
           }
 
           .dark .reports-page [class~="shadow-sm"],
@@ -1600,9 +1607,9 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           .dark .reports-page select,
           .dark .reports-page textarea {
             color-scheme: dark;
-            background-color: rgba(15, 23, 42, 0.92) !important;
-            border-color: rgba(51, 65, 85, 0.95) !important;
-            color: #f8fafc !important;
+            background-color: var(--color-slate-900) !important;
+            border-color: var(--color-slate-700) !important;
+            color: var(--color-slate-100) !important;
           }
 
           .dark .reports-page input::placeholder,
@@ -1611,13 +1618,13 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           }
 
           .dark .reports-page table thead {
-            background-color: rgba(15, 23, 42, 0.9) !important;
-            color: #94a3b8 !important;
+            background-color: var(--color-slate-900) !important;
+            color: var(--color-slate-400) !important;
           }
 
           .dark .reports-page tr:hover,
           .dark .reports-page button[class*="hover:bg-blue-50"]:hover {
-            background-color: rgba(37, 99, 235, 0.08);
+            background-color: color-mix(in oklab, var(--color-teal-500) 10%, transparent);
           }
 
           .dark .reports-page svg text {
@@ -1647,6 +1654,14 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
               {data.period.label}
               <ChevronDown className="h-4 w-4 text-slate-400" />
             </div>
+            <a
+              href="/reports/preview"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-extrabold shadow-sm transition active:scale-95"
+              style={{ color: "#fff", background: "linear-gradient(135deg,#16c784,#0ea5e9)" }}
+            >
+              <Sparkles className="h-4 w-4" />
+              Mode Analitik
+            </a>
             <button
               type="button"
               onClick={exportPdf}
@@ -1654,7 +1669,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {exporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {exporting ? "Menyiapkan..." : "Export PDF"}
+              {exporting ? "Menyiapkan..." : "Download PDF"}
             </button>
           </div>
         </header>
@@ -1685,9 +1700,17 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-extrabold text-slate-700 shadow-sm disabled:opacity-60"
             >
               {exporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Export PDF
+              Download PDF
             </button>
           </div>
+          <a
+            href="/reports/preview"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-extrabold shadow-sm active:scale-95"
+            style={{ color: "#fff", background: "linear-gradient(135deg,#16c784,#0ea5e9)" }}
+          >
+            <Sparkles className="h-4 w-4" />
+            Mode Analitik
+          </a>
         </header>
 
         {showMobileFilters ? (
@@ -1761,46 +1784,51 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           </div>
         </section>
 
-        <nav className="hidden min-w-0 gap-1 overflow-x-auto border-b border-slate-200 md:flex">
-          {desktopTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => selectReportSection(tab.id)}
-              className={cx(
-                "shrink-0 border-b-2 px-4 py-3 text-sm font-extrabold transition",
-                activeReportSection === tab.id
-                  ? "border-blue-600 text-blue-700"
-                  : "border-transparent text-slate-600 hover:border-blue-600 hover:text-blue-700",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+        {/* Mobile: panel tunggal berisi KPI */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_45px_rgba(15,23,42,0.06)] dark:border-white/8 dark:bg-slate-900 md:hidden">
+          <div className="space-y-3">
+            <MainKpiCard kpi={netKpi} onOpen={setSelectedKpi} />
+            <div id="ringkasan-mobile" className="grid grid-cols-2 gap-3">
+              {mobileKpis.map((kpi) => (
+                <MetricCard
+                  key={kpi.id}
+                  kpi={kpi}
+                  compact
+                  onOpen={canOpenKpi(kpi) ? setSelectedKpi : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
 
-        <div className="space-y-3 md:hidden">
-          <MainKpiCard kpi={netKpi} onOpen={setSelectedKpi} />
-          <div id="ringkasan-mobile" className="grid grid-cols-2 gap-3">
-            {mobileKpis.map((kpi) => (
+        {/* Desktop: panel tunggal berisi tabs + KPI grid */}
+        <div className="hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.06)] dark:border-white/8 dark:bg-slate-900 md:block">
+          <nav className="min-w-0 gap-1 overflow-x-auto border-b border-slate-200 px-4 dark:border-white/8 md:flex">
+            {desktopTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => selectReportSection(tab.id)}
+                className={cx(
+                  "shrink-0 border-b-2 px-4 py-3 text-sm font-extrabold transition",
+                  activeReportSection === tab.id
+                    ? "border-teal-600 text-teal-700"
+                    : "border-transparent text-slate-600 hover:border-teal-600 hover:text-teal-700",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          <div id="ringkasan" className="grid grid-cols-2 gap-4 p-4 xl:grid-cols-3 min-[1500px]:grid-cols-4 min-[1800px]:grid-cols-7">
+            {data.kpis.map((kpi) => (
               <MetricCard
                 key={kpi.id}
                 kpi={kpi}
-                compact
                 onOpen={canOpenKpi(kpi) ? setSelectedKpi : undefined}
               />
             ))}
           </div>
-        </div>
-
-        <div id="ringkasan" className="hidden grid-cols-2 gap-4 md:grid xl:grid-cols-3 min-[1500px]:grid-cols-4 min-[1800px]:grid-cols-7">
-          {data.kpis.map((kpi) => (
-            <MetricCard
-              key={kpi.id}
-              kpi={kpi}
-              onOpen={canOpenKpi(kpi) ? setSelectedKpi : undefined}
-            />
-          ))}
         </div>
 
         <div className="hidden gap-5 md:grid min-[1500px]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.9fr)_minmax(0,0.95fr)]">
@@ -3397,6 +3425,11 @@ function ProfitDetailContent({
       return;
     }
 
+    if (isFutureDateInput(parsedFrom) || isFutureDateInput(parsedTo)) {
+      setError("Tidak bisa memilih tanggal di masa depan.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSelectedProduct(null);
@@ -3432,7 +3465,7 @@ function ProfitDetailContent({
         fallback,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export PDF laba & margin gagal.");
+      setError(err instanceof Error ? err.message : "Download PDF laba & margin gagal.");
     } finally {
       setExporting(false);
     }
@@ -3519,10 +3552,10 @@ function ProfitDetailContent({
               onClick={handleExportPdf}
               disabled={exporting || loading}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
-              aria-label="Export PDF Laba & Margin"
+              aria-label="Download PDF Laba & Margin"
             >
               <Download className="h-4 w-4" />
-              {exporting ? "Export..." : "Export PDF"}
+              {exporting ? "Export..." : "Download PDF"}
             </button>
           </div>
         </div>
