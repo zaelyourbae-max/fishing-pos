@@ -197,6 +197,10 @@ function LiveCard({ points, active }: { points: TerminalLivePoint[]; active: boo
     const el = wrap.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
+      // Zoom HANYA saat menahan Ctrl/⌘ (atau pinch trackpad yang mengirim ctrlKey).
+      // Tanpa itu, biarkan halaman scroll seperti biasa — supaya chart tidak
+      // "menculik" scroll halaman & tidak nge-zoom sendiri tanpa sengaja.
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       zoomAround(plotFrac(e.clientX), e.deltaY > 0 ? 1.18 : 1 / 1.18);
     };
@@ -257,7 +261,7 @@ function LiveCard({ points, active }: { points: TerminalLivePoint[]; active: boo
             </span>
             <div>
               <p className="text-sm font-extrabold lg:text-base xl:text-lg">Mode Live</p>
-              <p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>Scroll / cubit untuk zoom · geser untuk jalan</p>
+              <p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>Tombol / cubit / Ctrl+scroll untuk zoom · geser untuk jalan</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -281,7 +285,7 @@ function LiveCard({ points, active }: { points: TerminalLivePoint[]; active: boo
             <div
               ref={wrap}
               className="relative h-full w-full select-none"
-              style={{ touchAction: "none", cursor: drag.current ? "grabbing" : "grab" }}
+              style={{ touchAction: "pan-y", cursor: drag.current ? "grabbing" : "grab" }}
               onMouseDown={onMouseDown}
               onMouseMove={onMouseMove}
               onMouseUp={endDrag}
