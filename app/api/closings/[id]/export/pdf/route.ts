@@ -4,476 +4,442 @@ import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { NextResponse } from "next/server";
+import { PDFDocument, PDFFont, PDFPage, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import { promises as fsp } from "fs";
+import path from "path";
 
 export const runtime = "nodejs";
 
-const PAGE_WIDTH = 595;
-const PAGE_HEIGHT = 842;
-const MARGIN_X = 40;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_X * 2;
-const NAVY = "#0F172A";
-const MUTED = "#64748B";
-const BORDER = "#E2E8F0";
-const TEAL = "#0F9F8A";
-const SOFT_TEAL = "#ECFDF5";
-const SOFT_BLUE = "#EFF6FF";
-const SOFT_AMBER = "#FFFBEB";
+// ── Layout ────────────────────────────────────────────────────────────────────
+const PW = 595;
+const PH = 842;
+const MX = 40;
+const CW = PW - MX * 2;        // 515
+const RIGHT = MX + CW;         // 555
+const CONTENT_TOP = 104;
+const CONTENT_BOTTOM = 786;
 
-type PaymentRow = {
-  method: string;
-  total: number;
-  count: number;
-};
+// ── Colors ────────────────────────────────────────────────────────────────────
+const C_NAVY    = rgb(0.059, 0.090, 0.165);
+const C_SLATE   = rgb(0.200, 0.255, 0.333);
+const C_MUTED   = rgb(0.580, 0.635, 0.722);
+const C_BORDER  = rgb(0.886, 0.910, 0.941);
+const C_TEAL    = rgb(0.051, 0.580, 0.533);
+const C_TEAL_BG = rgb(0.941, 0.992, 0.980);
+const C_STRIPE  = rgb(0.973, 0.980, 0.988);
+const C_HDR_BG  = rgb(0.945, 0.961, 0.976);
+const C_BLUE    = rgb(0.231, 0.510, 0.965);
+const C_AMBER   = rgb(0.851, 0.467, 0.024);
+const C_AMBER_BG= rgb(0.998, 0.980, 0.925);
+const C_WHITE   = rgb(1, 1, 1);
+const C_BYLINE  = rgb(0.576, 0.588, 0.624);
 
-function formatRupiah(value: number) {
-  return `Rp ${value.toLocaleString("id-ID")}`;
+type C = ReturnType<typeof rgb>;
+
+// ── Fonts ─────────────────────────────────────────────────────────────────────
+type Fonts = { r400: PDFFont; r600: PDFFont; r700: PDFFont; r800: PDFFont };
+
+async function loadFonts(doc: PDFDocument): Promise<Fonts> {
+  doc.registerFontkit(fontkit as never);
+  const dir = path.join(process.cwd(), "assets/fonts");
+  const [b400, b600, b700, b800] = await Promise.all([
+    fsp.readFile(path.join(dir, "Inter-Regular.ttf")),
+    fsp.readFile(path.join(dir, "Inter-SemiBold.ttf")),
+    fsp.readFile(path.join(dir, "Inter-Bold.ttf")),
+    fsp.readFile(path.join(dir, "Inter-ExtraBold.ttf")),
+  ]);
+  const [r400, r600, r700, r800] = await Promise.all([
+    doc.embedFont(b400, { subset: true }),
+    doc.embedFont(b600, { subset: true }),
+    doc.embedFont(b700, { subset: true }),
+    doc.embedFont(b800, { subset: true }),
+  ]);
+  return { r400, r600, r700, r800 };
 }
 
-function formatDate(date: Date) {
-  return formatDateID(date);
+// ── Draw primitives ─────────────────────────────────────────────────────────────
+function baselineY(topY: number, font: PDFFont, size: number) {
+  return PH - topY - font.heightAtSize(size, { descender: false });
+}
+function dt(p: PDFPage, t: string, x: number, topY: number, font: PDFFont, size: number, color: C) {
+  p.drawText(t, { x, y: baselineY(topY, font, size), font, size, color });
+}
+function dtR(p: PDFPage, t: string, rx: number, topY: number, font: PDFFont, size: number, color: C) {
+  dt(p, t, rx - font.widthOfTextAtSize(t, size), topY, font, size, color);
+}
+function dtSpaced(p: PDFPage, t: string, x: number, topY: number, font: PDFFont, size: number, color: C, sp: number) {
+  let cx = x;
+  for (const ch of t) { dt(p, ch, cx, topY, font, size, color); cx += font.widthOfTextAtSize(ch, size) + sp; }
+}
+function dr(p: PDFPage, x: number, topY: number, w: number, h: number, color: C, bc?: C, bw = 0.5) {
+  p.drawRectangle({ x, y: PH - topY - h, width: w, height: h, color, ...(bc ? { borderColor: bc, borderWidth: bw } : {}) });
+}
+function rounded(p: PDFPage, x: number, topY: number, w: number, h: number, r: number, color: C, bc?: C) {
+  const k = 0.5523, kr = r * k;
+  const pth = [
+    `M ${r} 0`, `L ${w - r} 0`, `C ${w - kr} 0 ${w} ${kr} ${w} ${r}`,
+    `L ${w} ${h - r}`, `C ${w} ${h - kr} ${w - kr} ${h} ${w - r} ${h}`,
+    `L ${r} ${h}`, `C ${kr} ${h} 0 ${h - kr} 0 ${h - r}`,
+    `L 0 ${r}`, `C 0 ${kr} ${kr} 0 ${r} 0`, "Z",
+  ].join(" ");
+  p.drawSvgPath(pth, { x, y: PH - topY, color, ...(bc ? { borderColor: bc, borderWidth: 0.5 } : {}) });
+}
+function hl(p: PDFPage, x1: number, topY: number, x2: number, color: C, w = 0.5) {
+  p.drawLine({ start: { x: x1, y: PH - topY }, end: { x: x2, y: PH - topY }, thickness: w, color });
+}
+function rowText(p: PDFPage, t: string, x: number, rowTopY: number, rowH: number, font: PDFFont, size: number, color: C, right = false) {
+  const topY = rowTopY + (rowH - font.heightAtSize(size, { descender: false })) / 2 - 0.5;
+  if (right) dtR(p, t, x, topY, font, size, color); else dt(p, t, x, topY, font, size, color);
+}
+function cutW(t: string, font: PDFFont, size: number, maxW: number) {
+  if (font.widthOfTextAtSize(t, size) <= maxW) return t;
+  let s = t;
+  while (s.length > 1 && font.widthOfTextAtSize(`${s}..`, size) > maxW) s = s.slice(0, -1);
+  return `${s}..`;
+}
+function fitSize(t: string, font: PDFFont, maxSize: number, minSize: number, maxW: number) {
+  let s = maxSize;
+  while (s > minSize && font.widthOfTextAtSize(t, s) > maxW) s -= 0.5;
+  return s;
 }
 
-function formatDateTime(date?: Date | null) {
-  if (!date) {
-    return "-";
-  }
+// ── Data types & helpers ────────────────────────────────────────────────────────
+type PaymentRow = { method: string; total: number; count: number };
 
-  return formatDateTimeID(date);
+function fmtRupiah(v: number) { return `Rp ${v.toLocaleString("id-ID")}`; }
+function fmtDate(d: Date)     { return formatDateID(d); }
+function fmtDateTime(d?: Date | null) { return d ? formatDateTimeID(d) : "-"; }
+
+function objectValue(v: unknown, key: string) {
+  return v && typeof v === "object" ? (v as Record<string, unknown>)[key] : undefined;
 }
-
-function objectValue(value: unknown, key: string) {
-  return value && typeof value === "object"
-    ? (value as Record<string, unknown>)[key]
-    : undefined;
-}
-
-function numberValue(value: unknown) {
-  const number = Number(value ?? 0);
-
-  return Number.isFinite(number) ? number : 0;
-}
+function numberValue(v: unknown) { const n = Number(v ?? 0); return Number.isFinite(n) ? n : 0; }
 
 function parsePaymentSummary(value: unknown): PaymentRow[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
+  if (!Array.isArray(value)) return [];
   return value.map((item) => ({
     method: String(objectValue(item, "method") ?? "-"),
-    total: numberValue(objectValue(item, "total")),
-    count: numberValue(objectValue(item, "count")),
+    total:  numberValue(objectValue(item, "total")),
+    count:  numberValue(objectValue(item, "count")),
   }));
 }
 
-function paymentMethodLabel(method: string) {
-  const normalized = method.toUpperCase();
-
-  if (normalized === "CASH") {
-    return "CASH";
-  }
-
-  if (normalized === "QRIS") {
-    return "QRIS";
-  }
-
-  if (normalized === "TRANSFER" || normalized === "BANK_TRANSFER") {
-    return "Transfer Bank";
-  }
-
+function paymentLabel(method: string) {
+  const n = method.toUpperCase();
+  if (n === "CASH")  return "Cash";
+  if (n === "QRIS")  return "QRIS";
+  if (n === "TRANSFER" || n === "BANK_TRANSFER") return "Transfer Bank";
   return method.replaceAll("_", " ");
 }
 
-function cashDifferenceStatus(value: number) {
-  if (value === 0) {
-    return "Sesuai";
-  }
-
-  if (value < 0) {
-    return "Kurang";
-  }
-
-  return "Lebih";
+function diffStatus(v: number) {
+  if (v === 0) return "Sesuai";
+  return v < 0 ? "Kurang" : "Lebih";
 }
 
-function escapeText(value: string) {
-  return value
-    .replace(/[^\x20-\x7E]/g, " ")
-    .replaceAll("\\", "\\\\")
-    .replaceAll("(", "\\(")
-    .replaceAll(")", "\\)");
+function statusLabel(status: string) {
+  return status === "CLOSED" ? "Closed" : "Open";
 }
 
-function color(hex: string) {
-  const value = hex.replace("#", "");
-  const r = parseInt(value.slice(0, 2), 16) / 255;
-  const g = parseInt(value.slice(2, 4), 16) / 255;
-  const b = parseInt(value.slice(4, 6), 16) / 255;
+// ── Header / Footer (identik dengan PDF Laporan Owner) ──────────────────────────
+function drawHeader(p: PDFPage, f: Fonts, storeName: string, closingDate: Date, status: string, printedAt: string) {
+  // teal accent bar
+  rounded(p, MX, 26, 4, 58, 2, C_TEAL);
 
-  return `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`;
+  // Left: brand identity
+  dt(p, storeName, MX + 14, 30, f.r800, 19, C_NAVY);
+  dt(p, "by Meijrverse\xb0", MX + 14, 58, f.r400, 9, C_BYLINE);
+
+  // Right: document title "LAPORAN CLOSING" with letter-spacing
+  const title = "LAPORAN CLOSING";
+  const tSp = 1.5, tSz = 15;
+  let tW = -tSp;
+  for (const ch of title) tW += f.r800.widthOfTextAtSize(ch, tSz) + tSp;
+  dtSpaced(p, title, RIGHT - tW, 30, f.r800, tSz, C_TEAL, tSp);
+
+  // Right: tanggal + dicetak (right-aligned label · value)
+  const meta = (label: string, value: string, topY: number) => {
+    const vW = f.r700.widthOfTextAtSize(value, 8.5);
+    dtR(p, value, RIGHT, topY, f.r700, 8.5, C_NAVY);
+    const lW = f.r400.widthOfTextAtSize(label, 8);
+    dt(p, label, RIGHT - vW - 6 - lW, topY + 0.5, f.r400, 8, C_MUTED);
+  };
+  meta("Tanggal", fmtDate(closingDate), 54);
+  meta("Dicetak", printedAt, 68);
+
+  hl(p, MX, 90, RIGHT, C_TEAL, 1.5);
+
+  // Status badge (left, under brand)
+  const isClosed = status === "CLOSED";
+  const badge = statusLabel(status);
+  const bw = f.r700.widthOfTextAtSize(badge.toUpperCase(), 8) + 18;
+  rounded(p, MX + 14, 74, bw, 14, 3, isClosed ? C_TEAL_BG : C_AMBER_BG, isClosed ? C_TEAL : C_AMBER);
+  dt(p, badge.toUpperCase(), MX + 23, 78, f.r700, 8, isClosed ? C_TEAL : C_AMBER);
 }
 
-function text(
-  value: string,
-  x: number,
-  y: number,
-  size = 10,
-  font = "F1",
-  fill = NAVY,
-) {
-  return [
-    "BT",
-    `/${font} ${size} Tf`,
-    `${color(fill)} rg`,
-    `${x} ${PAGE_HEIGHT - y} Td`,
-    `(${escapeText(value)}) Tj`,
-    "ET",
-  ].join("\n");
+function drawFooter(p: PDFPage, f: Fonts, storeName: string, num: number, total: number) {
+  hl(p, MX, 802, RIGHT, C_BORDER, 0.5);
+  dt(p, storeName, MX, 812, f.r700, 7, C_MUTED);
+  const mid = "by MeijrVerse\xb0";
+  dt(p, mid, (PW - f.r400.widthOfTextAtSize(mid, 7)) / 2, 812, f.r400, 7, C_MUTED);
+  dtR(p, `Halaman ${num} dari ${total}`, RIGHT, 812, f.r400, 7, C_MUTED);
 }
 
-function rect(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  fill: string,
-  stroke?: string,
-) {
-  const yy = PAGE_HEIGHT - y - height;
-
-  if (!stroke) {
-    return `${color(fill)} rg\n${x} ${yy} ${width} ${height} re f`;
-  }
-
-  return [
-    `${color(fill)} rg`,
-    `${color(stroke)} RG`,
-    "0.8 w",
-    `${x} ${yy} ${width} ${height} re B`,
-  ].join("\n");
-}
-
-function line(x1: number, y1: number, x2: number, y2: number, stroke = BORDER) {
-  return `${color(stroke)} RG\n0.8 w\n${x1} ${PAGE_HEIGHT - y1} m\n${x2} ${
-    PAGE_HEIGHT - y2
-  } l\nS`;
-}
-
-function truncate(value: string, max = 28) {
-  return value.length > max ? `${value.slice(0, max - 3)}...` : value;
-}
-
-function metricCard(
-  x: number,
-  y: number,
-  width: number,
-  label: string,
-  value: string,
-  helper = "",
-  accent = SOFT_TEAL,
-) {
-  return [
-    rect(x, y, width, 64, "#FFFFFF", BORDER),
-    rect(x + 12, y + 18, 22, 22, accent),
-    text(label, x + 44, y + 19, 7.5, "F2", MUTED),
-    text(value, x + 44, y + 39, 12, "F2", NAVY),
-    helper ? text(helper, x + 44, y + 55, 7.5, "F1", MUTED) : "",
-  ].join("\n");
-}
-
-function tableHeader(
-  y: number,
-  columns: { label: string; x: number; width: number }[],
-) {
-  return [
-    rect(MARGIN_X, y, CONTENT_WIDTH, 26, NAVY),
-    ...columns.map((column) =>
-      text(column.label, column.x, y + 17, 8, "F2", "#FFFFFF"),
-    ),
-  ].join("\n");
-}
-
-function tableRow(
-  y: number,
-  columns: { value: string; x: number; max?: number; right?: boolean }[],
-  fill = "#FFFFFF",
-  font = "F1",
-  textColor = "#334155",
-) {
-  return [
-    rect(MARGIN_X, y, CONTENT_WIDTH, 28, fill, BORDER),
-    ...columns.map((column) => {
-      const value = truncate(column.value, column.max ?? 18);
-      const x = column.right ? column.x - value.length * 4.15 : column.x;
-
-      return text(value, x, y + 18, 8, font, textColor);
-    }),
-  ].join("\n");
-}
-
-function buildPdfPages(pages: string[]) {
-  const pageObjects = pages.flatMap((content, index) => {
-    const pageObjectNumber = 5 + index * 2;
-    const contentObjectNumber = pageObjectNumber + 1;
-
-    return [
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`,
-      `<< /Length ${Buffer.byteLength(content, "utf8")} >>\nstream\n${content}\nendstream`,
-    ];
-  });
-  const kids = pages.map((_, index) => `${5 + index * 2} 0 R`).join(" ");
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
-    ...pageObjects,
-  ];
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  objects.forEach((object, index) => {
-    offsets.push(Buffer.byteLength(pdf, "utf8"));
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = Buffer.byteLength(pdf, "utf8");
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-
-  for (const offset of offsets.slice(1)) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  return Buffer.from(pdf, "utf8");
-}
-
-function pageFooter(page: number, total: number) {
-  return [
-    line(MARGIN_X, 790, PAGE_WIDTH - MARGIN_X, 790),
-    text("Generated by Meijrverse POS", MARGIN_X, 810, 8, "F1", MUTED),
-    text(`Generated at ${formatDateTime(new Date())}`, 220, 810, 8, "F1", MUTED),
-    text(`Halaman ${page} dari ${total}`, 490, 810, 8, "F1", MUTED),
-  ].join("\n");
-}
-
-function reportHeader(storeName: string, closingDate: Date, status: string) {
-  return [
-    text(storeName.toUpperCase(), MARGIN_X, 48, 22, "F2", TEAL),
-    text("Laporan Closing Harian", MARGIN_X, 72, 13, "F1", "#475569"),
-    text("Tanggal closing", 360, 42, 8, "F1", MUTED),
-    text(formatDate(closingDate), 360, 58, 9, "F2", NAVY),
-    text("Tanggal cetak", 462, 42, 8, "F1", MUTED),
-    text(formatDateTime(new Date()), 462, 58, 9, "F2", NAVY),
-    text("Status closing", 360, 76, 8, "F1", MUTED),
-    text(status, 360, 92, 9, "F2", NAVY),
-    line(MARGIN_X, 108, PAGE_WIDTH - MARGIN_X, 108, "#99D6CB"),
-  ].join("\n");
-}
-
-function sectionTitle(label: string, y: number) {
-  return text(label.toUpperCase(), MARGIN_X, y, 11, "F2", NAVY);
-}
-
-export async function GET(
-  req: Request,
-  context: {
-    params: Promise<{ id: string }>;
-  },
-) {
+// ── Route handler ─────────────────────────────────────────────────────────────
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireOwner(req);
-
-  if (!auth.ok) {
-    return auth.response;
-  }
+  if (!auth.ok) return auth.response;
 
   const { id } = await context.params;
-  const closing = await prisma.dailyClosing.findUnique({
-    where: {
-      id,
-    },
-    select: {
-      closingDate: true,
-    },
-  });
+  const closing = await prisma.dailyClosing.findUnique({ where: { id }, select: { closingDate: true } });
+  if (!closing) return NextResponse.json({ message: "Closing tidak ditemukan." }, { status: 404 });
 
-  if (!closing) {
-    return NextResponse.json(
-      { message: "Closing tidak ditemukan." },
-      { status: 404 },
-    );
-  }
-
-  const [settings, fullClosing] = await Promise.all([
-    getSettings(),
-    getDailyClosing(prisma, closing.closingDate),
-  ]);
-
-  if (!fullClosing) {
-    return NextResponse.json(
-      { message: "Closing tidak ditemukan." },
-      { status: 404 },
-    );
-  }
+  const [settings, fullClosing] = await Promise.all([getSettings(), getDailyClosing(prisma, closing.closingDate)]);
+  if (!fullClosing) return NextResponse.json({ message: "Closing tidak ditemukan." }, { status: 404 });
 
   const paymentRows = parsePaymentSummary(fullClosing.paymentSummary);
-  const pages: string[][] = [[
-    reportHeader(settings.storeName, fullClosing.closingDate, fullClosing.status),
-  ]];
-  let y = 136;
+  const storeName   = settings.storeName;
+  const status      = fullClosing.status;
+  const printedAt   = formatDateTimeID(new Date());
 
-  pages[0].push(
-    sectionTitle("Ringkasan Closing", y),
-    metricCard(40, 148, 160, "Expected Cash", formatRupiah(fullClosing.expectedCash)),
-    metricCard(218, 148, 150, "Cash Aktual", formatRupiah(fullClosing.actualCash)),
-    metricCard(
-      386,
-      148,
-      169,
-      "Selisih",
-      formatRupiah(fullClosing.difference),
-      cashDifferenceStatus(fullClosing.difference),
-      fullClosing.difference === 0 ? SOFT_TEAL : SOFT_AMBER,
-    ),
-    metricCard(40, 226, 160, "Omzet Kotor", formatRupiah(fullClosing.grossOmzet)),
-    metricCard(218, 226, 150, "Omzet Bersih", formatRupiah(fullClosing.netOmzet)),
-    metricCard(
-          386,
-          226,
-          169,
-          "Transaksi",
-          String(fullClosing.transactionCount),
-      `Status ${fullClosing.status}`,
-      SOFT_BLUE,
-    ),
-    sectionTitle("Detail Status", 320),
-    tableRow(342, [
-      { value: "Status", x: 52, max: 24 },
-      { value: fullClosing.status, x: 210, max: 34 },
-      { value: "Waktu closing", x: 330, max: 24 },
-      { value: formatDateTime(fullClosing.closedAt), x: 440, max: 28 },
-    ]),
-    tableRow(370, [
-      { value: "Closed by", x: 52, max: 24 },
-      { value: fullClosing.closedBy?.name ?? "-", x: 210, max: 34 },
-      { value: "Nilai retur", x: 330, max: 24 },
-      { value: formatRupiah(fullClosing.returnValue), x: 540, max: 18, right: true },
-    ]),
-  );
+  // ── PDF setup ─────────────────────────────────────────────────────────────────
+  const doc = await PDFDocument.create();
+  const f = await loadFonts(doc);
+  const pages: PDFPage[] = [];
 
-  y = 422;
-  pages[0].push(
-    sectionTitle("Ringkasan Pembayaran", y),
-    tableHeader(y + 20, [
-      { label: "Metode", x: 52, width: 150 },
-      { label: "Transaksi", x: 260, width: 90 },
-      { label: "Total", x: 430, width: 100 },
-    ]),
-  );
-  y += 46;
-
-  if (paymentRows.length === 0) {
-    pages[0].push(tableRow(y, [{ value: "Belum ada pembayaran", x: 52, max: 60 }]));
-    y += 28;
-  } else {
-    for (const payment of paymentRows) {
-      pages[0].push(
-        tableRow(y, [
-          { value: paymentMethodLabel(payment.method), x: 52, max: 24 },
-          { value: String(payment.count), x: 260, max: 12 },
-          { value: formatRupiah(payment.total), x: 540, max: 18, right: true },
-        ]),
-      );
-      y += 28;
-    }
+  function startPage(): PDFPage {
+    const p = doc.addPage([PW, PH]);
+    pages.push(p);
+    drawHeader(p, f, storeName, fullClosing!.closingDate, status, printedAt);
+    return p;
   }
 
-  y += 34;
-  pages[0].push(sectionTitle("Catatan Closing", y));
-  y += 22;
-  pages[0].push(
-    tableRow(y, [{ value: fullClosing.notes || "-", x: 52, max: 80 }]),
-  );
-  y += 58;
+  let page = startPage();
+  let y = CONTENT_TOP;
 
-  if (fullClosing.reopenedAt) {
-    pages[0].push(sectionTitle("Reopen Terakhir", y));
-    y += 22;
-    pages[0].push(
-      tableRow(y, [
-        { value: "Reopened at", x: 52, max: 18 },
-        { value: formatDateTime(fullClosing.reopenedAt), x: 180, max: 28 },
-        { value: "By", x: 350, max: 8 },
-        { value: fullClosing.reopenedBy?.name ?? "-", x: 390, max: 22 },
-      ]),
-      tableRow(y + 28, [
-        { value: "Reason", x: 52, max: 18 },
-        { value: fullClosing.reopenReason ?? "-", x: 180, max: 58 },
-      ]),
-    );
-    y += 70;
+  // ── Section title ───────────────────────────────────────────────────────────
+  function sectionTitle(label: string) {
+    rounded(page, MX, y, CW, 24, 5, C_HDR_BG);
+    rounded(page, MX, y, 3, 24, 1.5, C_TEAL);
+    dt(page, label.toUpperCase(), MX + 14, y + 7, f.r700, 8.5, C_NAVY);
+    y += 24 + 10;
   }
 
-  if (y > 650) {
-    pages.push([
-      reportHeader(settings.storeName, fullClosing.closingDate, fullClosing.status),
-    ]);
-    y = 126;
+  // ── Metric cards (3 per row) ──────────────────────────────────────────────────
+  const CARD_W = 165;
+  const CARD_GAP = (CW - CARD_W * 3) / 2;  // 10
+  const CARD_H = 72;
+  function metricRow(cards: { label: string; value: string; helper: string; accent: C }[]) {
+    cards.forEach((c, i) => {
+      const x = MX + i * (CARD_W + CARD_GAP);
+      rounded(page, x, y, CARD_W, CARD_H, 7, C_WHITE, C_BORDER);
+      rounded(page, x, y + 6, 4, CARD_H - 12, 2, c.accent);
+      dt(page, c.label.toUpperCase(), x + 16, y + 14, f.r600, 7.5, C_MUTED);
+      const vs = fitSize(c.value, f.r800, 14, 9, CARD_W - 28);
+      dt(page, c.value, x + 16, y + 32, f.r800, vs, C_NAVY);
+      dt(page, c.helper, x + 16, y + 54, f.r400, 7.5, C_MUTED);
+    });
+    y += CARD_H + 12;
   }
 
-  pages[pages.length - 1].push(
-    sectionTitle("Audit Log Closing", y),
-    tableHeader(y + 20, [
-      { label: "Action", x: 52, width: 80 },
-      { label: "User", x: 132, width: 130 },
-      { label: "Waktu", x: 260, width: 130 },
-      { label: "Alasan/Catatan", x: 390, width: 140 },
-    ]),
-  );
-  y += 46;
+  // ── Info box (label + value pairs, 2 columns) ─────────────────────────────────
+  function infoBox(rows: { label: string; value: string }[][]) {
+    const ROWH = 22;
+    const boxH = rows.length * ROWH + 16;
+    dr(page, MX, y, CW, boxH, C_STRIPE, C_BORDER);
+    const colW = CW / 2;
+    rows.forEach((cols, ri) => {
+      const ry = y + 8 + ri * ROWH + ROWH / 2;
+      cols.forEach((cell, ci) => {
+        if (!cell.label && !cell.value) return;
+        const lx = MX + 16 + ci * colW;
+        dt(page, cell.label.toUpperCase(), lx, ry - 8, f.r600, 7, C_MUTED);
+        const vMax = colW - 16 - 96;
+        dt(page, cutW(cell.value, f.r600, 8.5, Math.max(vMax, 120)), lx + 96, ry - 8, f.r600, 8.5, C_NAVY);
+      });
+    });
+    y += boxH + 12;
+  }
 
-  if (fullClosing.logs.length === 0) {
-    pages[pages.length - 1].push(
-      tableRow(y, [{ value: "Belum ada audit log", x: 52, max: 60 }]),
-    );
-  } else {
-    for (const log of fullClosing.logs) {
-      if (y > 738) {
-        pages.push([
-          reportHeader(settings.storeName, fullClosing.closingDate, fullClosing.status),
-          sectionTitle("Audit Log Closing", 112),
-          tableHeader(132, [
-            { label: "Action", x: 52, width: 80 },
-            { label: "User", x: 132, width: 130 },
-            { label: "Waktu", x: 260, width: 130 },
-            { label: "Alasan/Catatan", x: 390, width: 140 },
-          ]),
-        ]);
-        y = 158;
+  // ── Generic table ───────────────────────────────────────────────────────────
+  type Col = { label: string; x: number; right?: boolean; maxW?: number };
+  const HROW = 26;
+  const TROWH = 24;
+
+  function tableHead(cols: Col[]) {
+    rounded(page, MX, y, CW, HROW, 4, C_NAVY);
+    for (const c of cols) rowText(page, c.label, c.x, y, HROW, f.r700, 7.5, C_WHITE, c.right);
+    y += HROW;
+  }
+
+  function table(cols: Col[], rows: string[][], contTitle: string, opts?: { totalRow?: string[] }) {
+    tableHead(cols);
+    rows.forEach((row, idx) => {
+      if (y + TROWH > CONTENT_BOTTOM) {
+        page = startPage(); y = CONTENT_TOP;
+        sectionTitle(`${contTitle} (lanjutan)`);
+        tableHead(cols);
       }
-
-      pages[pages.length - 1].push(
-        tableRow(y, [
-          { value: log.action, x: 52, max: 12 },
-          { value: log.user?.name ?? "-", x: 132, max: 20 },
-          { value: formatDateTime(log.createdAt), x: 260, max: 22 },
-          { value: log.reason ?? log.note ?? "-", x: 390, max: 30 },
-        ]),
-      );
-      y += 28;
+      dr(page, MX, y, CW, TROWH, idx % 2 === 0 ? C_WHITE : C_STRIPE, C_BORDER);
+      cols.forEach((c, ci) => {
+        const raw = row[ci] ?? "";
+        const v = c.maxW ? cutW(raw, f.r400, 8, c.maxW) : raw;
+        rowText(page, v, c.x, y, TROWH, f.r400, 8, C_SLATE, c.right);
+      });
+      y += TROWH;
+    });
+    if (opts?.totalRow) {
+      if (y + TROWH > CONTENT_BOTTOM) { page = startPage(); y = CONTENT_TOP; tableHead(cols); }
+      dr(page, MX, y, CW, TROWH, C_TEAL_BG, C_BORDER);
+      cols.forEach((c, ci) => {
+        const v = opts.totalRow![ci] ?? "";
+        if (v) rowText(page, c.maxW ? cutW(v, f.r700, 8, c.maxW) : v, c.x, y, TROWH, f.r700, 8, C_TEAL, c.right);
+      });
+      y += TROWH;
     }
   }
 
-  const finalPages = pages.map((page, index) =>
-    [...page, pageFooter(index + 1, pages.length)].join("\n"),
-  );
-  const filename = `closing-${dateInputValue(fullClosing.closingDate)}.pdf`;
+  function emptyRow(message: string) {
+    dr(page, MX, y, CW, TROWH, C_WHITE, C_BORDER);
+    rowText(page, message, MX + 14, y, TROWH, f.r400, 8, C_MUTED);
+    y += TROWH;
+  }
 
-  return new NextResponse(new Uint8Array(buildPdfPages(finalPages)), {
+  function ensureSpace(needed: number) {
+    if (y + needed > CONTENT_BOTTOM) { page = startPage(); y = CONTENT_TOP; }
+  }
+
+  // ── REKONSILIASI KAS ──────────────────────────────────────────────────────────
+  const diff = fullClosing.difference;
+  const diffColor = diff === 0 ? C_TEAL : C_AMBER;
+  sectionTitle("Rekonsiliasi Kas");
+  metricRow([
+    { label: "Expected Cash", value: fmtRupiah(fullClosing.expectedCash), helper: "Target kas tunai", accent: C_TEAL },
+    { label: "Cash Aktual",   value: fmtRupiah(fullClosing.actualCash),   helper: "Kas dihitung",     accent: C_TEAL },
+    { label: "Selisih",       value: fmtRupiah(diff),                     helper: diffStatus(diff),   accent: diffColor },
+  ]);
+
+  // ── RINGKASAN OMZET ─────────────────────────────────────────────────────────────
+  sectionTitle("Ringkasan Omzet");
+  metricRow([
+    { label: "Omzet Kotor",     value: fmtRupiah(fullClosing.grossOmzet),     helper: "Sebelum retur",      accent: C_TEAL },
+    { label: "Omzet Bersih",    value: fmtRupiah(fullClosing.netOmzet),       helper: "Setelah retur",      accent: C_TEAL },
+    { label: "Total Transaksi", value: String(fullClosing.transactionCount),  helper: "Transaksi hari ini", accent: C_BLUE },
+  ]);
+
+  // ── DETAIL CLOSING ──────────────────────────────────────────────────────────────
+  sectionTitle("Detail Closing");
+  infoBox([
+    [
+      { label: "Status",        value: statusLabel(status) },
+      { label: "Waktu Closing", value: fmtDateTime(fullClosing.closedAt) },
+    ],
+    [
+      { label: "Closed by",   value: fullClosing.closedBy?.name ?? "-" },
+      { label: "Nilai Retur", value: fmtRupiah(fullClosing.returnValue) },
+    ],
+  ]);
+
+  // ── RINGKASAN PEMBAYARAN ──────────────────────────────────────────────────────
+  sectionTitle("Ringkasan Pembayaran");
+  const payCols: Col[] = [
+    { label: "Metode",    x: MX + 14, maxW: 300 },
+    { label: "Transaksi", x: 400, right: true, maxW: 80 },
+    { label: "Total",     x: RIGHT - 8, right: true, maxW: 130 },
+  ];
+  if (paymentRows.length === 0) {
+    tableHead(payCols);
+    emptyRow("Belum ada pembayaran");
+  } else {
+    const payTotal = paymentRows.reduce((s, r) => s + r.total, 0);
+    table(payCols,
+      paymentRows.map((p) => [paymentLabel(p.method), String(p.count), fmtRupiah(p.total)]),
+      "Ringkasan Pembayaran",
+      { totalRow: ["Total", `${paymentRows.length} Metode`, fmtRupiah(payTotal)] },
+    );
+  }
+  y += 14;
+
+  // ── CATATAN CLOSING ───────────────────────────────────────────────────────────
+  if (fullClosing.notes) {
+    ensureSpace(70);
+    sectionTitle("Catatan Closing");
+    const lines = wrapText(fullClosing.notes, f.r400, 8.5, CW - 32);
+    const boxH = Math.max(lines.length * 14 + 16, 36);
+    dr(page, MX, y, CW, boxH, C_STRIPE, C_BORDER);
+    lines.forEach((ln, i) => dt(page, ln, MX + 16, y + 12 + i * 14, f.r400, 8.5, C_SLATE));
+    y += boxH + 12;
+  }
+
+  // ── REOPEN TERAKHIR ─────────────────────────────────────────────────────────────
+  if (fullClosing.reopenedAt) {
+    ensureSpace(90);
+    sectionTitle("Reopen Terakhir");
+    infoBox([
+      [
+        { label: "Reopened at", value: fmtDateTime(fullClosing.reopenedAt) },
+        { label: "By",          value: fullClosing.reopenedBy?.name ?? "-" },
+      ],
+      [
+        { label: "Alasan", value: fullClosing.reopenReason ?? "-" },
+        { label: "", value: "" },
+      ],
+    ]);
+  }
+
+  // ── AUDIT LOG ────────────────────────────────────────────────────────────────
+  ensureSpace(90);
+  sectionTitle("Audit Log Closing");
+  const logCols: Col[] = [
+    { label: "Action",           x: MX + 14, maxW: 90 },
+    { label: "User",             x: 150,     maxW: 110 },
+    { label: "Waktu",            x: 270,     maxW: 120 },
+    { label: "Alasan / Catatan", x: 400,     maxW: RIGHT - 400 - 8 },
+  ];
+  if (fullClosing.logs.length === 0) {
+    tableHead(logCols);
+    emptyRow("Belum ada audit log");
+  } else {
+    table(logCols,
+      fullClosing.logs.map((log) => [
+        log.action,
+        log.user?.name ?? "-",
+        fmtDateTime(log.createdAt),
+        log.reason ?? log.note ?? "-",
+      ]),
+      "Audit Log Closing",
+    );
+  }
+
+  // ── Footers ──────────────────────────────────────────────────────────────────
+  const total = pages.length;
+  pages.forEach((p, i) => drawFooter(p, f, storeName, i + 1, total));
+
+  const pdfBytes = await doc.save();
+  return new NextResponse(new Uint8Array(pdfBytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="closing-${dateInputValue(fullClosing.closingDate)}.pdf"`,
       "Cache-Control": "no-store",
     },
   });
+}
+
+// ── Text wrapping (word-aware) ──────────────────────────────────────────────────
+function wrapText(text: string, font: PDFFont, size: number, maxW: number): string[] {
+  const words = text.replace(/\s+/g, " ").trim().split(" ");
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    const candidate = cur ? `${cur} ${w}` : w;
+    if (font.widthOfTextAtSize(candidate, size) <= maxW) {
+      cur = candidate;
+    } else {
+      if (cur) lines.push(cur);
+      cur = w;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [""];
 }
