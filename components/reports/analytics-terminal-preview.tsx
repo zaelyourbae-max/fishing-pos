@@ -145,18 +145,23 @@ function genDummyLive(domainStart: number, domainEnd: number, preset: DemoPreset
 
   // "jam40" / "jam30": toko buka 08.00–18.00 tiap hari (nyambung ke hari berikutnya).
   // Maks pembelian Rp100rb hanya 2x per hari, sisanya receh (Rp5rb–45rb).
-  const perDay = preset === "jam30" ? 30 : 40;
+  // Tiap hari BERVARIASI: jumlah transaksi & nominal beda-beda. Maks ~Rp100rb 2x/hari.
+  const base = preset === "jam30" ? 30 : 40;
   let idx = 0;
   const day = new Date(domainStart); day.setHours(0, 0, 0, 0);
   for (; day.getTime() <= domainEnd; day.setDate(day.getDate() + 1)) {
     const openT = new Date(day); openT.setHours(8, 0, 0, 0);
     const closeT = new Date(day); closeT.setHours(18, 0, 0, 0);
     const dayLen = closeT.getTime() - openT.getTime();
-    const big1 = Math.floor(perDay * 0.3), big2 = Math.floor(perDay * 0.72);
-    for (let i = 0; i < perDay; i++) {
-      const t = openT.getTime() + dayLen * ((i + rnd() * 0.6) / perDay);
+    const cnt = Math.max(6, Math.round(base * (0.4 + rnd() * 1.0)));  // mis. 30 → 12..42
+    const recehMax = 18000 + rnd() * 45000;                           // plafon receh hari ini
+    const bigVal = 70000 + rnd() * 35000;                             // barang besar hari ini (~70rb–105rb)
+    const big1 = Math.floor(cnt * (0.2 + rnd() * 0.2));
+    const big2 = Math.floor(cnt * (0.6 + rnd() * 0.25));
+    for (let i = 0; i < cnt; i++) {
+      const t = openT.getTime() + dayLen * ((i + rnd() * 0.6) / cnt);
       if (t < domainStart || t > domainEnd) continue;
-      const amt = (i === big1 || i === big2) ? 90000 + rnd() * 10000 : 5000 + rnd() * 40000;
+      const amt = (i === big1 || i === big2) ? bigVal * (0.85 + rnd() * 0.3) : 4000 + rnd() * recehMax;
       pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${++idx}` });
     }
   }
@@ -194,6 +199,9 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
   // SSR & client cocok (hindari hydration mismatch dari Date.now() saat render).
   const nowFallback = n ? points[n - 1].t : dEnd;
   const nowT = Math.min(Math.max(clientNow ?? nowFallback, dStart), dEnd);
+  // Ujung garis tak boleh MUNDUR ke belakang: kalau "sekarang" < transaksi terakhir
+  // (terjadi di data CONTOH yang mengisi domain ke depan), pakai waktu transaksi terakhir.
+  const headT = n ? Math.min(Math.max(nowT, points[n - 1].t), dEnd) : nowT;
   // jendela minimum ~ 8 menit (atau full kalau rentang memang kecil)
   const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / tSpan));
 
@@ -223,10 +231,10 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
     for (let i = 0; i < n; i++) {
       seg.push(`L ${x(points[i].t)} ${y(points[i].amount)}`); // sambung langsung antar transaksi (zig-zag/gigi gergaji)
     }
-    seg.push(`L ${x(nowT)} ${y(points[n - 1].amount)}`);       // tahan harga terakhir sampai sekarang (konsolidasi)
+    seg.push(`L ${x(headT)} ${y(points[n - 1].amount)}`);       // tahan harga terakhir sampai sekarang (konsolidasi)
     linePath = seg.join(" ");
     const baseY = y(0);
-    areaPath = `${linePath} L ${x(nowT)} ${baseY} L ${x(dStart)} ${baseY} Z`;
+    areaPath = `${linePath} L ${x(headT)} ${baseY} L ${x(dStart)} ${baseY} Z`;
   }
 
   // frac 0..1 di area plot berdasar koordinat layar
@@ -396,9 +404,9 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
                   <path d={linePath} fill="none" stroke="url(#liveStroke)" strokeWidth={2.4} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
 
                   {/* titik live berdenyut di harga terkini (posisi "sekarang") */}
-                  <circle cx={x(nowT)} cy={y(points[lastIdx].amount)} r={3.5} fill={C.up} />
+                  <circle cx={x(headT)} cy={y(points[lastIdx].amount)} r={3.5} fill={C.up} />
                   {active ? (
-                    <circle cx={x(nowT)} cy={y(points[lastIdx].amount)} r={4} fill="none" stroke={C.up} strokeWidth={1.5} vectorEffect="non-scaling-stroke">
+                    <circle cx={x(headT)} cy={y(points[lastIdx].amount)} r={4} fill="none" stroke={C.up} strokeWidth={1.5} vectorEffect="non-scaling-stroke">
                       <animate attributeName="r" values="4;16" dur="1.6s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.7;0" dur="1.6s" repeatCount="indefinite" />
                     </circle>
@@ -421,7 +429,7 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
               {/* Tag harga sekarang di ujung garis order (kanan), selalu tampil */}
               <div className="pointer-events-none absolute z-[3] -translate-y-1/2 rounded px-1.5 py-0.5 text-right text-[10px] font-extrabold leading-tight tabular-nums shadow-lg" style={{ right: 2, top: `${(y(points[lastIdx].amount) / H) * 100}%`, background: C.up, color: "#04121c" }}>
                 {rpShort(points[lastIdx].amount)}
-                <span className="block text-[8px] font-bold opacity-80">{fmtClock(nowT, false)}</span>
+                <span className="block text-[8px] font-bold opacity-80">{fmtClock(headT, false)}</span>
               </div>
               {xLabelFracs.map((fr) => (
                 <span key={`x${fr}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-[10px]" style={{ left: `${((pad.l + fr * iw) / W) * 100}%`, color: C.muted }}>{fmtClock(vTmin + fr * vTspan, withDateVisible)}</span>
