@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { TerminalChartData, TerminalKpis, TerminalLivePoint, TerminalSpark } from "@/lib/analytics-terminal";
 import {
@@ -108,7 +108,27 @@ function fmtClock(t: number, withDate: boolean) {
   return withDate ? `${d.getDate()}/${d.getMonth() + 1} ${hh}.${mm}` : `${hh}.${mm}`;
 }
 
-function LiveCard({ points, active, domainStart, domainEnd }: { points: TerminalLivePoint[]; active: boolean; domainStart: number; domainEnd: number }) {
+// Data CONTOH (dummy) untuk Mode Live — VISUAL SAJA, tidak menyentuh database.
+// Skenario: sesi buka di 20rb lalu lika-liku, lalu sesi buka di 200rb lalu lika-liku.
+function genDummyLive(domainStart: number, domainEnd: number): TerminalLivePoint[] {
+  const span = (domainEnd - domainStart) || 1;
+  const pts: TerminalLivePoint[] = [];
+  let seed = 987654321;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const session = (startFrac: number, widthFrac: number, openVal: number, step: number, floor: number, count: number, label: string) => {
+    let v = openVal;
+    for (let i = 0; i < count; i++) {
+      const t = domainStart + span * (startFrac + widthFrac * (i / count));
+      if (i > 0) v = Math.max(floor, v + (rnd() - 0.48) * step);
+      pts.push({ t: Math.round(t), amount: Math.round(v / 500) * 500, invoice: `${label}-${i + 1}` });
+    }
+  };
+  session(0.06, 0.40, 20000, 7000, 3000, 48, "DEMO-A");   // buka 20rb + lika-liku
+  session(0.50, 0.42, 200000, 42000, 25000, 52, "DEMO-B"); // buka 200rb + lika-liku
+  return pts;
+}
+
+function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: TerminalLivePoint[]; active: boolean; demo?: boolean; domainStart: number; domainEnd: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const [view, setView] = useState<{ a: number; b: number }>({ a: 0, b: 1 });
   const [clientNow, setClientNow] = useState<number | null>(null);
@@ -165,13 +185,10 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
   let areaPath = "";
   if (n) {
     const seg: string[] = [`M ${x(dStart)} ${y(0)}`];
-    let prev = 0;
     for (let i = 0; i < n; i++) {
-      seg.push(`L ${x(points[i].t)} ${y(prev)}`);             // tahan nilai sebelumnya
-      seg.push(`L ${x(points[i].t)} ${y(points[i].amount)}`); // loncat ke nilai transaksi
-      prev = points[i].amount;
+      seg.push(`L ${x(points[i].t)} ${y(points[i].amount)}`); // sambung langsung antar transaksi (zig-zag/gigi gergaji)
     }
-    seg.push(`L ${x(nowT)} ${y(prev)}`);                       // konsolidasi sampai sekarang
+    seg.push(`L ${x(nowT)} ${y(points[n - 1].amount)}`);       // tahan harga terakhir sampai sekarang (konsolidasi)
     linePath = seg.join(" ");
     const baseY = y(0);
     areaPath = `${linePath} L ${x(nowT)} ${baseY} L ${x(dStart)} ${baseY} Z`;
@@ -288,8 +305,8 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: active ? C.up : C.muted }} />
             </span>
             <div>
-              <p className="text-sm font-extrabold lg:text-base xl:text-lg">Mode Live</p>
-              <p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>Tombol / cubit / Ctrl+scroll untuk zoom · geser untuk jalan</p>
+              <p className="flex items-center gap-1.5 text-sm font-extrabold lg:text-base xl:text-lg">Mode Live{demo ? <span className="rounded px-1.5 py-0.5 text-[9px] font-bold" style={{ background: C.gold + "22", color: C.gold, border: `1px solid ${C.gold}66` }}>CONTOH</span> : null}</p>
+              <p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>{demo ? "Data contoh — bukan transaksi asli" : "Tombol / cubit / Ctrl+scroll untuk zoom · geser untuk jalan"}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -556,6 +573,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
   const [flipped, setFlipped] = useState(true);
   const [compare, setCompare] = useState(true);
   const [liveMode, setLiveMode] = useState(false);
+  const [demo, setDemo] = useState(false);
   const [livePoints, setLivePoints] = useState(live);
   const [styles, setStyles] = useState<Record<string, Style>>({});
   // Periode global: dipakai server untuk mengambil data. Diatur lewat URL (?from&to).
@@ -566,6 +584,11 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
   const setPeriod = (next: { from: string; to: string }) => {
     router.push(`/reports/preview?from=${next.from}&to=${next.to}`);
   };
+
+  // Domain waktu untuk Mode Live (epoch ms) + data CONTOH (dummy) untuk demo.
+  const domainStart = useMemo(() => new Date(`${period.from}T00:00:00`).getTime(), [period.from]);
+  const domainEnd = useMemo(() => new Date(`${period.to}T23:59:59.999`).getTime(), [period.to]);
+  const dummyPoints = useMemo(() => genDummyLive(domainStart, domainEnd), [domainStart, domainEnd]);
 
   // Sinkron ulang titik Live saat periode berganti (server kirim prop baru).
   useEffect(() => { setLivePoints(live); }, [live]);
@@ -650,6 +673,12 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                   <Radio className="h-4 w-4 lg:h-5 lg:w-5" />
                   Mode Live
                 </button>
+                {liveMode ? (
+                  <button type="button" onClick={() => setDemo((v) => !v)} className="inline-flex h-9 w-fit items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-colors lg:h-11 lg:rounded-2xl lg:px-4 lg:text-sm" style={{ background: demo ? C.gold + "22" : C.panel2, color: demo ? C.gold : C.muted, border: `1px solid ${demo ? C.gold + "55" : C.border}` }}>
+                    <Sparkles className="h-4 w-4 lg:h-5 lg:w-5" />
+                    Contoh
+                  </button>
+                ) : null}
                 {/* toggle Perbandingan / Tunggal */}
                 <button type="button" onClick={() => setCompare((v) => !v)} className="inline-flex h-9 w-fit items-center gap-2 rounded-xl px-3 text-xs font-bold transition-colors lg:h-11 lg:gap-2.5 lg:rounded-2xl lg:px-5 lg:text-sm" style={{ background: compare ? C.income + "22" : C.panel2, color: compare ? C.income : C.muted, border: `1px solid ${compare ? C.income + "55" : C.border}` }}>
                   <GitCompareArrows className="h-4 w-4 lg:h-5 lg:w-5" />
@@ -804,7 +833,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                       <div className="grid transition-transform duration-700 ease-out [transform-style:preserve-3d]" style={{ transform: liveMode ? "rotateY(180deg)" : "rotateY(0deg)" }}>
                         <div className="[grid-area:1/1] [backface-visibility:hidden]">{front}</div>
                         <div className="[grid-area:1/1] [backface-visibility:hidden] [transform:rotateY(180deg)] overflow-hidden rounded-2xl" style={card3d}>
-                          <LiveCard points={livePoints} active={liveMode} domainStart={new Date(`${period.from}T00:00:00`).getTime()} domainEnd={new Date(`${period.to}T23:59:59.999`).getTime()} />
+                          <LiveCard points={demo ? dummyPoints : livePoints} active={liveMode} demo={demo} domainStart={domainStart} domainEnd={domainEnd} />
                         </div>
                       </div>
                     </div>
