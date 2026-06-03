@@ -221,6 +221,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
     paymentMethods,
     profitSaleItems,
     profitReturnItems,
+    expenseSummary,
   ] = await Promise.all([
     getSettings(),
     prisma.sale.aggregate({
@@ -538,6 +539,16 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
         },
       },
     }),
+    prisma.expense.aggregate({
+      where: {
+        date: {
+          gte: range?.from ?? monthStart,
+          lte: range?.to ?? new Date(),
+        },
+      },
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
   ]);
   const productIds = bestSellerGroups.map((item) => item.productId);
   const products = productIds.length
@@ -713,6 +724,8 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
 
   const netRevenue = Math.max((monthSales._sum.subtotal ?? 0) - monthReturnValue, 0);
   const grossProfit = netRevenue - netCogs;
+  const operatingExpenses = expenseSummary._sum.amount ?? 0;
+  const netProfitAfterExpenses = grossProfit - operatingExpenses;
   const hasUnitCostSnapshot = profitSaleItems.some((item) => item.unitCost > 0);
   const incompleteReturnCostCount = profitReturnItems.filter(
     (item) => item.qty > 0 && item.unitCost <= 0,
@@ -798,6 +811,9 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       netCogs,
       grossProfit,
       netProfit: grossProfit,
+      operatingExpenses,
+      netProfitAfterExpenses,
+      netMarginPercent: marginPercent(netProfitAfterExpenses, netRevenue),
       hasIncompleteReturnCost,
       incompleteReturnCostCount,
       marginPercent: marginPercent(
@@ -818,5 +834,140 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
           marginPercent: marginPercent(item.profit, item.revenue),
         })),
     },
+    expenses: {
+      total: expenseSummary._sum.amount ?? 0,
+      count: expenseSummary._count._all,
+    },
+  };
+}
+
+export type MonthlyComparisonMetric = {
+  key: string;
+  label: string;
+  /** Nilai bulan ini (sampai tanggal berjalan). */
+  current: number;
+  /** Nilai bulan lalu (periode tanggal yang sama). */
+  previous: number;
+  /** Persentase perubahan vs bulan lalu (null bila bulan lalu 0). */
+  changePercent: number | null;
+  /** Untuk metrik uang yang ditampilkan rupiah. */
+  isCurrency: boolean;
+  /** true: naik = bagus (omzet). false: naik = buruk (retur, pengeluaran). */
+  goodWhenUp: boolean;
+};
+
+export type MonthlyComparison = {
+  thisMonthLabel: string;
+  lastMonthLabel: string;
+  /** Tanggal batas (s/d tgl berapa) supaya perbandingan adil. */
+  cutoffDay: number;
+  metrics: MonthlyComparisonMetric[];
+};
+
+/**
+ * Perbandingan "bulan ini vs bulan lalu" untuk Ringkasan Bulanan di Laporan Owner.
+ * Adil: bulan ini dihitung sampai tanggal berjalan, bulan lalu sampai tanggal
+ * yang sama (mis. 1-15 vs 1-15), supaya tidak membandingkan bulan penuh dengan
+ * bulan yang belum selesai. Selalu kalender (lepas dari filter periode laporan).
+ */
+export async function getMonthlyComparison(): Promise<MonthlyComparison> {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const dayOfMonth = now.getDate();
+
+  const thisStart = new Date(year, month, 1, 0, 0, 0, 0);
+  const thisEnd = now;
+
+  // Batas hari di bulan lalu, dijaga tidak melebihi jumlah hari bulan lalu.
+  const lastDayPrevMonth = new Date(year, month, 0).getDate();
+  const prevCutoffDay = Math.min(dayOfMonth, lastDayPrevMonth);
+  const prevStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const prevEnd = new Date(year, month - 1, prevCutoffDay, 23, 59, 59, 999);
+
+  async function metricsFor(gte: Date, lte: Date) {
+    const [sales, returns, purchases, expenses] = await Promise.all([
+      prisma.sale.aggregate({
+        where: { createdAt: { gte, lte }, ...FINAL_SALE_STATUS_WHERE },
+        _sum: { subtotal: true },
+        _count: { _all: true },
+      }),
+      prisma.saleReturn.aggregate({
+        where: {
+          returnType: "CUSTOMER_RETURN",
+          createdAt: { gte, lte },
+          sale: FINAL_SALE_STATUS_WHERE,
+        },
+        _sum: { totalRefund: true },
+      }),
+      prisma.purchase.aggregate({
+        where: { createdAt: { gte, lte } },
+        _sum: { total: true },
+      }),
+      prisma.expense.aggregate({
+        where: { date: { gte, lte } },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const gross = sales._sum.subtotal ?? 0;
+    const returnValue = returns._sum.totalRefund ?? 0;
+    const transactions = sales._count._all;
+
+    return {
+      gross,
+      net: Math.max(gross - returnValue, 0),
+      transactions,
+      atv: transactions > 0 ? Math.round(gross / transactions) : 0,
+      returnValue,
+      purchase: purchases._sum.total ?? 0,
+      expense: expenses._sum.amount ?? 0,
+    };
+  }
+
+  const [current, previous] = await Promise.all([
+    metricsFor(thisStart, thisEnd),
+    metricsFor(prevStart, prevEnd),
+  ]);
+
+  function changePercent(now: number, before: number): number | null {
+    if (before === 0) {
+      return null;
+    }
+
+    return Math.round(((now - before) / before) * 100);
+  }
+
+  const metrics: MonthlyComparisonMetric[] = [
+    { key: "gross", label: "Omzet Kotor", isCurrency: true, goodWhenUp: true,
+      current: current.gross, previous: previous.gross,
+      changePercent: changePercent(current.gross, previous.gross) },
+    { key: "net", label: "Omzet Bersih", isCurrency: true, goodWhenUp: true,
+      current: current.net, previous: previous.net,
+      changePercent: changePercent(current.net, previous.net) },
+    { key: "transactions", label: "Total Transaksi", isCurrency: false, goodWhenUp: true,
+      current: current.transactions, previous: previous.transactions,
+      changePercent: changePercent(current.transactions, previous.transactions) },
+    { key: "atv", label: "ATV", isCurrency: true, goodWhenUp: true,
+      current: current.atv, previous: previous.atv,
+      changePercent: changePercent(current.atv, previous.atv) },
+    { key: "return", label: "Retur", isCurrency: true, goodWhenUp: false,
+      current: current.returnValue, previous: previous.returnValue,
+      changePercent: changePercent(current.returnValue, previous.returnValue) },
+    { key: "purchase", label: "Total Pembelian", isCurrency: true, goodWhenUp: false,
+      current: current.purchase, previous: previous.purchase,
+      changePercent: changePercent(current.purchase, previous.purchase) },
+    { key: "expense", label: "Pengeluaran Ops", isCurrency: true, goodWhenUp: false,
+      current: current.expense, previous: previous.expense,
+      changePercent: changePercent(current.expense, previous.expense) },
+  ];
+
+  const monthFmt = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" });
+
+  return {
+    thisMonthLabel: monthFmt.format(thisStart),
+    lastMonthLabel: monthFmt.format(prevStart),
+    cutoffDay: dayOfMonth,
+    metrics,
   };
 }

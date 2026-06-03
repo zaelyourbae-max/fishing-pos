@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import StockOpnameDetail from "@/components/stock-opname/stock-opname-detail";
-import { requireProtectedPage } from "@/lib/page-guards";
+import { requireStoreOpenPage } from "@/lib/page-guards";
 import { canAccessStockOpname, canManageStockOpname } from "@/lib/permissions";
 import { getStockOpnameDetail } from "@/lib/stock-opname";
 
@@ -14,7 +14,7 @@ type StockOpnameDetailPageProps = {
 export default async function StockOpnameDetailPage({
   params,
 }: StockOpnameDetailPageProps) {
-  const session = await requireProtectedPage();
+  const session = await requireStoreOpenPage();
 
   if (!canAccessStockOpname(session.role)) {
     redirect("/cashier");

@@ -46,12 +46,15 @@ type DashboardPageProps = {
 
 type StatTone = "emerald" | "blue" | "violet" | "amber" | "rose";
 
+// All KPI icon tones follow the active palette (teal token) for a cohesive look.
+const PALETTE_TONE =
+  "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200";
 const toneClass: Record<StatTone, string> = {
-  emerald: "bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200",
-  blue: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
-  violet: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200",
-  amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200",
-  rose: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
+  emerald: PALETTE_TONE,
+  blue: PALETTE_TONE,
+  violet: PALETTE_TONE,
+  amber: PALETTE_TONE,
+  rose: PALETTE_TONE,
 };
 
 const paymentColors = ["#10b981", "#3b82f6", "#7c3aed", "#64748b", "#f59e0b"];
@@ -267,7 +270,7 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-5 text-center dark:border-slate-800 dark:bg-slate-900/40">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
         <Icon className="h-6 w-6" />
       </span>
       <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
@@ -300,7 +303,7 @@ function ProductThumb({
   }
 
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
       <Package className="h-5 w-5" />
     </span>
   );
@@ -333,7 +336,7 @@ function MiniMetricCard({
         <span className="mt-1 block whitespace-nowrap text-[13px] font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-base xl:text-lg">
           {value}
         </span>
-        <span className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
+        <span className="mt-1 line-clamp-2 text-xs leading-snug text-slate-500 dark:text-slate-400">
           {helper}
         </span>
       </span>
@@ -392,6 +395,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     productAnalytics,
     settings,
     currentUser,
+    expensesToday,
+    expensesMonth,
   ] = await Promise.all([
     prisma.sale.aggregate({
       where: saleDayWhere,
@@ -763,6 +768,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         name: true,
       },
     }),
+    prisma.expense.aggregate({
+      where: { date: { gte: dayStart, lte: dayEnd } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
+    prisma.expense.aggregate({
+      where: { date: { gte: monthStart, lte: dayEnd } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
   ]);
 
   const bestSellerProductIds = bestSellerGroups.map((item) => item.productId);
@@ -803,6 +818,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     (purchasesMonth._sum.total ?? 0) - supplierReturnMonthValue,
     0,
   );
+  const expenseTodayValue = expensesToday._sum.amount ?? 0;
+  const expenseMonthValue = expensesMonth._sum.amount ?? 0;
   const averageTransactionToday =
     salesToday._count._all > 0
       ? Math.round(grossToday / salesToday._count._all)
@@ -1102,19 +1119,36 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     },
   ];
   const cashKpiCard: (typeof kpiCards)[number] = {
-    title: "Cash Belum Closing",
+    title: "Uang Cash di Laci",
     value: rupiah(cashTodayValue),
-    helper: "Expected cash drawer",
+    helper: "Sebelum closing",
     icon: "wallet" as KpiIconName,
     tone: "amber" as StatTone,
     detail: {
-      title: "Cash Belum Closing",
-      description: "Estimasi cash drawer dari transaksi cash pada tanggal aktif.",
+      title: "Uang Cash di Laci",
+      description: "Total uang cash yang seharusnya ada di laci kasir dari transaksi hari ini, sebelum closing dilakukan.",
       rows: [
-        { label: "Cash tanggal aktif", value: rupiah(cashTodayValue), tone: "good" as const },
-        { label: "Transaksi tanggal aktif", value: String(salesToday._count._all) },
+        { label: "Total cash masuk", value: rupiah(cashTodayValue), tone: "good" as const },
+        { label: "Jumlah transaksi", value: String(salesToday._count._all) },
         { label: "Tanggal", value: formatDate(selectedDate) },
       ],
+    },
+  };
+  const expenseKpiCard: (typeof kpiCards)[number] = {
+    title: "Pengeluaran Hari Ini",
+    value: rupiah(expenseTodayValue),
+    helper: `${expensesToday._count._all} pengeluaran`,
+    icon: "shopping-bag" as KpiIconName,
+    tone: "rose" as StatTone,
+    detail: {
+      title: "Pengeluaran Hari Ini",
+      description: "Total pengeluaran operasional yang dicatat pada tanggal aktif.",
+      rows: [
+        { label: "Total pengeluaran", value: rupiah(expenseTodayValue), tone: "danger" as const },
+        { label: "Jumlah catatan", value: String(expensesToday._count._all) },
+        { label: "Tanggal", value: formatDate(selectedDate) },
+      ],
+      emptyLabel: "Belum ada pengeluaran hari ini.",
     },
   };
   const dashboardKpiCards = [
@@ -1122,6 +1156,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     kpiCards[3],
     kpiCards[2],
     cashKpiCard,
+    expenseKpiCard,
     kpiCards[10],
   ];
   const recentSaleRows = recentSales.map((sale) => ({
@@ -1256,7 +1291,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const currentHour = new Date().getHours();
   const greeting =
     currentHour < 11 ? "Selamat pagi" : currentHour < 15 ? "Selamat siang" : currentHour < 18 ? "Selamat sore" : "Selamat malam";
-  const ownerName = currentUser?.name ?? settings.ownerName ?? "Owner";
+  const ownerName = currentUser?.name ?? "Owner";
   const storeName = settings.storeName || "Toko Pancing";
   const headerDate = formatHeaderDate(selectedDate);
   const monthlyMetrics = [
@@ -1305,14 +1340,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       icon: ShoppingBag,
       tone: "amber" as StatTone,
     },
+    {
+      title: "Pengeluaran Ops",
+      value: rupiah(expenseMonthValue),
+      helper: `${expensesMonth._count._all} pengeluaran bulan ini`,
+      icon: RotateCcw,
+      tone: "rose" as StatTone,
+    },
   ];
 
   return (
     <div className="mx-auto w-full max-w-[1480px] space-y-4 sm:space-y-5">
-      <section className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.045)] dark:border-slate-800 dark:bg-slate-950/80 sm:p-5 xl:p-6">
+      <section className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.045)] dark:border-white/8 dark:bg-slate-900 sm:p-5 xl:p-6">
         <div className="min-w-0">
           <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
-            {greeting}, {ownerName}
+            {greeting}, <span className="text-teal-600 dark:text-teal-400">{ownerName}</span>
           </h1>
           <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
             {storeName}
@@ -1339,7 +1381,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           grossOmzet={rupiah(grossToday)}
           returnValue={rupiah(returnTodayValue)}
           transactionCount={salesToday._count._all}
-          notificationCount={operationalAlerts.length}
+          alerts={operationalAlerts}
           payments={paymentRows}
           closedBy={ownerName}
         />
@@ -1350,7 +1392,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <div
             key={card.title}
             className={`min-w-0 ${
-              index === dashboardKpiCards.length - 1 ? "col-span-2 lg:col-span-1" : ""
+              index === dashboardKpiCards.length - 1 &&
+              dashboardKpiCards.length % 2 === 1
+                ? "col-span-2 lg:col-span-1"
+                : ""
             }`}
           >
             <KpiActionCard key={card.title} {...card} />

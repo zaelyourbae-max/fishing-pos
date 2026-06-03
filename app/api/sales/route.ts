@@ -6,14 +6,15 @@ import {
 } from "@/lib/daily-closing";
 import {
   calculateLoyaltyDiscount,
-  LOYALTY_MIN_PURCHASE_AMOUNT,
   loyaltyProgressFromValidCount,
   meetsLoyaltyMinimumPurchase,
   normalizeLoyaltyBenefitType,
 } from "@/lib/loyalty";
+import { getLoyaltyConfig } from "@/lib/loyalty-settings";
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE, resolveSaleStatuses } from "@/lib/sale-status";
+import { guardStoreOpen } from "@/lib/store-status";
 import { PaymentStatus, Prisma, SaleItemDiscountType, TransactionStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
@@ -406,7 +407,14 @@ export async function POST(req: Request) {
     return auth.response;
   }
 
+  const storeClosed = await guardStoreOpen();
+
+  if (storeClosed) {
+    return storeClosed;
+  }
+
   const { session } = auth;
+  const loyaltyConfig = await getLoyaltyConfig();
 
   const body = await req.json();
   const items = (body.items ?? []) as SaleItemInput[];
@@ -633,7 +641,10 @@ export async function POST(req: Request) {
               ...FINAL_SALE_STATUS_WHERE,
             },
           });
-          const progress = loyaltyProgressFromValidCount(validTransactions);
+          const progress = loyaltyProgressFromValidCount(
+            validTransactions,
+            loyaltyConfig.interval,
+          );
           const eligibleMilestone = progress.eligibleMilestone;
 
           if (!eligibleMilestone) {
@@ -661,7 +672,12 @@ export async function POST(req: Request) {
                 throw new Error("LOYALTY_NOTE_REQUIRED");
               }
 
-              if (!meetsLoyaltyMinimumPurchase(subtotalBeforeLoyalty)) {
+              if (
+                !meetsLoyaltyMinimumPurchase(
+                  subtotalBeforeLoyalty,
+                  loyaltyConfig.minPurchase,
+                )
+              ) {
                 if (
                   loyaltyBenefitType === "FIXED" ||
                   loyaltyBenefitType === "PERCENT" ||
@@ -1023,7 +1039,7 @@ export async function POST(req: Request) {
       LOYALTY_FIXED_TOO_HIGH:
         "Diskon loyalty nominal tidak boleh melebihi subtotal sebelum loyalty.",
       LOYALTY_MIN_PURCHASE_NOT_MET:
-        `Minimal pembelian loyalty Rp ${LOYALTY_MIN_PURCHASE_AMOUNT.toLocaleString("id-ID")} belum terpenuhi. Pilih Tidak memberi benefit dengan alasan.`,
+        `Minimal pembelian loyalty Rp ${loyaltyConfig.minPurchase.toLocaleString("id-ID")} belum terpenuhi. Pilih Tidak memberi benefit dengan alasan.`,
     };
 
     if (loyaltyErrors[message]) {

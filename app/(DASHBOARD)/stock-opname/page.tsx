@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 
 import StockOpnameList from "@/components/stock-opname/stock-opname-list";
-import { requireProtectedPage } from "@/lib/page-guards";
+import { requireStoreOpenPage } from "@/lib/page-guards";
 import { canAccessStockOpname, canManageStockOpname } from "@/lib/permissions";
 import { getStockOpnameList } from "@/lib/stock-opname";
 
 export default async function StockOpnamePage() {
-  const session = await requireProtectedPage();
+  const session = await requireStoreOpenPage();
 
   if (!canAccessStockOpname(session.role)) {
     redirect("/cashier");

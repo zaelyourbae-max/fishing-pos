@@ -3,6 +3,7 @@
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Modal from "@/components/ui/modal";
 
 type PaymentProofActionButtonProps = {
   saleId: string;
@@ -67,9 +68,14 @@ export default function PaymentProofActionButton({
         Upload Bukti
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
+      <Modal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setError("");
+        }}
+        panelClassName="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+      >
             <div>
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                 Upload bukti QRIS
@@ -122,9 +128,7 @@ export default function PaymentProofActionButton({
                 {loading ? "Mengupload..." : "Upload Bukti"}
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
     </>
   );
 }

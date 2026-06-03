@@ -12,17 +12,20 @@ import {
   MoreHorizontal,
   Package,
   PackagePlus,
+  Receipt,
   RotateCcw,
   Settings,
   ShoppingCart,
   Truck,
   Users,
   X,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 
 import LogoutButton from "@/components/layout/logout-button";
 import ThemeToggle from "@/components/layout/theme-toggle";
+import PaletteToggle from "@/components/layout/palette-toggle";
 import { useGlobalInteractionCleanup } from "@/lib/global-interaction-state";
 import {
   canAccessReports,
@@ -36,12 +39,44 @@ import {
 
 type SidebarProps = {
   role: RoleSlug;
+  storeOpen: boolean;
 };
+
+// Menu operasional yang dikunci saat toko TUTUP (untuk semua role).
+const OPERATIONAL_HREFS = [
+  "/pos",
+  "/sales",
+  "/products",
+  "/stock-opname",
+  "/returns",
+  "/purchases",
+  "/suppliers",
+];
+
+function buildLockedHrefs(role: RoleSlug, storeOpen: boolean) {
+  if (storeOpen) {
+    return new Set<string>();
+  }
+
+  const locked = new Set(OPERATIONAL_HREFS);
+
+  // Saat tutup, kasir hanya boleh di layar kasir; Customer ikut dikunci.
+  if (role === "cashier") {
+    locked.add("/customers");
+  }
+
+  return locked;
+}
 
 type MenuItem = {
   name: string;
   href: string;
   icon: LucideIcon;
+};
+
+type MenuSection = {
+  title: string;
+  items: MenuItem[];
 };
 
 function primaryMobileMenus(role: RoleSlug): MenuItem[] {
@@ -55,57 +90,73 @@ function primaryMobileMenus(role: RoleSlug): MenuItem[] {
   ];
 }
 
-function buildMenus(role: RoleSlug): MenuItem[] {
-  const menus: MenuItem[] = [
+function buildMenuSections(role: RoleSlug): MenuSection[] {
+  // Menu Utama — overview & analitik
+  const main: MenuItem[] = [
     role === "cashier"
       ? { name: "Dashboard", href: "/cashier", icon: LayoutDashboard }
       : { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  ];
+
+  if (canAccessReports(role)) {
+    main.push({ name: "Laporan", href: "/reports", icon: BarChart3 });
+  }
+
+  // Operasional — aktivitas harian toko
+  const operasional: MenuItem[] = [
     { name: "POS", href: "/pos", icon: ShoppingCart },
-    { name: "Produk", href: "/products", icon: Package },
     { name: "Penjualan", href: "/sales", icon: FileText },
+    { name: "Produk", href: "/products", icon: Package },
   ];
 
   if (canAccessStockOpname(role)) {
-    menus.push({ name: "Stock Opname", href: "/stock-opname", icon: ClipboardList });
+    operasional.push({ name: "Stock Opname", href: "/stock-opname", icon: ClipboardList });
   }
 
   if (canAccessReturns(role)) {
-    menus.push({ name: "Retur", href: "/returns", icon: RotateCcw });
+    operasional.push({ name: "Retur", href: "/returns", icon: RotateCcw });
   }
 
-  menus.push({ name: "Customer", href: "/customers", icon: Users });
+  operasional.push({ name: "Customer", href: "/customers", icon: Users });
 
   if (role !== "cashier") {
-    menus.push({ name: "Pembelian", href: "/purchases", icon: PackagePlus });
+    operasional.push({ name: "Pembelian", href: "/purchases", icon: PackagePlus });
   }
 
   if (canAccessSuppliers(role)) {
-    menus.push({ name: "Supplier", href: "/suppliers", icon: Truck });
+    operasional.push({ name: "Supplier", href: "/suppliers", icon: Truck });
   }
 
-  if (canAccessReports(role)) {
-    menus.push({ name: "Laporan", href: "/reports", icon: BarChart3 });
+  if (role !== "cashier") {
+    operasional.push({ name: "Pengeluaran", href: "/expenses", icon: Receipt });
   }
+
+  // Sistem — administrasi
+  const sistem: MenuItem[] = [];
 
   if (canManageUsers(role)) {
-    menus.push({ name: "User", href: "/users", icon: Users });
+    sistem.push({ name: "User", href: "/users", icon: Users });
   }
 
   if (canAccessSettings(role)) {
-    menus.push({ name: "Pengaturan", href: "/settings", icon: Settings });
+    sistem.push({ name: "Pengaturan", href: "/settings", icon: Settings });
   }
 
-  return menus;
+  return [
+    { title: "Menu Utama", items: main },
+    { title: "Operasional", items: operasional },
+    { title: "Sistem", items: sistem },
+  ].filter((section) => section.items.length > 0);
 }
 
 function Brand() {
   return (
     <div>
-      <h1 className="font-sans text-[23px] font-extrabold leading-none tracking-wide text-teal-700 dark:text-teal-400 sm:text-[26px] md:text-[30px]">
-        MEIJRVERSE°
+      <h1 className="font-sans text-[20px] font-extrabold leading-tight tracking-wide text-teal-700 dark:text-teal-400 sm:text-[22px] md:text-[24px]">
+        SeaHorse Company
       </h1>
-      <p className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
-        Retail System
+      <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
+        by MeijrVerse°
       </p>
     </div>
   );
@@ -120,45 +171,71 @@ function RoleBadge({ role }: { role: SidebarProps["role"] }) {
 }
 
 function MenuList({
-  menus,
+  sections,
   pathname,
+  lockedHrefs,
   onNavigate,
 }: {
-  menus: MenuItem[];
+  sections: MenuSection[];
   pathname: string;
+  lockedHrefs: Set<string>;
   onNavigate?: () => void;
 }) {
   return (
-    <nav className="space-y-2">
-      {menus.map((menu) => {
-        const Icon = menu.icon;
-        const isActive =
-          pathname === menu.href ||
-          (menu.href !== "/" && pathname.startsWith(`${menu.href}/`));
+    <nav className="space-y-6">
+      {sections.map((section) => (
+        <div key={section.title} className="space-y-1.5">
+          <p className="px-4 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+            {section.title}
+          </p>
+          {section.items.map((menu) => {
+            const Icon = menu.icon;
+            const isActive =
+              pathname === menu.href ||
+              (menu.href !== "/" && pathname.startsWith(`${menu.href}/`));
 
-        return (
-          <Link
-            key={menu.name}
-            href={menu.href}
-            onClick={onNavigate}
-            className={
-              isActive
-                ? "flex min-h-11 w-full items-center gap-3 rounded-2xl bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700 shadow-sm ring-1 ring-teal-100 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300 dark:ring-teal-500/20"
-                : "flex min-h-11 w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-600 transition duration-200 hover:bg-slate-50 hover:text-slate-950 active:scale-[0.99] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            if (lockedHrefs.has(menu.href)) {
+              return (
+                <div
+                  key={menu.name}
+                  className="flex min-h-11 w-full cursor-not-allowed items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-400 dark:text-slate-600"
+                  title="Toko sedang tutup"
+                  aria-disabled="true"
+                >
+                  <Icon className="h-5 w-5 shrink-0 opacity-60" />
+                  <span className="truncate">{menu.name}</span>
+                  <Lock className="ml-auto h-4 w-4 shrink-0" />
+                </div>
+              );
             }
-          >
-            <Icon className="h-5 w-5 shrink-0" />
-            <span className="truncate">{menu.name}</span>
-          </Link>
-        );
-      })}
+
+            return (
+              <Link
+                key={menu.name}
+                href={menu.href}
+                onClick={onNavigate}
+                className={
+                  isActive
+                    ? "flex min-h-11 w-full items-center gap-3 rounded-2xl bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700 shadow-sm ring-1 ring-teal-100 transition duration-200 dark:bg-teal-500/10 dark:text-teal-300 dark:ring-teal-500/20"
+                    : "flex min-h-11 w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-600 transition duration-200 hover:bg-slate-50 hover:text-slate-950 active:scale-[0.99] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                }
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="truncate">{menu.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }
 
-export default function Sidebar({ role }: SidebarProps) {
-  const menus = buildMenus(role);
+export default function Sidebar({ role, storeOpen }: SidebarProps) {
+  const sections = buildMenuSections(role);
+  const menus = sections.flatMap((section) => section.items);
   const mobileMenus = primaryMobileMenus(role);
+  const lockedHrefs = buildLockedHrefs(role, storeOpen);
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
@@ -210,16 +287,17 @@ export default function Sidebar({ role }: SidebarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 p-3 text-slate-900 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 sm:p-4 lg:hidden">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-slate-200 bg-sidebar/95 p-3 text-slate-900 shadow-sm backdrop-blur dark:border-white/8 dark:text-slate-100 sm:p-4 lg:hidden">
         <div className="min-w-0">
           <Brand />
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <PaletteToggle />
           <ThemeToggle />
           <button
             type="button"
             onClick={openDrawer}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-teal-500/10 sm:h-11 sm:w-11 sm:rounded-2xl"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 dark:border-white/8 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-teal-500/10 sm:h-11 sm:w-11 sm:rounded-2xl"
             aria-label="Buka menu"
           >
             <Menu className="h-5 w-5" />
@@ -245,11 +323,11 @@ export default function Sidebar({ role }: SidebarProps) {
             aria-label="Tutup menu"
           />
           <aside
-            className={`relative flex h-dvh max-h-dvh w-[min(88vw,22rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-r-[1.75rem] border-r border-slate-200 bg-white text-slate-900 shadow-2xl shadow-slate-950/20 transition-transform duration-300 ease-out will-change-transform dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 ${
+            className={`relative flex h-dvh max-h-dvh w-[min(88vw,22rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-r-[1.75rem] border-r border-slate-200 bg-sidebar text-slate-900 shadow-2xl shadow-slate-950/20 transition-transform duration-300 ease-out will-change-transform dark:border-white/8 dark:text-slate-100 ${
               drawerOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-4 pb-4 dark:border-slate-800 sm:p-5">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-4 pb-4 dark:border-white/8 sm:p-5">
               <div>
                 <Brand />
                 <div className="mt-4">
@@ -259,7 +337,7 @@ export default function Sidebar({ role }: SidebarProps) {
               <button
                 type="button"
                 onClick={closeDrawer}
-                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-700 transition duration-200 hover:bg-slate-50 active:scale-95 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-800"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-700 transition duration-200 hover:bg-slate-50 active:scale-95 dark:border-white/8 dark:text-slate-100 dark:hover:bg-white/8"
                 aria-label="Tutup menu"
               >
                 <X className="h-5 w-5" />
@@ -267,40 +345,66 @@ export default function Sidebar({ role }: SidebarProps) {
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
               <MenuList
-                menus={menus}
+                sections={sections}
                 pathname={pathname}
+                lockedHrefs={lockedHrefs}
                 onNavigate={closeDrawer}
               />
             </div>
-            <div className="shrink-0 border-t border-slate-100 p-4 dark:border-slate-800 sm:p-5">
+            <div className="shrink-0 border-t border-slate-100 p-4 dark:border-white/8 sm:p-5">
               <LogoutButton />
             </div>
           </aside>
         </div>
       ) : null}
 
-      <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r border-slate-200 bg-white/95 p-5 text-slate-900 shadow-[10px_0_30px_rgba(15,23,42,0.03)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r border-slate-200 bg-sidebar/95 p-5 text-slate-900 shadow-[10px_0_30px_rgba(15,23,42,0.03)] backdrop-blur dark:border-white/8 dark:text-slate-100 lg:flex">
         <div className="mb-6 shrink-0">
           <Brand />
-          <RoleBadge role={role} />
+          <div className="mt-4 flex flex-col items-start gap-2">
+            <RoleBadge role={role} />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <PaletteToggle />
+            </div>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-          <MenuList menus={menus} pathname={pathname} />
+          <MenuList
+            sections={sections}
+            pathname={pathname}
+            lockedHrefs={lockedHrefs}
+          />
         </div>
 
-        <div className="shrink-0 space-y-3 pt-4">
-          <ThemeToggle />
+        <div className="shrink-0 pt-4">
           <LogoutButton />
         </div>
       </aside>
 
-      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 text-slate-600 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur transition duration-200 ease-out dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-300 sm:px-2 sm:pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pt-2 lg:hidden">
+      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-sidebar/95 px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 text-slate-600 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur transition duration-200 ease-out dark:border-white/8 dark:text-slate-300 sm:px-2 sm:pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pt-2 lg:hidden">
         {mobileMenus.map((menu) => {
           const Icon = menu.icon;
           const active =
             pathname === menu.href ||
             (menu.href !== "/" && pathname.startsWith(`${menu.href}/`));
+
+          if (lockedHrefs.has(menu.href)) {
+            return (
+              <div
+                key={menu.name}
+                className="flex min-h-11 cursor-not-allowed flex-col items-center justify-center gap-0.5 rounded-xl text-slate-300 dark:text-slate-600 sm:min-h-12 sm:gap-1 sm:rounded-2xl"
+                title="Toko sedang tutup"
+                aria-disabled="true"
+              >
+                <Lock className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+                <span className="text-[10px] font-bold leading-none sm:text-[11px]">
+                  {menu.name}
+                </span>
+              </div>
+            );
+          }
 
           return (
             <Link

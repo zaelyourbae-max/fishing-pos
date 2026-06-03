@@ -59,6 +59,9 @@ type ProfitSourceSummary = {
   netCogs: number;
   grossProfit: number;
   netProfit: number;
+  operatingExpenses: number;
+  netProfitAfterExpenses: number;
+  netMarginPercent: number;
   marginPercent: number;
   hasIncompleteReturnCost: boolean;
   incompleteReturnCostCount: number;
@@ -168,6 +171,10 @@ export function serializeProfitSummary(profit: ProfitSourceSummary) {
     netCogs: rupiah(profit.netCogs),
     grossProfit: rupiah(profit.grossProfit),
     netProfit: rupiah(profit.netProfit),
+    operatingExpenses: rupiah(profit.operatingExpenses),
+    netProfitAfterExpenses: rupiah(profit.netProfitAfterExpenses),
+    netMargin: formatProfitPercent(profit.netMarginPercent),
+    netProfitNegative: profit.netProfitAfterExpenses < 0,
     margin: formatProfitPercent(profit.marginPercent),
     returnCostWarning: profit.hasIncompleteReturnCost
       ? `${profit.incompleteReturnCostCount} item retur belum memiliki snapshot HPP. HPP retur lama tidak mengurangi HPP sampai data dilengkapi.`

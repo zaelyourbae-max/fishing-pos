@@ -7,6 +7,7 @@ import { formatDateTime, RETURN_REASON_LABELS, rupiah } from "@/lib/returns";
 import LiveSearchInput from "@/components/search/live-search-input";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import PaginationLinks from "@/components/ui/pagination-links";
+import SoftFilterForm from "@/components/ui/soft-filter-form";
 import { operatorLabel } from "@/lib/transaction-identity";
 
 type ReturnsPageProps = {
@@ -158,7 +159,7 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
         </div>
       </div>
 
-      <form className="surface-panel grid gap-3 rounded-3xl p-4 sm:p-5 md:grid-cols-[1fr_auto]">
+      <SoftFilterForm className="surface-panel grid gap-3 rounded-3xl p-4 sm:p-5 md:grid-cols-[1fr_auto]">
         <LiveSearchInput
           initialValue={q}
           placeholder="Cari invoice, customer, telepon, alasan..."
@@ -166,7 +167,7 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
         <button className="rounded-2xl bg-teal-600 px-5 py-3 font-semibold text-white">
           Search
         </button>
-      </form>
+      </SoftFilterForm>
 
       <div
         data-search-results
@@ -241,49 +242,49 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
           ) : null}
           {returns.map((saleReturn) => (
             <article key={saleReturn.id} className="mobile-data-card">
-              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-start justify-between gap-2">
                 <div className="min-w-0">
                   <Link
                     href={`/invoices/${saleReturn.sale.id}`}
-                    className="break-all text-base font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300"
+                    className="break-all text-[13px] font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300"
                   >
                     {saleReturn.sale.invoiceNumber}
                   </Link>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                     {formatDateTime(saleReturn.createdAt)}
                   </p>
                 </div>
-                <span className="w-fit rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                <span className="w-fit shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
                   {saleReturn.status}
                 </span>
               </div>
-              <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+              <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
                 <p className="min-w-0">
-                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Customer
                   </span>
-                  <span className="break-words">
+                  <span className="line-clamp-1 break-words font-medium text-slate-800 dark:text-slate-200">
                     {saleReturn.sale.customer?.name ?? "Walk-in"}
                   </span>
                 </p>
                 <p className="min-w-0">
-                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Operator
                   </span>
-                  <span className="break-words">{operatorLabel(saleReturn.sale.cashier)}</span>
+                  <span className="line-clamp-1 break-words font-medium text-slate-800 dark:text-slate-200">{operatorLabel(saleReturn.sale.cashier)}</span>
                 </p>
                 <p className="min-w-0">
-                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Alasan
                   </span>
-                  <span className="break-words">
+                  <span className="line-clamp-1 break-words font-medium text-slate-800 dark:text-slate-200">
                     {RETURN_REASON_LABELS[
                       saleReturn.reason as keyof typeof RETURN_REASON_LABELS
                     ] ?? saleReturn.reason}
                   </span>
                 </p>
                 <p>
-                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Refund
                   </span>
                   <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
@@ -291,7 +292,7 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
                   </span>
                 </p>
               </div>
-              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
                 {saleReturn._count.items} item retur
               </p>
             </article>

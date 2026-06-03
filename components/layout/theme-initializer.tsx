@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { applyPalette, readStoredPalette } from "@/lib/theme/palettes";
 
 const THEME_KEY = "fishing_pos_theme";
 
@@ -12,6 +13,12 @@ export default function ThemeInitializer() {
       document.documentElement.classList.toggle("dark", theme === "dark");
     } catch {
       document.documentElement.classList.remove("dark");
+    }
+
+    try {
+      applyPalette(readStoredPalette());
+    } catch {
+      /* ignore */
     }
   }, []);
 

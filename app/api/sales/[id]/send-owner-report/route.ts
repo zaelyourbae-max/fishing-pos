@@ -20,9 +20,13 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const [sale, settings] = await Promise.all([
+  const [sale, settings, ownerUser] = await Promise.all([
     findSaleForMessage(id, auth.session),
     getSettings(),
+    prisma.user.findUnique({
+      where: { id: auth.session.sub },
+      select: { name: true },
+    }),
   ]);
 
   if (!sale) {
@@ -39,7 +43,7 @@ export async function POST(
       type: "OWNER_TRANSACTION_REPORT",
       targetType: "OWNER",
       targetPhone,
-      targetName: settings.ownerName || "Owner",
+      targetName: ownerUser?.name || "Owner",
       status: "READY",
       provider: "N8N_FUTURE",
       relatedSaleId: sale.id,

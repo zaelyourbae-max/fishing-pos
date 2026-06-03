@@ -1,5 +1,6 @@
 ﻿import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { guardStoreOpen } from "@/lib/store-status";
 import { isReturnReason } from "@/lib/returns";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { Prisma } from "@prisma/client";
@@ -101,6 +102,12 @@ export async function POST(req: Request) {
 
   if (!auth.ok) {
     return auth.response;
+  }
+
+  const storeClosed = await guardStoreOpen();
+
+  if (storeClosed) {
+    return storeClosed;
   }
 
   const body = await req.json();

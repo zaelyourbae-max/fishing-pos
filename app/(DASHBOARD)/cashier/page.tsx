@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Boxes, ReceiptText, ShoppingCart } from "lucide-react";
+import { ArrowRight, Boxes, Lock, ReceiptText, ShoppingCart } from "lucide-react";
 
 import DeadStockCard, {
   type DeadStockCardItem,
@@ -9,6 +9,7 @@ import { getDeadStockProducts } from "@/lib/dead-stock";
 import { requireCashierPage } from "@/lib/page-guards";
 import { getLowStockWhere } from "@/lib/product-analytics";
 import { prisma } from "@/lib/prisma";
+import { getStoreStatus } from "@/lib/store-status";
 import { transactionIdentityLabel } from "@/lib/transaction-identity";
 
 function startOfToday() {
@@ -52,6 +53,29 @@ function statusBadgeClass(status: string) {
 
 export default async function CashierPage() {
   const session = await requireCashierPage();
+  const storeStatus = await getStoreStatus();
+
+  if (!storeStatus.isOpen) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="surface-panel max-w-md rounded-3xl p-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10 text-rose-500">
+            <Lock size={32} />
+          </div>
+          <h1 className="page-title mt-5">Toko Sedang Tutup</h1>
+          <p className="mt-3 text-slate-500 dark:text-slate-400">
+            Operasional kasir dikunci. Tunggu owner membuka toko kembali untuk
+            mulai melayani penjualan.
+          </p>
+          <p className="mt-4 text-xs text-slate-400">
+            Sementara menunggu, kamu masih bisa mengubah tema/palet warna lewat
+            tombol di pojok atas.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const todayStart = startOfToday();
 
   const [todayTransactionCount, recentSales, lowStockProducts, deadStock] =

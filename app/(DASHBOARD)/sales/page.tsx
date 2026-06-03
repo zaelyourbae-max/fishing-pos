@@ -13,13 +13,14 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { requireProtectedPage } from "@/lib/page-guards";
+import { requireStoreOpenPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import LiveSearchInput from "@/components/search/live-search-input";
 import CancelSaleButton from "@/components/sales/cancel-sale-button";
 import PaymentProofActionButton from "@/components/sales/payment-proof-action-button";
 import PendingExpiryCountdown from "@/components/sales/pending-expiry-countdown";
 import SalesDateFilterFields from "@/components/sales/sales-date-filter-fields";
+import SoftFilterForm from "@/components/ui/soft-filter-form";
 import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
 import { operatorLabel } from "@/lib/transaction-identity";
@@ -160,7 +161,7 @@ function isPendingQrisSale(sale: {
 }
 
 export default async function SalesPage({ searchParams }: SalesPageProps) {
-  const session = await requireProtectedPage();
+  const session = await requireStoreOpenPage();
   const params = (await searchParams) ?? {};
   const q = String(params.q ?? "").trim();
   const payment = String(params.payment ?? "").trim();
@@ -352,7 +353,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         </div>
       </div>
 
-      <form className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-4">
+      <SoftFilterForm className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-4">
         <div className="grid gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-[180px_180px_1fr_1fr_1.2fr_160px]">
           <SalesDateFilterFields from={params.from} to={params.to} />
 
@@ -411,11 +412,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             Filter
           </button>
         </div>
-      </form>
+      </SoftFilterForm>
 
       <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2">
         <div className="mobile-card-surface flex items-center gap-2.5 p-2.5 sm:gap-5 sm:rounded-2xl sm:p-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
             <ShoppingCart className="h-5 w-5 sm:h-8 sm:w-8" />
           </span>
           <div>
@@ -432,7 +433,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         </div>
 
         <div className="mobile-card-surface flex items-center gap-2.5 p-2.5 sm:gap-5 sm:rounded-2xl sm:p-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
             <TrendingUp className="h-5 w-5 sm:h-8 sm:w-8" />
           </span>
           <div className="min-w-0">
@@ -641,14 +642,14 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       {operatorLabel(sale.cashier)}
                     </span>
                   </p>
-                  <p className="col-span-2 flex min-w-0 items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-slate-400">
+                  <p className="flex min-w-0 items-center gap-1">
+                    <span className="shrink-0 text-[11px] font-medium text-slate-400">
                       Payment
                     </span>
                     {paymentIcon(sale.paymentMethod)}
                     <span className="min-w-0 truncate">{paymentName}</span>
                   </p>
-                  <div className="col-span-2 flex min-w-0 items-center gap-1.5">
+                  <div className="flex min-w-0 items-center gap-1">
                     <span className="text-[11px] font-medium text-slate-400">
                       Item
                     </span>

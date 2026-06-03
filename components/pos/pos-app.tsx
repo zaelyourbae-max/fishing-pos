@@ -24,7 +24,6 @@ import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import PendingExpiryCountdown from "@/components/sales/pending-expiry-countdown";
 import PaymentConfirmationModal from "@/components/pos/payment-confirmation-modal";
-import ThemeToggle from "@/components/layout/theme-toggle";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
 import ClientPaginationControl from "@/components/ui/client-pagination-control";
 import { useGlobalInteractionCleanup } from "@/lib/global-interaction-state";
@@ -36,7 +35,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { LOYALTY_MIN_PURCHASE_AMOUNT } from "@/lib/loyalty";
 
 type Product = {
   id: number;
@@ -673,13 +671,17 @@ type PosAppProps = {
   currentUser: UserPayload;
   paymentMethods: PaymentMethod[];
   paymentSettings: PaymentSettings;
+  loyaltyMinPurchase: number;
 };
 
 export default function PosApp({
   currentUser,
   paymentMethods,
   paymentSettings,
+  loyaltyMinPurchase,
 }: PosAppProps) {
+  // Aturan loyalty dari Pengaturan (owner). Default sudah di-resolve di server.
+  const LOYALTY_MIN_PURCHASE_AMOUNT = loyaltyMinPurchase;
   const [token, setToken] = useState(() =>
     typeof window === "undefined"
       ? ""
@@ -2505,7 +2507,6 @@ export default function PosApp({
         </div>
 
         <div className="hidden flex-wrap items-center justify-end gap-2 sm:flex">
-          <ThemeToggle />
           <div className="relative">
             <button
               onClick={() => setNotificationsOpen((open) => !open)}

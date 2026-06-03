@@ -1,5 +1,7 @@
 "use client";
 
+import Modal from "@/components/ui/modal";
+
 type StockOpnameApproveDialogProps = {
   open: boolean;
   loading: boolean;
@@ -25,13 +27,14 @@ export default function StockOpnameApproveDialog({
   onClose,
   onConfirm,
 }: StockOpnameApproveDialogProps) {
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950">
+    <Modal
+      open={open}
+      onClose={onClose}
+      closeOnBackdrop={!loading}
+      closeOnEscape={!loading}
+      panelClassName="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950"
+    >
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
           Setujui Stock Opname?
         </h2>
@@ -107,7 +110,6 @@ export default function StockOpnameApproveDialog({
             {loading ? "Menyetujui..." : "Setujui & Update Stok"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

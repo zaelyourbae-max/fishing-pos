@@ -29,21 +29,19 @@ export default function ThemeToggle() {
   }, [mounted, theme]);
 
   function toggleTheme() {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
+    setTheme((t) => (t === "dark" ? "light" : "dark"));
   }
 
-  const Icon = theme === "dark" ? Sun : Moon;
+  const dark = theme === "dark";
 
+  /* skeleton saat belum mounted */
   if (!mounted) {
     return (
       <button
         type="button"
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
         aria-label="Memuat theme"
-      >
-        <span className="h-4 w-4 rounded-full border border-current opacity-60" />
-      </button>
+        className="relative flex h-6 w-11 shrink-0 items-center rounded-full border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
+      />
     );
   }
 
@@ -51,10 +49,27 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-colors duration-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-      aria-label={theme === "dark" ? "Aktifkan light mode" : "Aktifkan dark mode"}
+      aria-label={dark ? "Aktifkan light mode" : "Aktifkan dark mode"}
+      className="relative flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+      style={{
+        background: dark ? "color-mix(in oklab, var(--color-teal-500) 28%, transparent)" : "var(--color-teal-600)",
+        borderColor: dark ? "color-mix(in oklab, var(--color-teal-500) 40%, transparent)" : "var(--color-teal-700)",
+      }}
     >
-      <Icon size={18} />
+      <span
+        className="absolute flex h-4 w-4 items-center justify-center rounded-full shadow-sm"
+        style={{
+          left: dark ? "3px" : "calc(100% - 19px)",
+          background: dark ? "#1e293b" : "white",
+          transition: "left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease",
+        }}
+      >
+        {dark ? (
+          <Moon className="h-2.5 w-2.5 text-teal-400" />
+        ) : (
+          <Sun className="h-2.5 w-2.5 text-teal-600" />
+        )}
+      </span>
     </button>
   );
 }

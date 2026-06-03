@@ -16,10 +16,8 @@ import { formatDateTimeID } from "@/lib/date-format";
 import { requireCustomersPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
-import {
-  LOYALTY_MIN_PURCHASE_AMOUNT,
-  loyaltyProgressFromValidCount,
-} from "@/lib/loyalty";
+import { loyaltyProgressFromValidCount } from "@/lib/loyalty";
+import { getLoyaltyConfig } from "@/lib/loyalty-settings";
 import { operatorLabel } from "@/lib/transaction-identity";
 import PaginationLinks from "@/components/ui/pagination-links";
 
@@ -171,7 +169,11 @@ export default async function CustomerDetailPage({
   const transactionCount = summary._count._all;
   const averageTransaction =
     transactionCount > 0 ? Math.round(totalSpent / transactionCount) : 0;
-  const loyaltyProgress = loyaltyProgressFromValidCount(transactionCount);
+  const loyaltyConfig = await getLoyaltyConfig();
+  const loyaltyProgress = loyaltyProgressFromValidCount(
+    transactionCount,
+    loyaltyConfig.interval,
+  );
   const historyPageCount = Math.max(
     1,
     Math.ceil(totalHistorySales / HISTORY_PAGE_SIZE),
@@ -196,54 +198,54 @@ export default async function CustomerDetailPage({
         </div>
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
-            <User className="h-6 w-6" />
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200 sm:h-12 sm:w-12">
+            <User className="h-5 w-5 sm:h-6 sm:w-6" />
           </span>
-          <p className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+          <p className="mt-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-4 sm:text-sm">
             Nama
           </p>
-          <p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
+          <p className="mt-0.5 break-words text-base font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-xl">
             {customer.name}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">
-            <MessageCircle className="h-6 w-6" />
+        <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-200 sm:h-12 sm:w-12">
+            <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
           </span>
-          <p className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+          <p className="mt-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-4 sm:text-sm">
             WhatsApp
           </p>
-          <p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
+          <p className="mt-0.5 break-words text-base font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-xl">
             {customer.phone ?? "-"}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
-            <Star className="h-6 w-6" />
+        <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200 sm:h-12 sm:w-12">
+            <Star className="h-5 w-5 sm:h-6 sm:w-6" />
           </span>
-          <p className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+          <p className="mt-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-4 sm:text-sm">
             Loyalty Points
           </p>
-          <p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
+          <p className="mt-0.5 text-base font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-xl">
             {transactionCount}
           </p>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-xs">
             Berdasarkan transaksi valid SUCCESS + PAID.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-200">
-            <CalendarDays className="h-6 w-6" />
+        <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-200 sm:h-12 sm:w-12">
+            <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6" />
           </span>
-          <p className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+          <p className="mt-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 sm:mt-4 sm:text-sm">
             Terdaftar
           </p>
-          <p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
+          <p className="mt-0.5 break-words text-sm font-bold text-slate-950 dark:text-white sm:mt-1 sm:text-xl">
             {formatDateTime(customer.createdAt)}
           </p>
         </div>
@@ -322,7 +324,7 @@ export default async function CustomerDetailPage({
                 Milestone berikutnya: transaksi ke-{loyaltyProgress.nextMilestone}.
               </p>
               <p className="mt-1 text-xs text-amber-800 dark:text-amber-100">
-                S&K benefit: minimal pembelian {rupiah(LOYALTY_MIN_PURCHASE_AMOUNT)}.
+                S&K benefit: minimal pembelian {rupiah(loyaltyConfig.minPurchase)}.
               </p>
             </div>
             {loyaltyBenefitSales.length > 0 ? (

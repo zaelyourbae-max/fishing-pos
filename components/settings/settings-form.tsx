@@ -3,12 +3,12 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import QrisImage from "@/components/payment/qris-image";
+import PalettePicker from "@/components/settings/palette-picker";
 import {
   Banknote,
-  Code2,
   CreditCard,
-  Info,
   Landmark,
+  Palette,
   QrCode,
   Save,
   Store,
@@ -22,7 +22,6 @@ type SettingsFormProps = {
     storeName: string;
     storeWhatsApp: string;
     storeAddress: string;
-    ownerName: string;
   };
   paymentMethods: {
     id: string;
@@ -38,7 +37,6 @@ type SettingsFormProps = {
     qrisImageUrl: string;
   };
   ownerEmail: string;
-  appVersion: string;
 };
 
 const TOKEN_KEY = "fishing_pos_token";
@@ -72,7 +70,6 @@ export default function SettingsForm({
   paymentMethods,
   paymentSettings,
   ownerEmail,
-  appVersion,
 }: SettingsFormProps) {
   const router = useRouter();
   const qrisInputRef = useRef<HTMLInputElement | null>(null);
@@ -335,23 +332,6 @@ export default function SettingsForm({
 
           <label className="block">
             <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
-              Nama Owner
-            </span>
-            <input
-              value={form.ownerName}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  ownerName: event.target.value,
-                }))
-              }
-              className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-              placeholder="Nama owner"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
               Email Owner
             </span>
             <input
@@ -601,38 +581,22 @@ export default function SettingsForm({
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300">
-              <Code2 className="h-5 w-5" />
-            </span>
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300">
+            <Palette className="h-5 w-5" />
+          </span>
+          <div>
             <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
-              Developer / Credit
+              Warna Tampilan
             </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Pilih warna aksen sistem. Tersimpan di perangkat ini &amp; berlaku untuk mode terang maupun gelap.
+            </p>
           </div>
-          <div className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
-            <p>Developer: Akbar Fahreza</p>
-            <p>a.k.a Alexander Van Meijr</p>
-            <p>Powered by Meijrverse</p>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300">
-              <Info className="h-5 w-5" />
-            </span>
-            <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
-              System Info
-            </h2>
-          </div>
-          <div className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
-            <p>App version: {appVersion}</p>
-            <p>Stack: Next.js + Prisma + PostgreSQL</p>
-          </div>
-        </section>
-      </div>
+        </div>
+        <PalettePicker />
+      </section>
     </div>
   );
 }

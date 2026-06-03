@@ -88,10 +88,12 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
       {/* Lock icon + title */}
       <div className="mb-5 text-center sm:mb-6">
         <div
-          className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl"
+          className="mx-auto flex h-12 w-12 items-center justify-center rounded-full"
           style={{
-            background: "linear-gradient(135deg, #0d9488, #0f766e)",
-            boxShadow: dark ? "0 0 28px rgba(20,184,166,0.45)" : "0 4px 14px rgba(13,148,136,0.3)",
+            background: "linear-gradient(135deg, var(--color-teal-600), var(--color-teal-700))",
+            boxShadow: dark
+              ? "0 0 0 6px color-mix(in oklch, var(--color-teal-600) 12%, transparent), 0 0 28px color-mix(in oklch, var(--color-teal-500) 50%, transparent)"
+              : "0 0 0 6px color-mix(in oklch, var(--color-teal-600) 10%, transparent), 0 4px 14px color-mix(in oklch, var(--color-teal-600) 30%, transparent)",
           }}
         >
           <LockKeyhole className="h-6 w-6 text-white" />
@@ -100,7 +102,7 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
           Masuk ke Sistem
         </h2>
         <p className={`mt-2 text-sm font-medium transition-colors duration-500 ${dark ? "text-slate-400" : "text-slate-500"}`}>
-          Masukkan kredensial Anda untuk melanjutkan
+          Masukkan kredensial Anda
         </p>
       </div>
 
@@ -117,7 +119,7 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
             Email
           </label>
           <div className="relative">
-            <Mail className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${dark ? "text-slate-500" : "text-slate-400"}`} />
+            <Mail className={`pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${dark ? "text-slate-500" : "text-slate-400"}`} />
             <input
               type="email"
               inputMode="email"
@@ -126,7 +128,7 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
               placeholder="nama@meijrverse.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`min-h-12 w-full rounded-xl px-11 py-3 text-sm font-medium outline-none transition-all duration-300 ${inputClass}`}
+              className={`min-h-12 w-full rounded-xl py-3 pl-10 pr-4 text-sm font-medium outline-none transition-all duration-300 ${inputClass}`}
             />
           </div>
         </div>
@@ -137,7 +139,7 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
             Password
           </label>
           <div className="relative">
-            <LockKeyhole className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${dark ? "text-slate-500" : "text-slate-400"}`} />
+            <LockKeyhole className={`pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${dark ? "text-slate-500" : "text-slate-400"}`} />
             <input
               type={passwordVisible ? "text" : "password"}
               autoComplete="current-password"
@@ -145,12 +147,12 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`min-h-12 w-full rounded-xl py-3 pl-11 pr-12 text-sm font-medium outline-none transition-all duration-300 ${inputClass}`}
+              className={`min-h-12 w-full rounded-xl py-3 pl-10 pr-12 text-sm font-medium outline-none transition-all duration-300 ${inputClass}`}
             />
             <button
               type="button"
               onClick={() => setPasswordVisible((v) => !v)}
-              className={`absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg transition ${
+              className={`absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg transition ${
                 dark ? "text-slate-500 hover:bg-white/10 hover:text-slate-300" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               }`}
               aria-label={passwordVisible ? "Sembunyikan password" : "Tampilkan password"}
@@ -160,14 +162,19 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
           </div>
         </div>
 
+        {/* Divider */}
+        <div className={`my-1 h-px ${dark ? "bg-white/5" : "bg-slate-100"}`} />
+
         {/* Submit */}
         <button
           type="submit"
           disabled={loading}
           className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
           style={{
-            background: "linear-gradient(135deg, #0d9488, #0f766e)",
-            boxShadow: dark ? "0 4px 24px rgba(20,184,166,0.4)" : "0 4px 14px rgba(13,148,136,0.3)",
+            background: "linear-gradient(135deg, var(--color-teal-600), var(--color-teal-700))",
+            boxShadow: dark
+              ? "0 4px 24px color-mix(in oklch, var(--color-teal-500) 40%, transparent)"
+              : "0 4px 14px color-mix(in oklch, var(--color-teal-600) 30%, transparent)",
           }}
         >
           <span>{loading ? "Login..." : "Login"}</span>
@@ -175,9 +182,6 @@ export default function LoginForm({ dark, mobile = false }: { dark: boolean; mob
         </button>
       </div>
 
-      <p className={`mt-5 text-center text-xs font-semibold lg:hidden ${dark ? "text-slate-600" : "text-slate-400"}`}>
-        © 2026 MEIJRVERSE°. All rights reserved.
-      </p>
     </form>
   );
 }

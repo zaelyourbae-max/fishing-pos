@@ -1,5 +1,6 @@
 ﻿import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { guardStoreOpen } from "@/lib/store-status";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
@@ -25,6 +26,12 @@ export async function POST(req: Request) {
 
   if (!auth.ok) {
     return auth.response;
+  }
+
+  const storeClosed = await guardStoreOpen();
+
+  if (storeClosed) {
+    return storeClosed;
   }
 
   const body = await req.json();

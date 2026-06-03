@@ -4,7 +4,6 @@ export const SETTING_KEYS = [
   "storeName",
   "storeWhatsApp",
   "storeAddress",
-  "ownerName",
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -13,7 +12,6 @@ export const DEFAULT_SETTINGS: Record<SettingKey, string> = {
   storeName: "Toko Pancing",
   storeWhatsApp: "628123456789",
   storeAddress: "Alamat toko belum diset",
-  ownerName: "Owner Toko",
 };
 
 export async function getSettings() {

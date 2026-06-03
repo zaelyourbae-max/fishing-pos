@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Modal from "@/components/ui/modal";
 import {
   AlertTriangle,
   ChevronRight,
@@ -51,11 +52,13 @@ type KpiActionCardProps = {
   detail: KpiDetail;
 };
 
+// Icon backgrounds follow the chosen palette (the `teal-*` scale is remapped per
+// palette in globals.css). Only rose stays fixed = warning / low stock / return.
 const toneClass = {
-  emerald: "bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200",
-  blue: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
-  violet: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200",
-  amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200",
+  emerald: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200",
+  blue: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200",
+  violet: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200",
+  amber: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200",
   rose: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
 };
 
@@ -102,16 +105,16 @@ export default function KpiActionCard({
         onClick={() => setOpen(true)}
         aria-pressed={open}
         title={`Lihat detail ${title}`}
-        className={`group relative flex min-h-[122px] w-full cursor-pointer flex-col items-start justify-between gap-3 rounded-[22px] border bg-white px-3.5 py-4 text-left shadow-[0_14px_34px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_20px_48px_rgba(15,23,42,0.075)] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:bg-slate-950/70 dark:focus:ring-teal-500/10 sm:min-h-[116px] sm:flex-row sm:items-center sm:gap-4 sm:px-5 ${
+        className={`group card-elevated relative flex min-h-[92px] w-full cursor-pointer flex-col items-start justify-between gap-2 rounded-[22px] border bg-card px-3 py-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:focus:ring-teal-500/10 sm:min-h-[116px] sm:flex-row sm:items-center sm:gap-4 sm:px-5 sm:py-4 ${
           open
             ? "border-teal-300 ring-4 ring-teal-100 dark:border-teal-500/60 dark:ring-teal-500/10"
             : "border-slate-200 dark:border-slate-800"
         }`}
       >
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12 ${toneClass[tone]}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 sm:rounded-2xl ${toneClass[tone]}`}
         >
-          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+          <Icon className="h-4 w-4 sm:h-6 sm:w-6" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block line-clamp-2 pr-6 text-[11px] font-bold leading-snug text-slate-500 dark:text-slate-400 sm:pr-0 sm:text-sm">
@@ -138,9 +141,12 @@ export default function KpiActionCard({
         <ChevronRight className="absolute right-3 top-4 h-4 w-4 shrink-0 text-slate-400 transition duration-200 group-hover:translate-x-0.5 group-hover:text-teal-600 sm:static" />
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 sm:items-center sm:p-6">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        align="bottom"
+        panelClassName="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+      >
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800">
               <div>
                 <h2 className="text-lg font-bold text-slate-950 dark:text-white">
@@ -192,9 +198,7 @@ export default function KpiActionCard({
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
     </>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { formatRupiahInput, normalizeRupiahInput } from "@/lib/rupiah-input";
+import Combobox from "@/components/ui/combobox";
 
 type SupplierOption = {
   id: number;
@@ -207,18 +208,14 @@ export default function PurchaseForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Supplier</label>
-          <select
+          <Combobox
+            className="mt-2"
+            options={suppliers.map((s) => ({ value: String(s.id), label: s.name }))}
             value={supplierId}
-            onChange={(event) => setSupplierId(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 text-slate-900 outline-none dark:text-slate-100"
-          >
-            <option value="">Pilih supplier</option>
-            {suppliers.map((supplier) => (
-              <option key={supplier.id} value={supplier.id}>
-                {supplier.name}
-              </option>
-            ))}
-          </select>
+            onChange={setSupplierId}
+            placeholder="Pilih supplier"
+            searchPlaceholder="Cari supplier..."
+          />
         </div>
 
         <div>
@@ -245,18 +242,18 @@ export default function PurchaseForm({
             >
               <div>
                 <label className="text-xs font-medium text-slate-700 dark:text-slate-400">Produk</label>
-                <select
+                <Combobox
+                  className="mt-2"
+                  options={products.map((p) => ({
+                    value: String(p.id),
+                    label: p.name,
+                    sublabel: p.sku ? `(${p.sku})` : undefined,
+                  }))}
                   value={row.productId}
-                  onChange={(event) => selectProduct(index, event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-slate-900 outline-none dark:text-slate-100"
-                >
-                  <option value="">Pilih produk</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} {product.sku ? `(${product.sku})` : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => selectProduct(index, val)}
+                  placeholder="Pilih produk"
+                  searchPlaceholder="Cari nama atau SKU..."
+                />
                 {selectedProduct ? (
                   <p className="mt-2 text-xs text-slate-500">
                     Stok saat ini: {selectedProduct.stock}. Qty pembelian akan

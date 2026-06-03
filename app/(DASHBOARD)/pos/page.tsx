@@ -1,11 +1,12 @@
 import PosApp from "@/components/pos/pos-app";
 import { getActivePaymentMethods, getPaymentSettings } from "@/lib/payments";
+import { getLoyaltyConfig } from "@/lib/loyalty-settings";
 import { prisma } from "@/lib/prisma";
 import { requirePosPage } from "@/lib/page-guards";
 
 export default async function PosPage() {
   const session = await requirePosPage();
-  const [user, paymentMethods, paymentSettings] = await Promise.all([
+  const [user, paymentMethods, paymentSettings, loyaltyConfig] = await Promise.all([
     prisma.user.findUnique({
       where: {
         id: session.sub,
@@ -23,6 +24,7 @@ export default async function PosPage() {
     }),
     getActivePaymentMethods(),
     getPaymentSettings(),
+    getLoyaltyConfig(),
   ]);
 
   return (
@@ -38,6 +40,7 @@ export default async function PosPage() {
         type: method.type,
       }))}
       paymentSettings={paymentSettings}
+      loyaltyMinPurchase={loyaltyConfig.minPurchase}
     />
   );
 }

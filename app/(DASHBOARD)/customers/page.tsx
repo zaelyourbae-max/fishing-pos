@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight, History, MapPin, Search, Users } from "lucide-react";
+import { ArrowUpRight, Award, History, MapPin, Search, Users } from "lucide-react";
 import { Prisma } from "@prisma/client";
 
 import LiveSearchInput from "@/components/search/live-search-input";
 import { formatDateID } from "@/lib/date-format";
+import { getLoyaltyConfig } from "@/lib/loyalty-settings";
 import { isOwnerRole } from "@/lib/permissions";
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { requireCustomersPage } from "@/lib/page-guards";
@@ -80,6 +81,9 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const q = String(params.q ?? "").trim();
   const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
   const where = customerWhere(q);
+  const loyaltyConfig = await getLoyaltyConfig();
+  // Pelanggan dianggap "setia" bila poinnya sudah mencapai minimal 1x milestone hadiah.
+  const loyalThreshold = Math.max(1, loyaltyConfig.interval);
   const [customers, totalCustomers] = await Promise.all([
     prisma.customer.findMany({
       where,
@@ -94,7 +98,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         name: true,
         phone: true,
         address: true,
-        loyaltyPoints: true,
         createdAt: true,
         _count: {
           select: {
@@ -108,24 +111,25 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
     }),
   ]);
   const customerIds = customers.map((customer) => customer.id);
-  const salesSummary =
-    canViewAnalytics && customerIds.length
-      ? await prisma.sale.groupBy({
-          by: ["customerId"],
-          where: {
-            customerId: {
-              in: customerIds,
-            },
-            ...FINAL_SALE_STATUS_WHERE,
+  // Jumlah transaksi lunas/selesai = "poin" loyalty asli (1 transaksi = 1 poin).
+  // Selalu dihitung untuk semua role agar kolom Poin & badge "Pelanggan Setia" akurat.
+  const salesSummary = customerIds.length
+    ? await prisma.sale.groupBy({
+        by: ["customerId"],
+        where: {
+          customerId: {
+            in: customerIds,
           },
-          _sum: {
-            subtotal: true,
-          },
-          _count: {
-            _all: true,
-          },
-        })
-      : [];
+          ...FINAL_SALE_STATUS_WHERE,
+        },
+        _sum: {
+          subtotal: true,
+        },
+        _count: {
+          _all: true,
+        },
+      })
+    : [];
   const summaryByCustomer = new Map(
     salesSummary
       .filter((summary) => summary.customerId !== null)
@@ -205,13 +209,22 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {customers.map((customer) => {
                 const summary = summaryByCustomer.get(customer.id);
+                const loyaltyPoints = summary?._count._all ?? 0;
 
                 return (
                   <tr key={customer.id} className="text-sm">
                     <td className="px-5 py-4">
-                      <p className="font-bold text-slate-950 dark:text-white">
-                        {customer.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-slate-950 dark:text-white">
+                          {customer.name}
+                        </p>
+                        {loyaltyPoints >= loyalThreshold ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                            <Award className="h-3.5 w-3.5" />
+                            Pelanggan Setia
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 text-xs text-slate-500">
                         {customer.customerCode} - Sejak {formatDate(customer.createdAt)}
                       </p>
@@ -225,7 +238,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right font-bold tabular-nums text-slate-950 dark:text-white">
-                      {customer.loyaltyPoints}
+                      {loyaltyPoints}
                     </td>
                     {canViewAnalytics ? (
                       <>
@@ -256,6 +269,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         <div className="space-y-1.5 bg-slate-50/70 p-1.5 lg:hidden dark:bg-slate-900/30">
           {customers.map((customer) => {
             const summary = summaryByCustomer.get(customer.id);
+            const loyaltyPoints = summary?._count._all ?? 0;
 
             return (
               <Link
@@ -265,9 +279,17 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               >
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="line-clamp-1 break-words text-[13px] font-bold leading-snug text-slate-950 dark:text-white sm:text-sm">
-                      {customer.name}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="line-clamp-1 break-words text-[13px] font-bold leading-snug text-slate-950 dark:text-white sm:text-sm">
+                        {customer.name}
+                      </p>
+                      {loyaltyPoints >= loyalThreshold ? (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 sm:text-[10px]">
+                          <Award className="h-3 w-3" />
+                          Setia
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="mt-0.5 break-all text-xs text-slate-500">
                       {customer.phone ?? "WhatsApp belum ada"}
                     </p>
@@ -276,7 +298,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                     </p>
                   </div>
                   <span className="mobile-pill mobile-pill-active min-h-6 px-2 text-[10px] sm:text-[11px]">
-                    {customer.loyaltyPoints} poin
+                    {loyaltyPoints} poin
                   </span>
                 </div>
                 <div className="mt-1.5 grid gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 sm:mt-2 sm:gap-2 sm:text-xs">

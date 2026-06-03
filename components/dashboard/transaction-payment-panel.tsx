@@ -85,7 +85,7 @@ function EmptyState({
 
   return (
     <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/40">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200">
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
         <Icon className="h-8 w-8" />
       </span>
       <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
@@ -108,7 +108,7 @@ function paymentTone(method: string) {
   }
 
   if (normalized.includes("CASH")) {
-    return "bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200";
+    return "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200";
   }
 
   return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";

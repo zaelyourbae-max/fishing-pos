@@ -35,10 +35,6 @@ export async function PATCH(req: Request) {
       body.storeAddress === undefined
         ? undefined
         : String(body.storeAddress ?? "").trim(),
-    ownerName:
-      body.ownerName === undefined
-        ? undefined
-        : String(body.ownerName ?? "").trim(),
   });
 
   return NextResponse.json({

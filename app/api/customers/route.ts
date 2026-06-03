@@ -1,5 +1,6 @@
 ﻿import { canAccessCustomers, isOwnerRole, requireCashier } from "@/lib/auth-session";
 import { loyaltyProgressFromValidCount } from "@/lib/loyalty";
+import { getLoyaltyConfig } from "@/lib/loyalty-settings";
 import { normalizeIndonesianPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
@@ -29,7 +30,11 @@ async function getCustomerLoyaltyProgress(customerId: number) {
       },
     }),
   ]);
-  const progress = loyaltyProgressFromValidCount(validTransactions);
+  const loyaltyConfig = await getLoyaltyConfig();
+  const progress = loyaltyProgressFromValidCount(
+    validTransactions,
+    loyaltyConfig.interval,
+  );
 
   return {
     valid_transactions: progress.validTransactions,

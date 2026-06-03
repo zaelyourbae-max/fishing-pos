@@ -1,4 +1,5 @@
 import AutoPrintInvoice from "@/components/invoice/auto-print-invoice";
+import DownloadPdfButton from "@/components/invoice/download-pdf-button";
 import PaymentProofImage from "@/components/invoices/payment-proof-image";
 import PrintInvoiceButton from "@/components/invoice/print-invoice-button";
 import SaleMessageActions from "@/components/message-actions/sale-message-actions";
@@ -7,6 +8,7 @@ import { formatDateTimeID } from "@/lib/date-format";
 import { paymentProofEndpoint } from "@/lib/payment-proof-assets";
 import { isOwnerRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/settings";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
 import { operatorLabel } from "@/lib/transaction-identity";
 import Link from "next/link";
@@ -60,6 +62,9 @@ export default async function InvoicePage({
   const session = await requireProtectedPage();
   const { id } = await params;
   const shouldPrint = (await searchParams)?.print === "1";
+  const settings = await getSettings();
+  const storeName = settings.storeName || "Toko Pancing";
+  const storeWa = settings.storeWhatsApp.trim();
   const sale = await prisma.sale.findFirst({
     where: {
       id,
@@ -202,7 +207,7 @@ export default async function InvoicePage({
             <a
               href={`/api/sales/${sale.id}/invoice/pdf`}
               download
-              className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+              className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 print:hidden"
             >
               Download PDF
             </a>
@@ -214,80 +219,57 @@ export default async function InvoicePage({
         </div>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm print:border-0 print:p-0 print:shadow-none sm:p-8">
-          <header className="border-b border-zinc-200 pb-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-zinc-500">
-                  Fishing POS
-                </p>
-                <h1 className="mt-1 text-3xl font-bold">Invoice</h1>
+          {/* HEADER */}
+          <header className="mb-7 flex items-start justify-between border-b-2 border-teal-600 pb-5">
+            <div>
+              <p className="text-2xl font-extrabold tracking-tight text-slate-950">{storeName}</p>
+              <p style={{fontSize:"9.5px",color:"#0F172A",opacity:0.45,marginTop:"4px",fontWeight:400}}>by Meijrverse°</p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {sale.returns.length > 0 ? (
-                  <span className="mt-3 inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
-                    Ada Retur
-                  </span>
+                  <span className="inline-flex rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-600">Ada Retur</span>
                 ) : null}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
-                    {sale.transactionStatus}
-                  </span>
-                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
-                    {sale.paymentStatus}
-                  </span>
-                </div>
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>{sale.transactionStatus}</span>
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>{sale.paymentStatus}</span>
               </div>
-
-              <div className="text-left sm:text-right">
-                <p className="text-sm text-zinc-500">Invoice Number</p>
-                <p className="text-lg font-bold">{sale.invoiceNumber}</p>
-              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-extrabold tracking-widest text-teal-600">INVOICE</p>
+              <p className="mt-1 text-xs font-bold tracking-wide text-slate-950">{sale.invoiceNumber}</p>
             </div>
           </header>
 
-          <div className="grid gap-4 border-b border-zinc-200 py-5 text-sm sm:grid-cols-2">
+          {/* INFO GRID */}
+          <div className="mb-7 grid gap-y-5 border-b border-slate-200 pb-6 sm:grid-cols-2 sm:gap-x-4">
             <div>
-              <p className="text-zinc-500">Tanggal Transaksi</p>
-              <p className="mt-1 font-semibold">{formatDate(sale.createdAt)}</p>
+              <p style={{fontSize:"9.5px",color:"#94A3B8",marginBottom:"4px"}}>Tanggal Transaksi</p>
+              <p className="text-sm font-semibold text-slate-950">{formatDate(sale.createdAt)}</p>
             </div>
-
             <div>
-              <p className="text-zinc-500">Payment Method</p>
-              <p className="mt-1 font-semibold capitalize">
-                {paymentMethod?.name ?? sale.paymentMethod}
-              </p>
+              <p style={{fontSize:"9.5px",color:"#94A3B8",marginBottom:"4px"}}>Payment Method</p>
+              <p className="text-sm font-semibold text-slate-950">{paymentMethod?.name ?? sale.paymentMethod}</p>
             </div>
-
             <div>
-              <p className="text-zinc-500">Payment Status</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>
-                  {sale.paymentStatus}
-                </span>
-                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>
-                  {sale.transactionStatus}
-                </span>
+              <p style={{fontSize:"9.5px",color:"#94A3B8",marginBottom:"4px"}}>Payment Status</p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${statusBadgeClass(sale.paymentStatus)}`}>{sale.paymentStatus}</span>
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${statusBadgeClass(sale.transactionStatus)}`}>{sale.transactionStatus}</span>
               </div>
             </div>
-
             <div>
-              <p className="text-zinc-500">Operator</p>
-              <p className="mt-1 font-semibold">
-                {operatorLabel(sale.cashier)}
-              </p>
-              <p className="text-xs text-zinc-500">{sale.cashier.email}</p>
+              <p style={{fontSize:"9.5px",color:"#94A3B8",marginBottom:"4px"}}>Operator</p>
+              <p className="text-sm font-semibold text-slate-950">{sale.cashier.name?.trim() || "Operator"}</p>
             </div>
-
-            <div>
-              <p className="text-zinc-500">Customer</p>
+            <div className="sm:col-span-2">
+              <p style={{fontSize:"9.5px",color:"#94A3B8",marginBottom:"4px"}}>Customer</p>
               {sale.customer ? (
                 <>
-                  <p className="mt-1 font-semibold">{sale.customer.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    {sale.customer.customerCode}
-                    {sale.customer.phone ? ` - ${sale.customer.phone}` : ""}
+                  <p className="text-sm font-semibold text-slate-950">{sale.customer.name}</p>
+                  <p style={{fontSize:"8.5px",color:"#94A3B8",marginTop:"2px"}}>
+                    {sale.customer.customerCode}{sale.customer.phone ? ` · ${sale.customer.phone}` : ""}
                   </p>
                 </>
               ) : (
-                <p className="mt-1 font-semibold">Walk-in Customer</p>
+                <p className="text-sm font-semibold text-slate-950">Walk-in Customer</p>
               )}
             </div>
           </div>
@@ -321,7 +303,7 @@ export default async function InvoicePage({
           ) : null}
 
           {sale.paymentProofUrl ? (
-            <section className="border-b border-zinc-200 py-5">
+            <section className="border-b border-zinc-200 py-5 print:hidden">
               <h2 className="text-base font-bold">Bukti Pembayaran QRIS</h2>
               <div className="mt-3 grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
                 <PaymentProofImage src={paymentProofImageSrc} />
@@ -363,127 +345,88 @@ export default async function InvoicePage({
             </section>
           ) : null}
 
+          {/* TABLE */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] border-b border-zinc-200 text-sm">
+            <table className="w-full min-w-[600px] border-collapse">
               <thead>
-                <tr className="text-left text-zinc-500">
-                  <th className="py-3 pr-3 font-medium">Item</th>
-                  <th className="px-3 py-3 text-right font-medium">Qty</th>
-                  <th className="px-3 py-3 text-right font-medium">Harga</th>
-                  <th className="px-3 py-3 text-right font-medium">Diskon</th>
-                  <th className="py-3 pl-3 text-right font-medium">
-                    Subtotal
-                  </th>
+                <tr className="bg-slate-950 text-left text-white">
+                  <th className="px-2 py-2.5 text-xs font-bold" style={{width:"44%"}}>Item</th>
+                  <th className="px-2 py-2.5 text-right text-xs font-bold">Qty</th>
+                  <th className="px-2 py-2.5 text-right text-xs font-bold">Harga</th>
+                  <th className="px-2 py-2.5 text-right text-xs font-bold">Diskon</th>
+                  <th className="px-2 py-2.5 text-right text-xs font-bold">Subtotal</th>
                 </tr>
               </thead>
               <tbody>
-                {sale.items.map((item) => (
-                  <tr key={item.id} className="border-t border-zinc-100">
-                    <td className="py-3 pr-3">
-                      <p className="font-semibold">{item.product.name}</p>
-                      <p className="text-xs text-zinc-500">
-                        {item.product.sku ?? "-"}
-                      </p>
+                {sale.items.map((item, idx) => (
+                  <tr key={item.id} className={`border-b border-slate-200 ${idx % 2 === 1 ? "bg-slate-50" : "bg-white"}`}>
+                    <td className="px-2 py-2.5 align-top">
+                      <p className="text-xs font-bold text-slate-950">{item.product.name}</p>
+                      <p style={{fontSize:"8px",color:"#94A3B8",marginTop:"2px"}}>{item.product.sku ?? "-"}</p>
                     </td>
-                    <td className="px-3 py-3 text-right">{item.qty}</td>
-                    <td className="px-3 py-3 text-right">
-                      {rupiah(item.price)}
-                    </td>
-                    <td className="px-3 py-3 text-right">
+                    <td className="px-2 py-2.5 text-right text-xs text-slate-950">{item.qty}</td>
+                    <td className="px-2 py-2.5 text-right text-xs text-slate-950">{rupiah(item.price)}</td>
+                    <td className="px-2 py-2.5 text-right text-xs">
                       {moneyNumber(item.discountAmount) > 0 ? (
                         <div>
-                          <p className="font-semibold text-rose-700">
-                            -{rupiah(moneyNumber(item.discountAmount))}
+                          <p className="font-semibold text-rose-600">-{rupiah(moneyNumber(item.discountAmount))}</p>
+                          <p style={{fontSize:"8px",color:"#94A3B8"}}>
+                            {item.discountType === "PERCENT" ? `${moneyNumber(item.discountValue)}%` : item.discountType === "FIXED" ? "Nominal" : ""}
                           </p>
-                          <p className="text-xs text-zinc-500">
-                            {item.discountType === "PERCENT"
-                              ? `${moneyNumber(item.discountValue)}%`
-                              : item.discountType === "FIXED"
-                                ? "Nominal"
-                                : ""}
-                          </p>
-                          {item.discountReason ? (
-                            <p className="mt-1 text-xs text-zinc-500">
-                              {item.discountReason}
-                            </p>
-                          ) : null}
+                          {item.discountReason ? <p style={{fontSize:"8px",color:"#94A3B8",marginTop:"2px"}}>{item.discountReason}</p> : null}
                         </div>
                       ) : (
-                        "-"
+                        <span style={{color:"#94A3B8"}}>-</span>
                       )}
                     </td>
-                    <td className="py-3 pl-3 text-right font-semibold">
-                      {rupiah(item.subtotal)}
-                    </td>
+                    <td className="px-2 py-2.5 text-right text-xs font-bold text-slate-950">{rupiah(item.subtotal)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="ml-auto mt-5 max-w-sm space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500">Total Qty</span>
-              <span className="font-semibold">{totalQty}</span>
+          {/* TOTALS */}
+          <div className="ml-auto mt-5 w-64 space-y-1 text-xs text-slate-500">
+            <div className="flex justify-between py-1">
+              <span>Total Qty</span><span>{totalQty}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500">Subtotal</span>
-              <span className="font-semibold">
-                {rupiah(subtotalBeforeDiscount)}
-              </span>
+            <div className="flex justify-between py-1">
+              <span>Subtotal</span><span>{rupiah(subtotalBeforeDiscount)}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500">Total Diskon Grosir</span>
-              <span className="font-semibold text-rose-700">
-                -{rupiah(totalItemDiscount)}
-              </span>
+            <div className="flex justify-between py-1">
+              <span>Total Diskon Grosir</span><span className="font-semibold text-rose-600">-{rupiah(totalItemDiscount)}</span>
             </div>
             {sale.loyaltyApplied ? (
               <>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-500">Subtotal Sebelum Loyalty</span>
-                  <span className="font-semibold">
-                    {rupiah(subtotalBeforeLoyalty)}
-                  </span>
+                <div className="flex justify-between py-1">
+                  <span>Subtotal Sebelum Loyalty</span><span>{rupiah(subtotalBeforeLoyalty)}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-500">
-                    Diskon Loyalty
-                    {sale.loyaltyMilestone
-                      ? ` (ke-${sale.loyaltyMilestone})`
-                      : ""}
-                  </span>
-                  <span className="font-semibold text-rose-700">
-                    -{rupiah(sale.loyaltyDiscountAmount)}
-                  </span>
+                <div className="flex justify-between py-1">
+                  <span>Diskon Loyalty{sale.loyaltyMilestone ? ` (ke-${sale.loyaltyMilestone})` : ""}</span>
+                  <span className="font-semibold text-rose-600">-{rupiah(sale.loyaltyDiscountAmount)}</span>
                 </div>
                 {sale.loyaltyBenefitNote ? (
-                  <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    <span className="font-semibold">Catatan Loyalty: </span>
-                    {sale.loyaltyBenefitNote}
+                  <div className="rounded border border-amber-100 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+                    <span className="font-semibold">Catatan Loyalty: </span>{sale.loyaltyBenefitNote}
                   </div>
                 ) : null}
               </>
             ) : null}
             {sale.returns.length > 0 ? (
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Total Retur</span>
-                <span className="font-semibold text-rose-700">
-                  -{rupiah(totalReturn)}
-                </span>
+              <div className="flex justify-between py-1">
+                <span>Total Retur</span><span className="font-semibold text-rose-600">-{rupiah(totalReturn)}</span>
               </div>
             ) : null}
-            <div className="flex items-center justify-between border-t border-zinc-200 pt-3 text-base">
-              <span className="font-bold">Grand Total</span>
-              <span className="font-bold">{rupiah(sale.subtotal)}</span>
+            {/* Grand Total */}
+            <div className="flex justify-between rounded px-2 py-2 text-sm font-extrabold text-slate-950" style={{background:"#F0FDFB",borderTop:"1px solid #CCFBF1",borderBottom:"1px solid #CCFBF1",margin:"4px -8px"}}>
+              <span>Grand Total</span><span>{rupiah(sale.subtotal)}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500">Dibayar</span>
-              <span className="font-semibold">{rupiah(sale.paidAmount)}</span>
+            <div className="flex justify-between py-1">
+              <span>Dibayar</span><span>{rupiah(sale.paidAmount)}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500">Kembali</span>
-              <span className="font-semibold">{rupiah(changeAmount)}</span>
+            <div className="flex justify-between py-1">
+              <span>Kembali</span><span>{rupiah(changeAmount)}</span>
             </div>
           </div>
 
@@ -538,8 +481,15 @@ export default async function InvoicePage({
             </section>
           ) : null}
 
-          <footer className="mt-8 border-t border-zinc-200 pt-5 text-center text-xs text-zinc-500">
-            Terima kasih sudah berbelanja.
+          <footer className="mt-9 border-t border-slate-200 pt-5">
+            <p className="text-sm font-bold text-teal-600">Terima kasih sudah berbelanja.</p>
+            {storeWa ? (
+              <p style={{fontSize:"9px",color:"#94A3B8",marginTop:"4px"}}>Hubungi kami: wa.me/{storeWa}</p>
+            ) : null}
+            <div className="mt-4 flex justify-between border-t border-dashed border-slate-200 pt-3" style={{fontSize:"8px",fontWeight:500,color:"#B0BEC5"}}>
+              <span>{storeName} by MeijrVerse°</span>
+              <span>Halaman 1 dari 1</span>
+            </div>
           </footer>
         </section>
       </div>

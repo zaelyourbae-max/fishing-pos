@@ -7,6 +7,7 @@ import {
   getDailyClosing,
 } from "@/lib/daily-closing";
 import { prisma } from "@/lib/prisma";
+import { closeStore } from "@/lib/store-status";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -197,6 +198,9 @@ export async function POST(req: Request) {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       },
     );
+
+    // Closing berhasil -> toko TUTUP (saklar operasional mati sampai dibuka).
+    await closeStore();
 
     revalidatePath("/dashboard");
 

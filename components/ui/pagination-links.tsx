@@ -47,6 +47,7 @@ export default function PaginationLinks({
         <Link
           aria-disabled={safePage === 1}
           href={hrefForPage(Math.max(1, safePage - 1))}
+          scroll={false}
           className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors duration-200 hover:border-teal-300 hover:text-teal-700 active:bg-slate-50 sm:h-10 sm:w-10 sm:rounded-xl dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:active:bg-slate-900 ${
             safePage === 1 ? "pointer-events-none opacity-40" : ""
           }`}
@@ -57,6 +58,7 @@ export default function PaginationLinks({
           <Link
             key={pageNumber}
             href={hrefForPage(pageNumber)}
+            scroll={false}
             className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-semibold transition-colors duration-200 sm:h-10 sm:w-10 sm:rounded-xl sm:text-sm ${
               pageNumber === safePage
                 ? "border-teal-200 bg-teal-50 text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"
@@ -69,6 +71,7 @@ export default function PaginationLinks({
         <Link
           aria-disabled={safePage === pageCount}
           href={hrefForPage(Math.min(pageCount, safePage + 1))}
+          scroll={false}
           className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors duration-200 hover:border-teal-300 hover:text-teal-700 active:bg-slate-50 sm:h-10 sm:w-10 sm:rounded-xl dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:active:bg-slate-900 ${
             safePage === pageCount ? "pointer-events-none opacity-40" : ""
           }`}

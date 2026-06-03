@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 
 import { downloadOwnerReportPdf } from "@/components/reports/download-owner-report-pdf";
-import { formatDateID, formatDateTimeID, parseIDDateInput } from "@/lib/date-format";
+import type { OperationalAlert } from "@/components/dashboard/operational-alerts";
+import { formatDateID, formatDateTimeID, isFutureDateInput, parseIDDateInput } from "@/lib/date-format";
 
 type PaymentClosingRow = {
   method: string;
@@ -38,7 +39,7 @@ type DashboardTopActionsProps = {
   grossOmzet: string;
   returnValue: string;
   transactionCount: number;
-  notificationCount: number;
+  alerts: OperationalAlert[];
   payments: PaymentClosingRow[];
   closedBy: string;
 };
@@ -95,6 +96,11 @@ function DashboardDateFilter({
 
     if (!parsed) {
       setError("Tanggal wajib memakai format dd/mm/yyyy.");
+      return null;
+    }
+
+    if (isFutureDateInput(parsed)) {
+      setError("Tidak bisa memilih tanggal di masa depan.");
       return null;
     }
 
@@ -170,7 +176,7 @@ export default function DashboardTopActions({
   grossOmzet,
   returnValue,
   transactionCount,
-  notificationCount,
+  alerts,
   payments,
   closedBy,
 }: DashboardTopActionsProps) {
@@ -195,7 +201,7 @@ export default function DashboardTopActions({
       ? "Lihat closing hari ini"
       : "Mulai closing hari ini"
     : "Lihat closing untuk tanggal yang dipilih";
-  const exportPdfHref = `/api/reports/export/pdf?date=${encodeURIComponent(
+  const exportPdfHref = `/api/reports/export/daily/pdf?date=${encodeURIComponent(
     selectedDateInput,
   )}`;
 
@@ -205,7 +211,7 @@ export default function DashboardTopActions({
     try {
       await downloadOwnerReportPdf(
         exportPdfHref,
-        `owner-report-${selectedDateInput}.pdf`,
+        `ringkasan-harian-${selectedDateInput}.pdf`,
       );
     } catch (error) {
       window.alert(
@@ -228,28 +234,85 @@ export default function DashboardTopActions({
             title="Buka notifikasi"
           >
             <Bell className="h-4 w-4" />
-            {notificationCount > 0 ? (
+            {alerts.length > 0 ? (
               <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-                {notificationCount}
+                {alerts.length}
               </span>
             ) : null}
           </button>
           {notificationOpen ? (
-            <div className="absolute left-0 top-12 z-30 w-72 rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:left-auto sm:right-0">
-              <p className="text-sm font-bold text-slate-950 dark:text-white">
-                Notifikasi Dashboard
-              </p>
-              <div className="mt-3 space-y-2">
-                <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
-                  Periksa stok rendah dan retur hari ini.
+            <>
+              <div
+                className="fixed inset-0 z-20"
+                onClick={() => setNotificationOpen(false)}
+              />
+              <div className="absolute left-0 top-14 z-30 w-80 rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:left-auto sm:right-0">
+                <div className="flex items-center justify-between px-4 pt-4 pb-3">
+                  <p className="text-sm font-bold text-slate-950 dark:text-white">
+                    Notifikasi Dashboard
+                  </p>
+                  {alerts.length > 0 && (
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:bg-rose-500/20 dark:text-rose-300">
+                      {alerts.length}
+                    </span>
+                  )}
                 </div>
-                <div className="rounded-xl bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">
-                  {notificationCount > 0
-                    ? `${notificationCount} item dashboard perlu diperiksa.`
-                    : "Belum ada notifikasi prioritas."}
+                <div className="px-3 pb-3 space-y-2">
+                  {alerts.length === 0 ? (
+                    <div className="rounded-2xl bg-slate-50 px-4 py-5 text-center text-sm text-slate-400 dark:bg-slate-900 dark:text-slate-500">
+                      Tidak ada notifikasi saat ini.
+                    </div>
+                  ) : (
+                    alerts.map((alert) => {
+                      const severityStyles = {
+                        critical: {
+                          card: "border-rose-100 bg-rose-50 hover:bg-rose-100/70 dark:border-rose-500/20 dark:bg-rose-500/10 dark:hover:bg-rose-500/15",
+                          badge: "bg-rose-500",
+                          title: "text-rose-800 dark:text-rose-200",
+                          helper: "text-rose-600 dark:text-rose-300",
+                          action: "text-rose-600 hover:text-rose-700 dark:text-rose-400",
+                        },
+                        warning: {
+                          card: "border-amber-100 bg-amber-50 hover:bg-amber-100/70 dark:border-amber-500/20 dark:bg-amber-500/10 dark:hover:bg-amber-500/15",
+                          badge: "bg-amber-500",
+                          title: "text-amber-800 dark:text-amber-200",
+                          helper: "text-amber-600 dark:text-amber-300",
+                          action: "text-amber-600 hover:text-amber-700 dark:text-amber-400",
+                        },
+                        info: {
+                          card: "border-blue-100 bg-blue-50 hover:bg-blue-100/70 dark:border-blue-500/20 dark:bg-blue-500/10 dark:hover:bg-blue-500/15",
+                          badge: "bg-blue-500",
+                          title: "text-blue-800 dark:text-blue-200",
+                          helper: "text-blue-600 dark:text-blue-300",
+                          action: "text-blue-600 hover:text-blue-700 dark:text-blue-400",
+                        },
+                      }[alert.severity];
+                      return (
+                        <a
+                          key={alert.id}
+                          href={alert.href}
+                          onClick={() => setNotificationOpen(false)}
+                          className={`flex items-start gap-3 rounded-2xl border p-3 transition-colors ${severityStyles.card}`}
+                        >
+                          <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${severityStyles.badge}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs font-bold leading-snug ${severityStyles.title}`}>
+                              {alert.title}
+                            </p>
+                            <p className={`mt-0.5 text-[11px] leading-snug ${severityStyles.helper}`}>
+                              {alert.helper}
+                            </p>
+                            <p className={`mt-1.5 text-[11px] font-semibold ${severityStyles.action}`}>
+                              {alert.action} →
+                            </p>
+                          </div>
+                        </a>
+                      );
+                    })
+                  )}
                 </div>
               </div>
-            </div>
+            </>
           ) : null}
         </div>
 
@@ -272,14 +335,14 @@ export default function DashboardTopActions({
           onClick={exportPdf}
           disabled={exportingPdf}
           className="col-span-2 col-start-2 row-start-2 inline-flex h-11 min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:flex-none sm:px-5 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
-          title="Export PDF"
+          title="Download PDF"
         >
           {exportingPdf ? (
             <RefreshCw className="h-4 w-4 animate-spin" />
           ) : (
             <Download className="h-4 w-4" />
           )}
-          {exportingPdf ? "Mengunduh..." : "Export PDF"}
+          {exportingPdf ? "Mengunduh..." : "Download PDF"}
         </button>
 
         <button
@@ -289,8 +352,8 @@ export default function DashboardTopActions({
             isSelectedClosed
               ? "bg-teal-600 hover:bg-teal-700"
               : isSelectedToday
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-slate-700 hover:bg-slate-800"
+                ? "bg-teal-600 hover:bg-teal-700"
+                : "bg-teal-600 hover:bg-teal-700"
           }`}
           title={closingButtonTitle}
         >
@@ -351,20 +414,20 @@ export function DashboardStatusChips({
         : `Owner: ${userName}`;
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-      <span className="flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border border-teal-100 bg-white px-3.5 py-3 text-xs font-bold text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-slate-950/70 dark:text-teal-200">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
-          <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+    <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4 xl:gap-2.5">
+      <span className="flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border border-teal-100 bg-white px-2 py-2 text-[10px] font-bold text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-slate-950/70 dark:text-teal-200 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 xl:h-10 xl:w-10 xl:rounded-xl">
+          <span className="h-2 w-2 rounded-full bg-teal-500 xl:h-2.5 xl:w-2.5" />
         </span>
         <span className="min-w-0">
-          <span className="block">Login Aktif</span>
-          <span className="mt-1 block truncate font-medium text-slate-500 dark:text-slate-400">
+          <span className="block line-clamp-1">Login Aktif</span>
+          <span className="mt-0.5 block truncate font-medium text-slate-500 dark:text-slate-400 xl:mt-1">
             {roleLabel}
           </span>
         </span>
       </span>
       <span
-        className={`flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border px-3.5 py-3 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
+        className={`flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border px-2 py-2 text-[10px] font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs ${
           status === "CLOSED"
             ? "border-teal-200 bg-white text-teal-700"
             : status === "REOPENED"
@@ -372,27 +435,27 @@ export function DashboardStatusChips({
               : "border-slate-200 bg-white text-amber-700"
         }`}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200">
-          <CalendarDays className="h-4 w-4" />
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 xl:h-10 xl:w-10 xl:rounded-xl">
+          <CalendarDays className="h-3 w-3 xl:h-4 xl:w-4" />
         </span>
         <span className="min-w-0">
-          <span className="block">Tanggal Dipilih: {closingStatusLabel(status)}</span>
-        <span className="sr-only">
-        {status === "CLOSED"
-          ? "✓ Sudah Closing"
-          : status === "REOPENED"
-            ? "Reopened"
-            : "Belum Closing"}
-        </span>
-        <span className="mt-1 block truncate font-medium text-slate-500 dark:text-slate-400">
-          {status === "CLOSED" && closing?.closedAt
-            ? `${selectedDateLabel} • ${formatTime(closing.closedAt)}`
-            : selectedDateLabel}
-        </span>
+          <span className="block line-clamp-1">Tgl: {closingStatusLabel(status)}</span>
+          <span className="sr-only">
+          {status === "CLOSED"
+            ? "✓ Sudah Closing"
+            : status === "REOPENED"
+              ? "Reopened"
+              : "Belum Closing"}
+          </span>
+          <span className="mt-0.5 block truncate font-medium text-slate-500 dark:text-slate-400 xl:mt-1">
+            {status === "CLOSED" && closing?.closedAt
+              ? `${selectedDateLabel} • ${formatTime(closing.closedAt)}`
+              : selectedDateLabel}
+          </span>
         </span>
       </span>
       <span
-        className={`flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border px-3.5 py-3 text-xs font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 ${
+        className={`flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border px-2 py-2 text-[10px] font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs ${
           operationalStatus === "CLOSED"
             ? "border-teal-200 bg-white text-teal-700"
             : operationalStatus === "REOPENED"
@@ -400,25 +463,25 @@ export function DashboardStatusChips({
               : "border-slate-200 bg-white text-amber-700"
         }`}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
-          <LockKeyhole className="h-4 w-4" />
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 xl:h-10 xl:w-10 xl:rounded-xl">
+          <LockKeyhole className="h-3 w-3 xl:h-4 xl:w-4" />
         </span>
         <span className="min-w-0">
-          <span className="block">Hari Ini / Operasional</span>
-          <span className="mt-1 block truncate font-medium">
+          <span className="block line-clamp-1">Operasional</span>
+          <span className="mt-0.5 block truncate font-medium xl:mt-1">
             {closingStatusLabel(operationalStatus)}
-            {!isSelectedToday ? " - berbeda dari tanggal dipilih" : ""}
+            {!isSelectedToday ? " · beda tgl" : ""}
           </span>
         </span>
       </span>
-      <span className="flex min-h-[64px] min-w-0 items-center gap-3 rounded-2xl border border-rose-100 bg-white px-3.5 py-3 text-xs font-bold text-rose-600 shadow-sm dark:border-rose-500/20 dark:bg-slate-950/70 dark:text-rose-200">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
-          <AlertTriangle className="h-4 w-4" />
+      <span className="flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border border-rose-100 bg-white px-2 py-2 text-[10px] font-bold text-rose-600 shadow-sm dark:border-rose-500/20 dark:bg-slate-950/70 dark:text-rose-200 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-200 xl:h-10 xl:w-10 xl:rounded-xl">
+          <AlertTriangle className="h-3 w-3 xl:h-4 xl:w-4" />
         </span>
         <span className="min-w-0">
-          <span className="block">{lowStockCount} Stok Rendah</span>
-          <span className="mt-1 block truncate font-medium text-rose-500 dark:text-rose-200">
-            Stok &lt; 10
+          <span className="block line-clamp-1">{lowStockCount} Stok Rendah</span>
+          <span className="mt-0.5 block truncate font-medium text-rose-500 dark:text-rose-200 xl:mt-1">
+            Stok &lt; min
           </span>
         </span>
       </span>
@@ -428,6 +491,11 @@ export function DashboardStatusChips({
 
 function formatRupiah(value: number) {
   return `Rp ${value.toLocaleString("id-ID")}`;
+}
+
+// Tambah titik ribuan ke string angka mentah (mis. "200000" -> "200.000").
+function groupThousands(digits: string) {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 function dateInputValue(date: Date) {
@@ -798,15 +866,15 @@ function ClosingDialog({
                   <span
                     className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-xs font-extrabold transition duration-200 ${
                       active
-                        ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-500/25"
-                        : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                        ? "border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-500/25"
+                        : "border-slate-200 bg-slate-50 text-slate-500 dark:border-white/8 dark:bg-slate-900 dark:text-slate-300"
                     }`}
                   >
                     {index + 1}
                   </span>
                   <span
                     className={`mt-1 block truncate text-[10px] font-bold ${
-                      active ? "text-blue-700 dark:text-blue-300" : "text-slate-500"
+                      active ? "text-teal-700 dark:text-teal-300" : "text-slate-500"
                     }`}
                   >
                     {label}
@@ -828,8 +896,8 @@ function ClosingDialog({
                 disabled={!canNavigateStep}
                 className={`inline-flex h-10 items-center justify-center rounded-2xl px-3 transition duration-200 active:scale-95 ${
                   step === index + 1
-                    ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20"
-                    : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:text-slate-300"
+                    ? "bg-teal-600 text-white shadow-sm shadow-teal-500/20"
+                    : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:text-slate-300"
                 }`}
               >
                 {index + 1}. {label}
@@ -860,7 +928,7 @@ function ClosingDialog({
                 </p>
               </div>
               {!isOperationalDate ? (
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
                   Status operasional hari ini:{" "}
                   <span className="font-bold">{closingStatusLabel(operationalStatus)}</span>.
                 </div>
@@ -915,7 +983,7 @@ function ClosingDialog({
 
           {!summaryRecord && !canCreateClosing ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+              <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
                 <p className="font-bold">
                   Anda sedang melihat closing tanggal {selectedDateLabel}.
                 </p>
@@ -953,7 +1021,7 @@ function ClosingDialog({
                       tone="danger"
                     />
                   </div>
-                  <div className="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                  <div className="flex gap-3 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
                       Pastikan seluruh data di atas sudah sesuai sebelum
@@ -977,13 +1045,13 @@ function ClosingDialog({
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={actualCash}
+                        value={groupThousands(actualCash)}
                         onChange={(event) => {
                           setActualCash(event.target.value.replace(/[^\d]/g, ""));
                           setError("");
                         }}
                         placeholder="Masukkan jumlah cash aktual"
-                        className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-14 text-lg font-bold text-slate-950 caret-blue-600 shadow-sm outline-none transition duration-200 placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-blue-500/10"
+                        className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-14 text-lg font-bold text-slate-950 caret-teal-600 shadow-sm outline-none transition duration-200 placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-white/8 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-teal-500/10"
                       />
                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
                         Rp
@@ -991,7 +1059,7 @@ function ClosingDialog({
                     </div>
                   </label>
                   {!actualCashFilled ? (
-                    <div className="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                    <div className="flex gap-3 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
                       <Info className="mt-0.5 h-4 w-4 shrink-0" />
                       <p>Masukkan cash aktual untuk menghitung selisih.</p>
                     </div>
@@ -1043,7 +1111,7 @@ function ClosingDialog({
                       onChange={(event) => setNotes(event.target.value)}
                       rows={7}
                       placeholder="Tuliskan catatan atau keterangan jika ada selisih, retur, atau hal lain yang perlu dicatat."
-                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-950 caret-blue-600 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-blue-500/10"
+                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-950 caret-teal-600 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-white/8 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-teal-500/10"
                     />
                   </label>
                   <div className="flex gap-3 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
@@ -1123,7 +1191,7 @@ function ClosingDialog({
                 setStep(Math.min(step + 1, 4));
               }}
               disabled={step === 4 || (step === 2 && !actualCashValid)}
-              className="inline-flex h-11 min-w-32 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white disabled:opacity-70 dark:bg-blue-600 dark:disabled:bg-slate-800"
+              className="inline-flex h-11 min-w-32 items-center justify-center rounded-2xl bg-teal-600 px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white disabled:opacity-70 dark:bg-teal-600 dark:disabled:bg-slate-800"
             >
               Lanjut
             </button>

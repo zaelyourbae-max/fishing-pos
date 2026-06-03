@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<title>Invoice PDF Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #e5e7eb;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    padding: 40px;
+  }
+  .page {
+    background: #fff;
+    width: 620px;
+    min-height: 877px;
+    margin: 0 auto;
+    padding: 52px 52px 48px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 18px;
+    border-bottom: 2px solid #0D9488;
+    margin-bottom: 28px;
+  }
+  .header-left .store-name {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.4px;
+    line-height: 1.15;
+  }
+  .header-left .brand {
+    font-size: 9.5px;
+    color: #0F172A;
+    font-weight: 400;
+    margin-top: 4px;
+    opacity: 0.45;
+  }
+  .header-right {
+    text-align: right;
+  }
+  .header-right .invoice-word {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0D9488;
+    letter-spacing: 3px;
+    line-height: 1.15;
+  }
+  .header-right .inv-number {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-top: 5px;
+    letter-spacing: 0.3px;
+  }
+
+  /* badges */
+  .badges { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .badge {
+    font-size: 8px; font-weight: 700;
+    padding: 3px 10px; border-radius: 99px;
+  }
+  .badge-green { background: #ECFDF5; color: #059669; }
+  .badge-rose  { background: #FFF1F2; color: #E11D48; }
+
+  /* ── INFO GRID ── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 16px;
+    margin-bottom: 28px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid #E2E8F0;
+  }
+  .info-item .label {
+    font-size: 9.5px;
+    color: #94A3B8;
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .info-item .value {
+    font-size: 11px;
+    font-weight: 600;
+    color: #0F172A;
+    line-height: 1.3;
+  }
+  .info-item .sub {
+    font-size: 8.5px;
+    color: #94A3B8;
+    margin-top: 2px;
+  }
+  .badge-row { display: flex; gap: 5px; margin-top: 2px; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  thead tr { background: #0F172A; }
+  thead th {
+    color: #fff;
+    padding: 9px 8px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 9.5px;
+  }
+  thead th:not(:first-child) { text-align: right; }
+  tbody tr:nth-child(even) { background: #F8FAFC; }
+  tbody td {
+    padding: 9px 8px;
+    color: #0F172A;
+    border-bottom: 1px solid #E2E8F0;
+    vertical-align: top;
+    font-size: 10px;
+  }
+  tbody td:not(:first-child) { text-align: right; }
+  .item-name { font-weight: 700; font-size: 10px; }
+  .item-sku  { font-size: 8px; color: #94A3B8; margin-top: 3px; }
+
+  /* ── TOTALS ── */
+  .totals { margin-left: auto; width: 260px; font-size: 10px; }
+  .totals-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    color: #64748B;
+  }
+  .totals-row .neg { color: #E11D48; font-weight: 600; }
+  .totals-divider { border: none; border-top: 1px solid #E2E8F0; margin: 4px 0; }
+  .totals-grand {
+    display: flex;
+    justify-content: space-between;
+    background: #F0FDFB;
+    border-top: 1px solid #CCFBF1;
+    border-bottom: 1px solid #CCFBF1;
+    padding: 8px 10px;
+    margin: 4px -10px;
+    font-weight: 800;
+    font-size: 12px;
+    color: #0F172A;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid #E2E8F0;
+  }
+  .footer .thanks {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0D9488;
+  }
+  .footer .wa {
+    font-size: 9px;
+    color: #94A3B8;
+    margin-top: 4px;
+  }
+  .footer .branding {
+    margin-top: 16px;
+    padding-top: 10px;
+    border-top: 1px dashed #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    font-weight: 500;
+    color: #B0BEC5;
+  }
+
+  .page-label {
+    color: #6b7280;
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 20px;
+    font-family: sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<p class="page-label">── Preview: <strong>Download PDF</strong> ──</p>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="store-name">SeaHorse Company</div>
+      <div class="brand">by Meijrverse°</div>
+      <div class="badges">
+        <span class="badge badge-green">SUCCESS</span>
+        <span class="badge badge-green">PAID</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="invoice-word">INVOICE</div>
+      <div class="inv-number">SL-20260530154036-4020</div>
+    </div>
+  </div>
+
+  <!-- INFO GRID -->
+  <div class="info-grid">
+    <div class="info-item">
+      <div class="label">Tanggal Transaksi</div>
+      <div class="value">30/05/2026 23:40</div>
+    </div>
+    <div class="info-item">
+      <div class="label">Payment Method</div>
+      <div class="value">Cash</div>
+    </div>
+    <div class="info-item">
+      <div class="label">Payment Status</div>
+      <div class="badge-row">
+        <span class="badge badge-green">PAID</span>
+        <span class="badge badge-green">SUCCESS</span>
+      </div>
+    </div>
+    <div class="info-item">
+      <div class="label">Operator</div>
+      <div class="value">meijr</div>
+    </div>
+    <div class="info-item" style="grid-column:1/-1;">
+      <div class="label">Customer</div>
+      <div class="value">alexander van meijr</div>
+      <div class="sub">CUST-6289507983959 · 6289507983959</div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:44%">Item</th>
+        <th>Qty</th>
+        <th>Harga</th>
+        <th>Diskon</th>
+        <th>Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="item-name">kail naga 1/0</div>
+          <div class="item-sku">KAIL-NAGA-1-0-MP3Z..</div>
+        </td>
+        <td>1</td>
+        <td>Rp 15.000</td>
+        <td style="color:#94A3B8">-</td>
+        <td>Rp 15.000</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- TOTALS -->
+  <div class="totals">
+    <div class="totals-row"><span>Total Qty</span><span>1</span></div>
+    <div class="totals-row"><span>Subtotal</span><span>Rp 15.000</span></div>
+    <div class="totals-row"><span>Total Diskon Grosir</span><span class="neg">-Rp 0</span></div>
+    <div class="totals-grand"><span>Grand Total</span><span>Rp 15.000</span></div>
+    <div class="totals-row"><span>Dibayar</span><span>Rp 15.000</span></div>
+    <div class="totals-row"><span>Kembali</span><span>Rp 0</span></div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="thanks">Terima kasih sudah berbelanja.</div>
+    <div class="wa">Hubungi kami: wa.me/628123456789</div>
+    <div class="branding">
+      <span>SeaHorse Company by MeijrVerse°</span>
+      <span>Halaman 1 dari 1</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

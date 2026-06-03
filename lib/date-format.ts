@@ -145,6 +145,26 @@ export function formatDateTimeID(value: Date | string | null | undefined) {
   return `${day}/${month}/${year} ${hour}:${minute}`;
 }
 
+/** Today's date as a YYYY-MM-DD string in the app timezone. */
+export function todayDateInput() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: getAppTimeZone(),
+  }).formatToParts(new Date());
+  const year = parts.find((p) => p.type === "year")?.value ?? "";
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  return `${year}-${month}-${day}`;
+}
+
+/** True when the given YYYY-MM-DD string is after today (app timezone). */
+export function isFutureDateInput(isoDate: string | null | undefined) {
+  if (!isoDate) return false;
+  return isoDate > todayDateInput();
+}
+
 export function parseIDDateInput(value: string) {
   const trimmed = value.trim();
   const idMatch = trimmed.match(ID_DATE_INPUT_PATTERN);

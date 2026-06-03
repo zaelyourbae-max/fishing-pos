@@ -1,9 +1,9 @@
 import SupplierManager from "@/components/suppliers/supplier-manager";
-import { requireOwnerPage } from "@/lib/page-guards";
+import { requireOwnerStoreOpenPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 
 export default async function SuppliersPage() {
-  await requireOwnerPage();
+  await requireOwnerStoreOpenPage();
 
   const suppliers = await prisma.supplier.findMany({
     where: {

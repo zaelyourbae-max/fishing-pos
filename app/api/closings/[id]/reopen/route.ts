@@ -1,6 +1,11 @@
 import { requireOwner } from "@/lib/auth-session";
-import { DAILY_CLOSING_STATUS, getDailyClosing } from "@/lib/daily-closing";
+import {
+  DAILY_CLOSING_STATUS,
+  dateInputValue,
+  getDailyClosing,
+} from "@/lib/daily-closing";
 import { prisma } from "@/lib/prisma";
+import { openStore } from "@/lib/store-status";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -94,6 +99,12 @@ export async function POST(
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       },
     );
+
+    // Reopen closing hari ini = buka toko kembali (operasional nyala).
+    // Reopen tanggal lampau tidak menyentuh status operasional saat ini.
+    if (result && dateInputValue(result.closingDate) === dateInputValue(new Date())) {
+      await openStore(auth.session.sub);
+    }
 
     revalidatePath("/dashboard");
 

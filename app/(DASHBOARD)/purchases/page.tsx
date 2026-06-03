@@ -1,8 +1,9 @@
+import Link from "next/link";
 import PurchaseForm from "@/components/purchases/purchase-form";
 import LiveSearchInput from "@/components/search/live-search-input";
 import PaginationLinks from "@/components/ui/pagination-links";
 import { formatDateID } from "@/lib/date-format";
-import { requireOwnerPage } from "@/lib/page-guards";
+import { requireOwnerStoreOpenPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
 
 type PurchasesPageProps = {
@@ -31,7 +32,7 @@ function pageHref(page: number, params: { q: string }) {
 }
 
 export default async function PurchasesPage({ searchParams }: PurchasesPageProps) {
-  await requireOwnerPage();
+  await requireOwnerStoreOpenPage();
 
   const params = (await searchParams) ?? {};
   const q = String(params.q ?? "").trim();
@@ -151,6 +152,7 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
               <th className="p-4 text-left">Item</th>
               <th className="p-4 text-left">Total</th>
               <th className="p-4 text-left">Tanggal</th>
+              <th className="p-4 text-left"></th>
             </tr>
           </thead>
 
@@ -164,7 +166,7 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
             ) : null}
 
             {recentPurchases.map((purchase) => (
-              <tr key={purchase.id} className="border-t border-slate-200 dark:border-slate-800">
+              <tr key={purchase.id} className="border-t border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <td className="p-4 font-semibold text-slate-950 dark:text-white">
                   {purchase.purchaseNumber}
                 </td>
@@ -177,6 +179,14 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
                 </td>
                 <td className="p-4 text-slate-400">
                   {formatDateID(purchase.createdAt)}
+                </td>
+                <td className="p-4">
+                  <Link
+                    href={`/purchases/${purchase.id}`}
+                    className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Lihat Detail
+                  </Link>
                 </td>
               </tr>
             ))}
@@ -193,32 +203,40 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
 
           {recentPurchases.map((purchase) => (
             <article key={purchase.id} className="mobile-data-card">
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="break-all text-base font-semibold text-slate-950 dark:text-white">
+                  <p className="break-all text-[13px] font-semibold text-slate-950 dark:text-white">
                     {purchase.purchaseNumber}
                   </p>
-                  <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-0.5 break-words text-[11px] text-slate-500 dark:text-slate-400">
                     {purchase.supplier.name}
                   </p>
                 </div>
-                <p className="font-semibold tabular-nums text-slate-950 dark:text-white">
+                <p className="shrink-0 text-[13px] font-semibold tabular-nums text-slate-950 dark:text-white">
                   Rp {purchase.total.toLocaleString("id-ID")}
                 </p>
               </div>
-              <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+              <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
                 <p>
-                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Item
                   </span>
-                  {purchase.items.length} item
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{purchase.items.length} item</span>
                 </p>
                 <p>
-                  <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Tanggal
                   </span>
-                  {formatDateID(purchase.createdAt)}
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{formatDateID(purchase.createdAt)}</span>
                 </p>
+              </div>
+              <div className="mt-3 border-t border-slate-100 dark:border-slate-800 pt-3">
+                <Link
+                  href={`/purchases/${purchase.id}`}
+                  className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  Lihat Detail
+                </Link>
               </div>
             </article>
           ))}

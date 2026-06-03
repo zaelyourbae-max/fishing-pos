@@ -32,6 +32,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="font-sans antialiased" suppressHydrationWarning>
+        {/* Terapkan tema & palet SEBELUM paint pertama supaya tidak ada kedip
+            teal/terang saat refresh atau pindah halaman. Harus berjalan sinkron
+            sebelum konten body dirender. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var d=document.documentElement;if(localStorage.getItem('fishing_pos_theme')==='dark')d.classList.add('dark');var p=localStorage.getItem('fishing_pos_palette');var v=['teal','forest','sage','ocean','turquoise','taxi','sunset','crimson','pastel'];d.setAttribute('data-palette',v.indexOf(p)>-1?p:'teal');}catch(e){document.documentElement.setAttribute('data-palette','teal');}})();`,
+          }}
+        />
         <ThemeInitializer />
         {children}
       </body>

@@ -1,5 +1,6 @@
 import { requireOwner } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { guardStoreOpen } from "@/lib/store-status";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -43,6 +44,12 @@ export async function PATCH(
 
   if (!auth.ok) {
     return auth.response;
+  }
+
+  const storeClosed = await guardStoreOpen();
+
+  if (storeClosed) {
+    return storeClosed;
   }
 
   const params = await context.params;

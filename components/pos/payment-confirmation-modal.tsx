@@ -78,10 +78,10 @@ export default function PaymentConfirmationModal({
                   qrisImageUrl={paymentSettings.qrisImageUrl}
                   className="mx-auto flex h-[min(82vw,360px)] w-[min(82vw,360px)] items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700"
                   imageClassName="h-full w-full object-contain"
-                  fallbackClassName="mx-auto flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+                  fallbackClassName="mx-auto flex h-[min(72vw,288px)] w-[min(72vw,288px)] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
                 />
               ) : (
-                <div className="mx-auto flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                <div className="mx-auto flex h-[min(72vw,288px)] w-[min(72vw,288px)] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
                   QRIS belum tersedia. Upload QRIS di Pengaturan.
                 </div>
               )}
@@ -106,7 +106,7 @@ export default function PaymentConfirmationModal({
                 <p>
                   <span className="text-sm text-teal-700 dark:text-teal-300">Nomor rekening</span>
                   <br />
-                  <b className="break-all text-2xl tracking-wide tabular-nums">
+                  <b className="break-all text-lg tracking-wide tabular-nums sm:text-2xl">
                     {paymentSettings.bankAccountNumber}
                   </b>
                 </p>
@@ -127,11 +127,11 @@ export default function PaymentConfirmationModal({
             <div className="mt-5 rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Dibayar</span>
-                <span className="metric-value text-2xl">{rupiah(paidAmount)}</span>
+                <span className="metric-value text-xl sm:text-2xl">{rupiah(paidAmount)}</span>
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400">Kembalian</span>
-                <span className="metric-value text-2xl">{rupiah(change)}</span>
+                <span className="metric-value text-xl sm:text-2xl">{rupiah(change)}</span>
               </div>
             </div>
           ) : null}

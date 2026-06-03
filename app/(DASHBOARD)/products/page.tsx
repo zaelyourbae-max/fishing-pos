@@ -3,19 +3,19 @@ import { Prisma } from "@prisma/client";
 import {
   Boxes,
   DollarSign,
-  Filter,
   Package,
   Plus,
   Upload,
 } from "lucide-react";
 
 import ProductEditButton from "@/components/products/product-edit-button";
+import ProductFilterForm from "@/components/products/product-filter-form";
 import ProductStatusActionButton from "@/components/products/product-status-action-button";
+import ProductStatusToggle from "@/components/products/product-status-toggle";
 import StockCorrectionButton from "@/components/products/stock-correction-button";
-import LiveSearchInput from "@/components/search/live-search-input";
 import PaginationLinks from "@/components/ui/pagination-links";
 import { canManageProducts, canViewCostPrice } from "@/lib/auth-session";
-import { requireProtectedPage } from "@/lib/page-guards";
+import { requireStoreOpenPage } from "@/lib/page-guards";
 import {
   getProductAnalyticsWhere,
   parseProductAnalyticsFilter,
@@ -222,7 +222,7 @@ const statusFilters = [
 export default async function ProductsPage({
   searchParams,
 }: ProductsPageProps) {
-  const session = await requireProtectedPage();
+  const session = await requireStoreOpenPage();
   const canManage = canManageProducts(session.role);
   const canViewCost = canViewCostPrice(session.role);
 
@@ -366,7 +366,7 @@ export default async function ProductsPage({
           href="/products?status=all"
           className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
             <Package className="h-5 w-5 sm:h-7 sm:w-7" />
           </span>
           <span className="min-w-0">
@@ -386,7 +386,7 @@ export default async function ProductsPage({
           href="/products"
           className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
             <Boxes className="h-5 w-5 sm:h-7 sm:w-7" />
           </span>
           <span className="min-w-0">
@@ -407,7 +407,7 @@ export default async function ProductsPage({
             href="/reports"
             className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-teal-700 dark:bg-emerald-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
               <DollarSign className="h-5 w-5 sm:h-7 sm:w-7" />
             </span>
             <span className="min-w-0">
@@ -459,59 +459,26 @@ export default async function ProductsPage({
           </div>
 
           {canManage ? (
-            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-900 sm:gap-2 sm:rounded-2xl">
-              {statusFilters.map((filter) => (
-                <Link
-                  key={filter.value}
-                  href={statusHref(filter.value, {
-                    q,
-                    category: selectedCategory,
-                    filter: analyticsFilter ?? "",
-                  })}
-                  className={
-                    status === filter.value
-                      ? "inline-flex h-9 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 px-3 text-xs font-semibold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
-                      : "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-white hover:text-teal-700 dark:text-slate-300 dark:hover:bg-slate-950 sm:h-11 sm:rounded-xl sm:px-4 sm:text-sm"
-                  }
-                >
-                  {filter.label}
-                </Link>
-              ))}
-            </div>
+            <ProductStatusToggle
+              active={status}
+              options={statusFilters.map((filter) => ({
+                label: filter.label,
+                value: filter.value,
+                href: statusHref(filter.value, {
+                  q,
+                  category: selectedCategory,
+                  filter: analyticsFilter ?? "",
+                }),
+              }))}
+            />
           ) : null}
         </div>
 
-        <form className="grid gap-2.5 border-b border-slate-200 p-3 md:grid-cols-[1fr_270px_auto] dark:border-slate-800 sm:gap-3 sm:p-4">
-          {status !== "active" ? (
-            <input type="hidden" name="status" value={status} />
-          ) : null}
-          {analyticsFilter ? (
-            <input type="hidden" name="filter" value={analyticsFilter} />
-          ) : null}
-          <LiveSearchInput
-            initialValue={q}
-            placeholder="Cari nama produk, SKU, barcode..."
-          />
-          <select
-            name="category"
-            defaultValue={selectedCategory}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10 sm:h-12 sm:rounded-2xl sm:px-4"
-          >
-            <option value="">Semua kategori/laci</option>
-            {categoryOptions.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-          <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-teal-300 hover:text-teal-700 active:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:active:bg-slate-900 sm:h-12 sm:rounded-2xl sm:px-5"
-            type="submit"
-          >
-            <Filter className="h-4 w-4" />
-            Filter
-          </button>
-        </form>
+        <ProductFilterForm
+          initialQ={q}
+          initialCategory={selectedCategory}
+          categoryOptions={categoryOptions}
+        />
 
         <div className="border-b border-slate-200 px-3 py-2.5 dark:border-slate-800 sm:px-4">
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -525,6 +492,7 @@ export default async function ProductsPage({
                   q,
                   category: selectedCategory,
                 })}
+                scroll={false}
                 className={
                   analyticsFilter === null
                     ? "inline-flex min-h-9 shrink-0 items-center rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"
@@ -541,6 +509,7 @@ export default async function ProductsPage({
                     q,
                     category: selectedCategory,
                   })}
+                  scroll={false}
                   className={
                     analyticsFilter === filter
                       ? "inline-flex min-h-9 shrink-0 items-center rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"

@@ -374,22 +374,22 @@ export default function UserManager({ users }: UserManagerProps) {
               key={card.label}
               type="button"
               onClick={card.onClick}
-              className={`flex min-h-32 items-center gap-5 rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950/70 ${
+              className={`flex min-h-20 items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950/70 sm:min-h-32 sm:gap-5 sm:p-5 ${
                 card.active
                   ? "border-teal-300 ring-2 ring-teal-100 dark:border-teal-500/50 dark:ring-teal-500/10"
                   : "border-slate-200 dark:border-slate-800"
               }`}
             >
               <span
-                className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${card.className}`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:h-16 sm:w-16 sm:rounded-2xl ${card.className}`}
               >
-                <Icon className="h-7 w-7" />
+                <Icon className="h-5 w-5 sm:h-7 sm:w-7" />
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-medium text-slate-500 dark:text-slate-400">
                   {card.label}
                 </span>
-                <span className="mt-1 block break-words text-2xl font-bold tabular-nums text-slate-950 dark:text-white">
+                <span className="mt-1 block break-words text-xl font-bold tabular-nums text-slate-950 dark:text-white sm:text-2xl">
                   {card.value}
                 </span>
                 <span className="mt-1 block text-sm text-slate-500 dark:text-slate-400">

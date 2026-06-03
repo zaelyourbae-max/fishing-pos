@@ -1,6 +1,7 @@
 "use client";
 
 import { Archive } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type DeleteProductButtonProps = {
@@ -10,6 +11,7 @@ type DeleteProductButtonProps = {
 export default function DeleteProductButton({
   productId,
 }: DeleteProductButtonProps) {
+  const router = useRouter();
   const [isOwner] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -43,7 +45,7 @@ export default function DeleteProductButton({
     });
 
     if (response.ok) {
-      window.location.reload();
+      router.refresh();
     } else {
       alert("Gagal menonaktifkan produk");
     }
