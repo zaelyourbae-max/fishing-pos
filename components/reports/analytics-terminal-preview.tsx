@@ -109,19 +109,56 @@ function fmtClock(t: number, withDate: boolean) {
 }
 
 // Data CONTOH (dummy) untuk Mode Live — VISUAL SAJA, tidak menyentuh database.
-// Realistis toko pancing: ~40 transaksi sehari. Mayoritas barang kecil
-// (umpan/kail/senar Rp10rb–70rb), sesekali barang besar (joran/reel Rp150rb–300rb).
-function genDummyLive(domainStart: number, domainEnd: number, count = 40): TerminalLivePoint[] {
+type DemoPreset = "ramai" | "harian" | "jam40" | "jam30";
+
+function genDummyLive(domainStart: number, domainEnd: number, preset: DemoPreset): TerminalLivePoint[] {
   const span = (domainEnd - domainStart) || 1;
   const pts: TerminalLivePoint[] = [];
   let seed = 24681357;
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  for (let i = 0; i < count; i++) {
-    const t = domainStart + span * (0.06 + 0.88 * (i / (count - 1)));
-    const amt = rnd() < 0.15
-      ? 150000 + rnd() * 150000   // sesekali barang besar (joran/reel)
-      : 10000 + rnd() * 60000;    // umpan/kail/senar (kebanyakan)
-    pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${i + 1}` });
+
+  if (preset === "ramai") {
+    // Dramatis: sesi buka 20rb + lika-liku, lalu sesi buka 200rb + lika-liku (~100 titik).
+    const session = (sf: number, wf: number, open: number, step: number, floor: number, count: number, label: string) => {
+      let v = open;
+      for (let i = 0; i < count; i++) {
+        const t = domainStart + span * (sf + wf * (i / count));
+        if (i > 0) v = Math.max(floor, v + (rnd() - 0.48) * step);
+        pts.push({ t: Math.round(t), amount: Math.round(v / 500) * 500, invoice: `${label}-${i + 1}` });
+      }
+    };
+    session(0.06, 0.40, 20000, 7000, 3000, 48, "DEMO-A");
+    session(0.50, 0.42, 200000, 42000, 25000, 52, "DEMO-B");
+    return pts;
+  }
+
+  if (preset === "harian") {
+    // Realistis sehari: ~40 transaksi, mayoritas receh + sesekali barang besar.
+    const count = 40;
+    for (let i = 0; i < count; i++) {
+      const t = domainStart + span * (0.06 + 0.88 * (i / (count - 1)));
+      const amt = rnd() < 0.15 ? 150000 + rnd() * 150000 : 10000 + rnd() * 60000;
+      pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${i + 1}` });
+    }
+    return pts;
+  }
+
+  // "jam40" / "jam30": toko buka 08.00–18.00 tiap hari (nyambung ke hari berikutnya).
+  // Maks pembelian Rp100rb hanya 2x per hari, sisanya receh (Rp5rb–45rb).
+  const perDay = preset === "jam30" ? 30 : 40;
+  let idx = 0;
+  const day = new Date(domainStart); day.setHours(0, 0, 0, 0);
+  for (; day.getTime() <= domainEnd; day.setDate(day.getDate() + 1)) {
+    const openT = new Date(day); openT.setHours(8, 0, 0, 0);
+    const closeT = new Date(day); closeT.setHours(18, 0, 0, 0);
+    const dayLen = closeT.getTime() - openT.getTime();
+    const big1 = Math.floor(perDay * 0.3), big2 = Math.floor(perDay * 0.72);
+    for (let i = 0; i < perDay; i++) {
+      const t = openT.getTime() + dayLen * ((i + rnd() * 0.6) / perDay);
+      if (t < domainStart || t > domainEnd) continue;
+      const amt = (i === big1 || i === big2) ? 90000 + rnd() * 10000 : 5000 + rnd() * 40000;
+      pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${++idx}` });
+    }
   }
   return pts;
 }
@@ -572,7 +609,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
   const [compare, setCompare] = useState(true);
   const [liveMode, setLiveMode] = useState(false);
   const [demo, setDemo] = useState(false);
-  const [demoCount, setDemoCount] = useState(40);
+  const [demoPreset, setDemoPreset] = useState<DemoPreset>("harian");
   const [livePoints, setLivePoints] = useState(live);
   const [styles, setStyles] = useState<Record<string, Style>>({});
   // Periode global: dipakai server untuk mengambil data. Diatur lewat URL (?from&to).
@@ -587,7 +624,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
   // Domain waktu untuk Mode Live (epoch ms) + data CONTOH (dummy) untuk demo.
   const domainStart = useMemo(() => new Date(`${period.from}T00:00:00`).getTime(), [period.from]);
   const domainEnd = useMemo(() => new Date(`${period.to}T23:59:59.999`).getTime(), [period.to]);
-  const dummyPoints = useMemo(() => genDummyLive(domainStart, domainEnd, demoCount), [domainStart, domainEnd, demoCount]);
+  const dummyPoints = useMemo(() => genDummyLive(domainStart, domainEnd, demoPreset), [domainStart, domainEnd, demoPreset]);
 
   // Sinkron ulang titik Live saat periode berganti (server kirim prop baru).
   useEffect(() => { setLivePoints(live); }, [live]);
@@ -679,9 +716,14 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                   </button>
                 ) : null}
                 {liveMode && demo ? (
-                  <div className="flex items-center gap-1 rounded-xl p-0.5 lg:rounded-2xl" style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
-                    {[40, 100].map((c) => (
-                      <button key={c} type="button" onClick={() => setDemoCount(c)} className="rounded-lg px-2.5 py-1 text-xs font-bold transition-colors lg:px-3 lg:py-1.5" style={{ background: demoCount === c ? C.gold + "22" : "transparent", color: demoCount === c ? C.gold : C.muted }}>{c}x</button>
+                  <div className="flex flex-wrap items-center gap-1 rounded-xl p-0.5 lg:rounded-2xl" style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
+                    {([
+                      { v: "ramai", label: "Ramai 100x" },
+                      { v: "harian", label: "Santai 40x" },
+                      { v: "jam40", label: "Buka 40x" },
+                      { v: "jam30", label: "Buka 30x" },
+                    ] as { v: DemoPreset; label: string }[]).map((opt) => (
+                      <button key={opt.v} type="button" onClick={() => setDemoPreset(opt.v)} className="rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors lg:px-3 lg:py-1.5 lg:text-xs" style={{ background: demoPreset === opt.v ? C.gold + "22" : "transparent", color: demoPreset === opt.v ? C.gold : C.muted }}>{opt.label}</button>
                     ))}
                   </div>
                 ) : null}
