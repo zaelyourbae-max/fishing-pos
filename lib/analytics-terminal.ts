@@ -28,7 +28,7 @@ async function periodStats(from: Date, to: Date): Promise<TerminalKpi> {
   const createdAt = { gte: from, lte: to };
   const saleWhere = { createdAt, ...FINAL_SALE_STATUS_WHERE };
 
-  const [sales, items, returns, purchases] = await Promise.all([
+  const [sales, items, returns, purchases, ops] = await Promise.all([
     prisma.sale.aggregate({
       where: saleWhere,
       _sum: { subtotal: true },
@@ -50,6 +50,10 @@ async function periodStats(from: Date, to: Date): Promise<TerminalKpi> {
       where: { createdAt },
       _sum: { total: true },
     }),
+    prisma.expense.aggregate({
+      where: { date: createdAt },
+      _sum: { amount: true },
+    }),
   ]);
 
   const grossRevenue = sales._sum.subtotal ?? 0;
@@ -63,7 +67,7 @@ async function periodStats(from: Date, to: Date): Promise<TerminalKpi> {
     transactions,
     itemsSold: items._sum.qty ?? 0,
     atv: transactions > 0 ? Math.round(grossRevenue / transactions) : 0,
-    purchases: purchases._sum.total ?? 0,
+    purchases: (purchases._sum.total ?? 0) + (ops._sum.amount ?? 0),
   };
 }
 
@@ -159,6 +163,37 @@ function buildBuckets(id: TerminalSeriesId, from: Date, to: Date) {
   return { starts, labels, keyOf };
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   MODE LIVE — deret per-transaksi (bukan bucket).
+   Tiap nota penjualan final jadi satu titik {t, amount}. Dipakai grafik "saham"
+   intraday yang loncat tiap ada penjualan. Dibatasi agar payload tetap ringan.
+   ──────────────────────────────────────────────────────────────────────── */
+export type TerminalLivePoint = {
+  t: number;       // epoch ms waktu transaksi
+  amount: number;  // nominal subtotal nota
+  invoice: string; // nomor nota (untuk tooltip)
+};
+
+const LIVE_MAX_POINTS = 600;
+
+export async function getTerminalLive(range: {
+  from: Date;
+  to: Date;
+}): Promise<TerminalLivePoint[]> {
+  const { from, to } = range;
+  // Ambil yang TERBARU dulu (biar kalau kebanyak, yang dipangkas yang lama),
+  // lalu balik ke urutan menaik untuk digambar dari kiri ke kanan.
+  const rows = await prisma.sale.findMany({
+    where: { createdAt: { gte: from, lte: to }, ...FINAL_SALE_STATUS_WHERE },
+    select: { createdAt: true, subtotal: true, invoiceNumber: true },
+    orderBy: { createdAt: "desc" },
+    take: LIVE_MAX_POINTS,
+  });
+  return rows
+    .map((r) => ({ t: r.createdAt.getTime(), amount: r.subtotal, invoice: r.invoiceNumber }))
+    .sort((a, b) => a.t - b.t);
+}
+
 export async function getTerminalSeries(range: {
   from: Date;
   to: Date;
@@ -169,27 +204,30 @@ export async function getTerminalSeries(range: {
   // Sparkline KPI: selalu 14 hari terakhir (indikator momentum, lepas dari periode).
   const spark0 = new Date(now); spark0.setDate(spark0.getDate() - 13); spark0.setHours(0, 0, 0, 0);
 
-  const [sales, purchases, sparkSales, sparkPurchases, sparkItems, sparkReturns] = await Promise.all([
+  const [sales, purchases, expenses, sparkSales, sparkPurchases, sparkExpenses, sparkItems, sparkReturns] = await Promise.all([
     prisma.sale.findMany({ where: { createdAt: { gte: from, lte: to }, ...FINAL_SALE_STATUS_WHERE }, select: { createdAt: true, subtotal: true } }),
     prisma.purchase.findMany({ where: { createdAt: { gte: from, lte: to } }, select: { createdAt: true, total: true } }),
+    prisma.expense.findMany({ where: { date: { gte: from, lte: to } }, select: { date: true, amount: true } }),
     prisma.sale.findMany({ where: { createdAt: { gte: spark0 }, ...FINAL_SALE_STATUS_WHERE }, select: { createdAt: true, subtotal: true } }),
     prisma.purchase.findMany({ where: { createdAt: { gte: spark0 } }, select: { createdAt: true, total: true } }),
+    prisma.expense.findMany({ where: { date: { gte: spark0 } }, select: { date: true, amount: true } }),
     prisma.saleItem.findMany({ where: { sale: { createdAt: { gte: spark0 }, ...FINAL_SALE_STATUS_WHERE } }, select: { qty: true, sale: { select: { createdAt: true } } } }),
     prisma.saleReturn.findMany({ where: { returnType: "CUSTOMER_RETURN", createdAt: { gte: spark0 }, sale: FINAL_SALE_STATUS_WHERE }, select: { createdAt: true, totalRefund: true } }),
   ]);
 
-  // 3 grafik, semuanya menutup periode [from, to] di satuannya masing-masing.
+  // 3 grafik — expense = pembelian stok + pengeluaran operasional
   const series: TerminalSeries[] = SERIES_META.map((m) => {
     const { starts, labels, keyOf } = buildBuckets(m.id, from, to);
     const inc = bucketSum(sales, (s) => keyOf(s.createdAt), (s) => s.subtotal);
-    const exp = bucketSum(purchases, (p) => keyOf(p.createdAt), (p) => p.total);
+    const pur = bucketSum(purchases, (p) => keyOf(p.createdAt), (p) => p.total);
+    const ops = bucketSum(expenses, (e) => keyOf(e.date), (e) => e.amount);
     return {
       id: m.id,
       title: m.title,
       rangeNote: m.rangeNote,
       labels,
       income: starts.map((d) => inc.get(keyOf(d)) ?? 0),
-      expense: starts.map((d) => exp.get(keyOf(d)) ?? 0),
+      expense: starts.map((d) => (pur.get(keyOf(d)) ?? 0) + (ops.get(keyOf(d)) ?? 0)),
     };
   });
 
@@ -199,6 +237,7 @@ export async function getTerminalSeries(range: {
   const revByDay = bucketSum(sparkSales, (s) => dayKey(s.createdAt), (s) => s.subtotal);
   const txnByDay = bucketSum(sparkSales, (s) => dayKey(s.createdAt), () => 1);
   const purByDay = bucketSum(sparkPurchases, (p) => dayKey(p.createdAt), (p) => p.total);
+  const expByDay = bucketSum(sparkExpenses, (e) => dayKey(e.date), (e) => e.amount);
   const itemByDay = bucketSum(sparkItems, (it) => dayKey(it.sale.createdAt), (it) => it.qty);
   const retByDay = bucketSum(sparkReturns, (r) => dayKey(r.createdAt), (r) => r.totalRefund ?? 0);
 
@@ -210,7 +249,7 @@ export async function getTerminalSeries(range: {
     netRevenue: grossRevenue.map((v, i) => Math.max(v - returnsValue[i], 0)),
     transactions: sparkDays.map((d) => txnByDay.get(dayKey(d)) ?? 0),
     itemsSold: sparkDays.map((d) => itemByDay.get(dayKey(d)) ?? 0),
-    purchases: sparkDays.map((d) => purByDay.get(dayKey(d)) ?? 0),
+    purchases: sparkDays.map((d) => (purByDay.get(dayKey(d)) ?? 0) + (expByDay.get(dayKey(d)) ?? 0)),
   };
 
   return { series, spark };

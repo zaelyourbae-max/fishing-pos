@@ -1,5 +1,5 @@
 import AnalyticsTerminalPreview from "@/components/reports/analytics-terminal-preview";
-import { getTerminalKpis, getTerminalSeries } from "@/lib/analytics-terminal";
+import { getTerminalKpis, getTerminalLive, getTerminalSeries } from "@/lib/analytics-terminal";
 import { requireOwnerPage } from "@/lib/page-guards";
 
 export const metadata = {
@@ -42,15 +42,17 @@ export default async function ReportsPreviewPage({ searchParams }: PageProps) {
   const from = startOfDay(rawFrom > today ? today : rawFrom);
   const to = endOfDay(rawTo > today ? today : rawTo < from ? from : rawTo);
 
-  const [kpis, chart] = await Promise.all([
+  const [kpis, chart, live] = await Promise.all([
     getTerminalKpis({ from, to }),
     getTerminalSeries({ from, to }),
+    getTerminalLive({ from, to }),
   ]);
 
   return (
     <AnalyticsTerminalPreview
       kpis={kpis}
       chart={chart}
+      live={live}
       period={{ from: params.from ?? toInput(from), to: params.to ?? toInput(to) }}
     />
   );
