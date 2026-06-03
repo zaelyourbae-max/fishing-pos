@@ -109,7 +109,7 @@ function fmtClock(t: number, withDate: boolean) {
 }
 
 // Data CONTOH (dummy) untuk Mode Live — VISUAL SAJA, tidak menyentuh database.
-type DemoPreset = "ramai" | "harian" | "jam40" | "jam30";
+type DemoPreset = "ramai" | "harian" | "jam40" | "jam30" | "bebas7";
 
 function genDummyLive(domainStart: number, domainEnd: number, preset: DemoPreset): TerminalLivePoint[] {
   const span = (domainEnd - domainStart) || 1;
@@ -140,6 +140,28 @@ function genDummyLive(domainStart: number, domainEnd: number, preset: DemoPreset
       const amt = rnd() < 0.15 ? 150000 + rnd() * 150000 : 10000 + rnd() * 60000;
       pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${i + 1}` });
     }
+    return pts;
+  }
+
+  if (preset === "bebas7") {
+    // Bebas: transaksi acak tersebar 7 hari terakhir dari domain (jam bebas),
+    // jumlah per hari & nominal sembarang. Untuk lihat tren mingguan.
+    const dayMs = 24 * 3600 * 1000;
+    const startT = Math.max(domainStart, domainEnd - 7 * dayMs);
+    const win = (domainEnd - startT) || 1;
+    const days = Math.max(1, Math.round(win / dayMs));
+    let idx = 0;
+    for (let d = 0; d < days; d++) {
+      const cnt = 15 + Math.floor(rnd() * 40);     // 15..54 transaksi/hari (bervariasi)
+      const recehMax = 20000 + rnd() * 50000;
+      for (let i = 0; i < cnt; i++) {
+        const t = startT + dayMs * (d + rnd());     // jam bebas sepanjang hari
+        if (t < domainStart || t > domainEnd) continue;
+        const amt = rnd() < 0.12 ? 100000 + rnd() * 200000 : 6000 + rnd() * recehMax;
+        pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${++idx}` });
+      }
+    }
+    pts.sort((a, b) => a.t - b.t);
     return pts;
   }
 
@@ -758,6 +780,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                       { v: "harian", label: "Santai 40x" },
                       { v: "jam40", label: "Buka 40x" },
                       { v: "jam30", label: "Buka 30x" },
+                      { v: "bebas7", label: "Bebas 7hari" },
                     ] as { v: DemoPreset; label: string }[]).map((opt) => (
                       <button key={opt.v} type="button" onClick={() => setDemoPreset(opt.v)} className="rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors lg:px-3 lg:py-1.5 lg:text-xs" style={{ background: demoPreset === opt.v ? C.gold + "22" : "transparent", color: demoPreset === opt.v ? C.gold : C.muted }}>{opt.label}</button>
                     ))}
