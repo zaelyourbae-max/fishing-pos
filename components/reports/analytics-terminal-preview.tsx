@@ -108,7 +108,7 @@ function fmtClock(t: number, withDate: boolean) {
   return withDate ? `${d.getDate()}/${d.getMonth() + 1} ${hh}.${mm}` : `${hh}.${mm}`;
 }
 
-function LiveCard({ points, active }: { points: TerminalLivePoint[]; active: boolean }) {
+function LiveCard({ points, active, domainStart, domainEnd }: { points: TerminalLivePoint[]; active: boolean; domainStart: number; domainEnd: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const [view, setView] = useState<{ a: number; b: number }>({ a: 0, b: 1 });
   const wrap = useRef<HTMLDivElement>(null);
@@ -119,21 +119,25 @@ function LiveCard({ points, active }: { points: TerminalLivePoint[]; active: boo
   const plotH = H - pad.t - pad.b;
   const n = points.length;
 
-  const tMin = n ? points[0].t : 0;
-  const tMax = n ? points[n - 1].t : 1;
-  const tSpan = tMax - tMin || 1;
+  // Domain waktu = PERIODE penuh (bukan sekadar rentang data). Jadi transaksi tampil
+  // di posisi jam aslinya & ada RUANG KOSONG di depan (waktu yang belum terjadi),
+  // persis aplikasi chart saham. Titik live jadi kelihatan dengan ruang di kanannya.
+  const validDomain = Number.isFinite(domainStart) && Number.isFinite(domainEnd) && domainEnd > domainStart;
+  const dStart = validDomain ? domainStart : (n ? points[0].t : 0);
+  const dEnd = validDomain ? domainEnd : (n ? points[n - 1].t : 1);
+  const tSpan = (dEnd - dStart) || 1;
   const maxA = (n ? Math.max(...points.map((p) => p.amount)) : 1) * 1.16 || 1;
   // jendela minimum ~ 8 menit (atau full kalau rentang memang kecil)
   const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / tSpan));
 
-  // Reset zoom hanya saat AWAL periode berganti (tMin), bukan saat transaksi baru
-  // masuk (yang hanya menambah di ujung kanan / mengubah tMax).
-  useEffect(() => { setView({ a: 0, b: 1 }); }, [tMin]);
+  // Reset zoom hanya saat periode (domain) berganti, BUKAN saat transaksi baru masuk
+  // (transaksi baru cuma menambah titik di posisi jamnya, domain tetap).
+  useEffect(() => { setView({ a: 0, b: 1 }); }, [dStart, dEnd]);
 
   const vw = view.b - view.a;
-  const vTmin = tMin + view.a * tSpan;
+  const vTmin = dStart + view.a * tSpan;
   const vTspan = vw * tSpan || 1;
-  const x = (t: number) => (n === 1 ? pad.l + iw / 2 : pad.l + ((t - vTmin) / vTspan) * iw);
+  const x = (t: number) => pad.l + ((t - vTmin) / vTspan) * iw;
   const y = (a: number) => pad.t + (1 - a / maxA) * plotH;
 
   // Path "step": datar di level transaksi sebelumnya, lalu loncat pas ada transaksi baru.
@@ -207,7 +211,7 @@ function LiveCard({ points, active }: { points: TerminalLivePoint[]; active: boo
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n, MINW, tSpan, tMin]);
+  }, [n, MINW, tSpan, dStart]);
 
   function onMouseDown(e: React.MouseEvent) { drag.current = { x: e.clientX, moved: false }; }
   function onMouseMove(e: React.MouseEvent) {
@@ -767,7 +771,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                       <div className="grid transition-transform duration-700 ease-out [transform-style:preserve-3d]" style={{ transform: liveMode ? "rotateY(180deg)" : "rotateY(0deg)" }}>
                         <div className="[grid-area:1/1] [backface-visibility:hidden]">{front}</div>
                         <div className="[grid-area:1/1] [backface-visibility:hidden] [transform:rotateY(180deg)] overflow-hidden rounded-2xl" style={card3d}>
-                          <LiveCard points={livePoints} active={liveMode} />
+                          <LiveCard points={livePoints} active={liveMode} domainStart={new Date(`${period.from}T00:00:00`).getTime()} domainEnd={new Date(`${period.to}T23:59:59.999`).getTime()} />
                         </div>
                       </div>
                     </div>
