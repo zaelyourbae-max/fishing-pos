@@ -190,13 +190,14 @@ function genDummyLive(domainStart: number, domainEnd: number, preset: DemoPreset
   return pts;
 }
 
-function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: TerminalLivePoint[]; active: boolean; demo?: boolean; domainStart: number; domainEnd: number }) {
+function LiveCard({ points, active, demo, viewKey, domainStart, domainEnd }: { points: TerminalLivePoint[]; active: boolean; demo?: boolean; viewKey?: string; domainStart: number; domainEnd: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const [view, setView] = useState<{ a: number; b: number }>({ a: 0, b: 1 });
   const [clientNow, setClientNow] = useState<number | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; moved: boolean } | null>(null);
   const pinch = useRef<{ dist: number; frac: number } | null>(null);
+  const touched = useRef(false); // true setelah user zoom/geser manual
   // Sumbu harga (Y) di KANAN seperti forex/TradingView → pad kanan lebar, kiri tipis.
   const W = 760, H = 260, pad = { t: 20, r: 78, b: 32, l: 14 };
   const iw = W - pad.l - pad.r;
@@ -255,9 +256,13 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
   // jendela minimum zoom (~8 menit, relatif total waktu terpadatkan)
   const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / totalVirt));
 
-  // Reset zoom hanya saat periode (domain) berganti, BUKAN saat transaksi baru masuk
-  // (transaksi baru cuma menambah titik di posisi jamnya, domain tetap).
-  useEffect(() => { setView({ a: 0, b: 1 }); }, [dStart, dEnd]);
+  // Default tampilkan JENDELA NYAMAN (±90 titik terbaru), bukan semua dijejalkan ke
+  // satu layar. Sisanya bisa dilihat dgn zoom-out / geser — seperti aplikasi saham.
+  // Reset saat periode (domain) atau preset contoh berganti, BUKAN tiap transaksi baru.
+  useEffect(() => {
+    touched.current = false;     // kembali ke jendela-nyaman otomatis
+    setView({ a: 0, b: 1 });
+  }, [dStart, dEnd, viewKey]);
 
   // Jam "sekarang" hidup di client → garis memanjang halus ke kanan tiap detik.
   useEffect(() => {
@@ -266,8 +271,14 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
     return () => clearInterval(id);
   }, []);
 
-  const vVmin = view.a * totalVirt;
-  const vVspan = (view.b - view.a) * totalVirt || 1;
+  // Jendela tampil: kalau belum disentuh user, default ~90 titik terbaru (lega).
+  // Setelah user zoom/geser, ikut view manual.
+  const target = 90;
+  const autoA = n > target ? Math.max(0, 1 - target / n) : 0;
+  const va = touched.current ? view.a : autoA;
+  const vb = touched.current ? view.b : 1;
+  const vVmin = va * totalVirt;
+  const vVspan = (vb - va) * totalVirt || 1;
   const x = (t: number) => pad.l + ((realToVirt(t) - vVmin) / vVspan) * iw;
   const y = (a: number) => pad.t + (1 - (a - lo) / yRange) * plotH;
 
@@ -295,29 +306,27 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
   }
   function zoomAround(frac: number, factor: number) {
     if (n <= 1) return;
-    setView((v) => {
-      const w = v.b - v.a;
-      const nw = Math.min(1, Math.max(MINW, w * factor));
-      const center = v.a + frac * w;
-      let na = center - (center - v.a) * (nw / w);
-      let nb = na + nw;
-      if (na < 0) { na = 0; nb = nw; }
-      if (nb > 1) { nb = 1; na = 1 - nw; }
-      return { a: na, b: nb };
-    });
+    const w = vb - va;
+    const nw = Math.min(1, Math.max(MINW, w * factor));
+    const center = va + frac * w;
+    let na = center - (center - va) * (nw / w);
+    let nb = na + nw;
+    if (na < 0) { na = 0; nb = nw; }
+    if (nb > 1) { nb = 1; na = 1 - nw; }
+    touched.current = true;
+    setView({ a: na, b: nb });
   }
   function panByPx(dxPx: number) {
     const r = wrap.current?.getBoundingClientRect();
     if (!r) return;
     const plotPxW = r.width * (iw / W);
-    setView((v) => {
-      const w = v.b - v.a;
-      const fd = (dxPx / plotPxW) * w;
-      let na = v.a - fd, nb = v.b - fd;
-      if (na < 0) { na = 0; nb = w; }
-      if (nb > 1) { nb = 1; na = 1 - w; }
-      return { a: na, b: nb };
-    });
+    const w = vb - va;
+    const fd = (dxPx / plotPxW) * w;
+    let na = va - fd, nb = vb - fd;
+    if (na < 0) { na = 0; nb = w; }
+    if (nb > 1) { nb = 1; na = 1 - w; }
+    touched.current = true;
+    setView({ a: na, b: nb });
   }
   function nearestHover(clientX: number) {
     const r = wrap.current?.getBoundingClientRect();
@@ -383,7 +392,7 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
   function endTouch() { drag.current = null; pinch.current = null; }
 
   const lastIdx = n - 1;
-  const zoomed = view.a > 0.0001 || view.b < 0.9999;
+  const zoomed = va > 0.0001 || vb < 0.9999;
   const xLabelFracs = [0, 0.5, 1];
   // label waktu pakai waktu NYATA (dipetakan balik dari sumbu terpadatkan)
   const withDateVisible = virtToReal(vVmin + vVspan) - virtToReal(vVmin) > 24 * 3600 * 1000;
@@ -407,7 +416,7 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
               <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
                 <button type="button" aria-label="Perkecil" onClick={() => zoomAround(1, 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomOut className="h-4 w-4" /></button>
                 <button type="button" aria-label="Perbesar" onClick={() => zoomAround(1, 1 / 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomIn className="h-4 w-4" /></button>
-                <button type="button" aria-label="Reset zoom" onClick={() => setView({ a: 0, b: 1 })} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: zoomed ? C.gold : C.muted }}><RotateCcw className="h-4 w-4" /></button>
+                <button type="button" aria-label="Lihat semua" onClick={() => { touched.current = true; setView({ a: 0, b: 1 }); }} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: zoomed ? C.gold : C.muted }}><RotateCcw className="h-4 w-4" /></button>
               </div>
             ) : null}
             <span className="rounded-lg px-2 py-1 text-[10px] font-bold lg:text-xs" style={{ background: C.up + "22", color: C.up, border: `1px solid ${C.up}55` }}>{n} transaksi</span>
@@ -940,7 +949,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                       <div className="grid transition-transform duration-700 ease-out [transform-style:preserve-3d]" style={{ transform: liveMode ? "rotateY(180deg)" : "rotateY(0deg)" }}>
                         <div className="[grid-area:1/1] [backface-visibility:hidden]">{front}</div>
                         <div className="[grid-area:1/1] [backface-visibility:hidden] [transform:rotateY(180deg)] overflow-hidden rounded-2xl" style={card3d}>
-                          <LiveCard points={demo ? dummyPoints : livePoints} active={liveMode} demo={demo} domainStart={domainStart} domainEnd={domainEnd} />
+                          <LiveCard points={demo ? dummyPoints : livePoints} active={liveMode} demo={demo} viewKey={demo ? demoPreset : "live"} domainStart={domainStart} domainEnd={domainEnd} />
                         </div>
                       </div>
                     </div>
