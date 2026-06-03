@@ -111,12 +111,11 @@ function fmtClock(t: number, withDate: boolean) {
 // Data CONTOH (dummy) untuk Mode Live — VISUAL SAJA, tidak menyentuh database.
 // Realistis toko pancing: ~40 transaksi sehari. Mayoritas barang kecil
 // (umpan/kail/senar Rp10rb–70rb), sesekali barang besar (joran/reel Rp150rb–300rb).
-function genDummyLive(domainStart: number, domainEnd: number): TerminalLivePoint[] {
+function genDummyLive(domainStart: number, domainEnd: number, count = 40): TerminalLivePoint[] {
   const span = (domainEnd - domainStart) || 1;
   const pts: TerminalLivePoint[] = [];
   let seed = 24681357;
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  const count = 40;
   for (let i = 0; i < count; i++) {
     const t = domainStart + span * (0.06 + 0.88 * (i / (count - 1)));
     const amt = rnd() < 0.15
@@ -573,6 +572,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
   const [compare, setCompare] = useState(true);
   const [liveMode, setLiveMode] = useState(false);
   const [demo, setDemo] = useState(false);
+  const [demoCount, setDemoCount] = useState(40);
   const [livePoints, setLivePoints] = useState(live);
   const [styles, setStyles] = useState<Record<string, Style>>({});
   // Periode global: dipakai server untuk mengambil data. Diatur lewat URL (?from&to).
@@ -587,7 +587,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
   // Domain waktu untuk Mode Live (epoch ms) + data CONTOH (dummy) untuk demo.
   const domainStart = useMemo(() => new Date(`${period.from}T00:00:00`).getTime(), [period.from]);
   const domainEnd = useMemo(() => new Date(`${period.to}T23:59:59.999`).getTime(), [period.to]);
-  const dummyPoints = useMemo(() => genDummyLive(domainStart, domainEnd), [domainStart, domainEnd]);
+  const dummyPoints = useMemo(() => genDummyLive(domainStart, domainEnd, demoCount), [domainStart, domainEnd, demoCount]);
 
   // Sinkron ulang titik Live saat periode berganti (server kirim prop baru).
   useEffect(() => { setLivePoints(live); }, [live]);
@@ -677,6 +677,13 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                     <Sparkles className="h-4 w-4 lg:h-5 lg:w-5" />
                     Contoh
                   </button>
+                ) : null}
+                {liveMode && demo ? (
+                  <div className="flex items-center gap-1 rounded-xl p-0.5 lg:rounded-2xl" style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
+                    {[40, 100].map((c) => (
+                      <button key={c} type="button" onClick={() => setDemoCount(c)} className="rounded-lg px-2.5 py-1 text-xs font-bold transition-colors lg:px-3 lg:py-1.5" style={{ background: demoCount === c ? C.gold + "22" : "transparent", color: demoCount === c ? C.gold : C.muted }}>{c}x</button>
+                    ))}
+                  </div>
                 ) : null}
                 {/* toggle Perbandingan / Tunggal */}
                 <button type="button" onClick={() => setCompare((v) => !v)} className="inline-flex h-9 w-fit items-center gap-2 rounded-xl px-3 text-xs font-bold transition-colors lg:h-11 lg:gap-2.5 lg:rounded-2xl lg:px-5 lg:text-sm" style={{ background: compare ? C.income + "22" : C.panel2, color: compare ? C.income : C.muted, border: `1px solid ${compare ? C.income + "55" : C.border}` }}>
