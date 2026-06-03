@@ -114,7 +114,8 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
   const wrap = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; moved: boolean } | null>(null);
   const pinch = useRef<{ dist: number; frac: number } | null>(null);
-  const W = 760, H = 260, pad = { t: 20, r: 18, b: 32, l: 66 };
+  // Sumbu harga (Y) di KANAN seperti forex/TradingView → pad kanan lebar, kiri tipis.
+  const W = 760, H = 260, pad = { t: 20, r: 78, b: 32, l: 14 };
   const iw = W - pad.l - pad.r;
   const plotH = H - pad.t - pad.b;
   const n = points.length;
@@ -126,7 +127,14 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
   const dStart = validDomain ? domainStart : (n ? points[0].t : 0);
   const dEnd = validDomain ? domainEnd : (n ? points[n - 1].t : 1);
   const tSpan = (dEnd - dStart) || 1;
-  const maxA = (n ? Math.max(...points.map((p) => p.amount)) : 1) * 1.16 || 1;
+  // Skala harga ikut data (min..max + bantalan) supaya garis DUDUK di tengah,
+  // tidak "melayang" di atas. Kalau semua nilai sama, beri ruang atas-bawah.
+  const amounts = n ? points.map((p) => p.amount) : [0];
+  const aMin = Math.min(...amounts), aMax = Math.max(...amounts);
+  const span = aMax - aMin;
+  const hi = span === 0 ? aMax * 1.25 + 1 : aMax + span * 0.18;
+  const lo = span === 0 ? Math.max(0, aMax * 0.75) : Math.max(0, aMin - span * 0.18);
+  const yRange = (hi - lo) || 1;
   // jendela minimum ~ 8 menit (atau full kalau rentang memang kecil)
   const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / tSpan));
 
@@ -138,7 +146,7 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
   const vTmin = dStart + view.a * tSpan;
   const vTspan = vw * tSpan || 1;
   const x = (t: number) => pad.l + ((t - vTmin) / vTspan) * iw;
-  const y = (a: number) => pad.t + (1 - a / maxA) * plotH;
+  const y = (a: number) => pad.t + (1 - (a - lo) / yRange) * plotH;
 
   // Path "step": datar di level transaksi sebelumnya, lalu loncat pas ada transaksi baru.
   let linePath = "";
@@ -333,11 +341,20 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
                     <circle cx={x(points[hover].t)} cy={y(points[hover].amount)} r={3.5} fill={C.up} stroke={C.bg} strokeWidth={1.5} />
                   </> : null}
                 </g>
+
+                {/* GARIS ORDER (harga sekarang) — selalu tampil penuh, tak ikut terpotong saat zoom */}
+                <line x1={pad.l} y1={y(points[lastIdx].amount)} x2={W - pad.r} y2={y(points[lastIdx].amount)} stroke={C.up} strokeWidth={1} strokeOpacity={0.75} vectorEffect="non-scaling-stroke" strokeDasharray="5 4" />
               </svg>
 
-              {[1, 0.5, 0].map((p, i) => (
-                <span key={`y${i}`} className="pointer-events-none absolute z-[1] -translate-y-1/2 rounded px-1 text-[10px] font-semibold tabular-nums" style={{ left: 2, top: `${(y(maxA * p) / H) * 100}%`, background: C.panel, color: C.muted }}>{rpShort(maxA * p)}</span>
-              ))}
+              {/* Label harga di KANAN (gaya forex) */}
+              {[1, 0.5, 0].map((p) => { const val = lo + p * yRange; return (
+                <span key={`y${p}`} className="pointer-events-none absolute z-[1] -translate-y-1/2 rounded px-1 text-[10px] font-semibold tabular-nums" style={{ right: 4, top: `${(y(val) / H) * 100}%`, background: C.panel, color: C.muted }}>{rpShort(val)}</span>
+              ); })}
+              {/* Tag harga sekarang di ujung garis order (kanan), selalu tampil */}
+              <div className="pointer-events-none absolute z-[3] -translate-y-1/2 rounded px-1.5 py-0.5 text-right text-[10px] font-extrabold leading-tight tabular-nums shadow-lg" style={{ right: 2, top: `${(y(points[lastIdx].amount) / H) * 100}%`, background: C.up, color: "#04121c" }}>
+                {rpShort(points[lastIdx].amount)}
+                <span className="block text-[8px] font-bold opacity-80">{fmtClock(points[lastIdx].t, false)}</span>
+              </div>
               {xLabelFracs.map((fr) => (
                 <span key={`x${fr}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-[10px]" style={{ left: `${((pad.l + fr * iw) / W) * 100}%`, color: C.muted }}>{fmtClock(vTmin + fr * vTspan, withDateVisible)}</span>
               ))}
