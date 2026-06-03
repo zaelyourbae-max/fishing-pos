@@ -109,22 +109,21 @@ function fmtClock(t: number, withDate: boolean) {
 }
 
 // Data CONTOH (dummy) untuk Mode Live — VISUAL SAJA, tidak menyentuh database.
-// Skenario: sesi buka di 20rb lalu lika-liku, lalu sesi buka di 200rb lalu lika-liku.
+// Realistis toko pancing: ~40 transaksi sehari. Mayoritas barang kecil
+// (umpan/kail/senar Rp10rb–70rb), sesekali barang besar (joran/reel Rp150rb–300rb).
 function genDummyLive(domainStart: number, domainEnd: number): TerminalLivePoint[] {
   const span = (domainEnd - domainStart) || 1;
   const pts: TerminalLivePoint[] = [];
-  let seed = 987654321;
+  let seed = 24681357;
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  const session = (startFrac: number, widthFrac: number, openVal: number, step: number, floor: number, count: number, label: string) => {
-    let v = openVal;
-    for (let i = 0; i < count; i++) {
-      const t = domainStart + span * (startFrac + widthFrac * (i / count));
-      if (i > 0) v = Math.max(floor, v + (rnd() - 0.48) * step);
-      pts.push({ t: Math.round(t), amount: Math.round(v / 500) * 500, invoice: `${label}-${i + 1}` });
-    }
-  };
-  session(0.06, 0.40, 20000, 7000, 3000, 48, "DEMO-A");   // buka 20rb + lika-liku
-  session(0.50, 0.42, 200000, 42000, 25000, 52, "DEMO-B"); // buka 200rb + lika-liku
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    const t = domainStart + span * (0.06 + 0.88 * (i / (count - 1)));
+    const amt = rnd() < 0.15
+      ? 150000 + rnd() * 150000   // sesekali barang besar (joran/reel)
+      : 10000 + rnd() * 60000;    // umpan/kail/senar (kebanyakan)
+    pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${i + 1}` });
+  }
   return pts;
 }
 
