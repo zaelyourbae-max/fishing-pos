@@ -111,6 +111,7 @@ function fmtClock(t: number, withDate: boolean) {
 function LiveCard({ points, active, domainStart, domainEnd }: { points: TerminalLivePoint[]; active: boolean; domainStart: number; domainEnd: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const [view, setView] = useState<{ a: number; b: number }>({ a: 0, b: 1 });
+  const [clientNow, setClientNow] = useState<number | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; moved: boolean } | null>(null);
   const pinch = useRef<{ dist: number; frac: number } | null>(null);
@@ -127,14 +128,17 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
   const dStart = validDomain ? domainStart : (n ? points[0].t : 0);
   const dEnd = validDomain ? domainEnd : (n ? points[n - 1].t : 1);
   const tSpan = (dEnd - dStart) || 1;
-  // Skala harga ikut data (min..max + bantalan) supaya garis DUDUK di tengah,
-  // tidak "melayang" di atas. Kalau semua nilai sama, beri ruang atas-bawah.
+  // Skala harga SELALU mulai dari 0 di bawah (toko buka = harga 0), lalu naik
+  // mengikuti nilai penjualan. Tertinggi diberi sedikit bantalan di atas.
   const amounts = n ? points.map((p) => p.amount) : [0];
-  const aMin = Math.min(...amounts), aMax = Math.max(...amounts);
-  const span = aMax - aMin;
-  const hi = span === 0 ? aMax * 1.25 + 1 : aMax + span * 0.18;
-  const lo = span === 0 ? Math.max(0, aMax * 0.75) : Math.max(0, aMin - span * 0.18);
+  const aMax = Math.max(...amounts, 0);
+  const lo = 0;
+  const hi = aMax > 0 ? aMax * 1.18 : 1;
   const yRange = (hi - lo) || 1;
+  // "Sekarang" (ujung kanan garis = konsolidasi terkini). Dipakai dari state agar
+  // SSR & client cocok (hindari hydration mismatch dari Date.now() saat render).
+  const nowFallback = n ? points[n - 1].t : dEnd;
+  const nowT = Math.min(Math.max(clientNow ?? nowFallback, dStart), dEnd);
   // jendela minimum ~ 8 menit (atau full kalau rentang memang kecil)
   const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / tSpan));
 
@@ -142,24 +146,35 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
   // (transaksi baru cuma menambah titik di posisi jamnya, domain tetap).
   useEffect(() => { setView({ a: 0, b: 1 }); }, [dStart, dEnd]);
 
+  // Jam "sekarang" hidup di client → garis memanjang halus ke kanan tiap detik.
+  useEffect(() => {
+    setClientNow(Date.now());
+    const id = setInterval(() => setClientNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const vw = view.b - view.a;
   const vTmin = dStart + view.a * tSpan;
   const vTspan = vw * tSpan || 1;
   const x = (t: number) => pad.l + ((t - vTmin) / vTspan) * iw;
   const y = (a: number) => pad.t + (1 - (a - lo) / yRange) * plotH;
 
-  // Path "step": datar di level transaksi sebelumnya, lalu loncat pas ada transaksi baru.
+  // Path "step": MULAI dari 0 di awal periode, tahan datar, loncat naik/turun tiap
+  // transaksi, lalu tahan datar (konsolidasi) sampai "sekarang". Depan = kosong.
   let linePath = "";
   let areaPath = "";
   if (n) {
-    const seg: string[] = [`M ${x(points[0].t)} ${y(points[0].amount)}`];
-    for (let i = 1; i < n; i++) {
-      seg.push(`L ${x(points[i].t)} ${y(points[i - 1].amount)}`); // tahan datar
-      seg.push(`L ${x(points[i].t)} ${y(points[i].amount)}`);     // loncat
+    const seg: string[] = [`M ${x(dStart)} ${y(0)}`];
+    let prev = 0;
+    for (let i = 0; i < n; i++) {
+      seg.push(`L ${x(points[i].t)} ${y(prev)}`);             // tahan nilai sebelumnya
+      seg.push(`L ${x(points[i].t)} ${y(points[i].amount)}`); // loncat ke nilai transaksi
+      prev = points[i].amount;
     }
+    seg.push(`L ${x(nowT)} ${y(prev)}`);                       // konsolidasi sampai sekarang
     linePath = seg.join(" ");
-    const baseY = pad.t + plotH;
-    areaPath = `${seg.join(" ")} L ${x(points[n - 1].t)} ${baseY} L ${x(points[0].t)} ${baseY} Z`;
+    const baseY = y(0);
+    areaPath = `${linePath} L ${x(nowT)} ${baseY} L ${x(dStart)} ${baseY} Z`;
   }
 
   // frac 0..1 di area plot berdasar koordinat layar
@@ -214,7 +229,8 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
       // "menculik" scroll halaman & tidak nge-zoom sendiri tanpa sengaja.
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      zoomAround(plotFrac(e.clientX), e.deltaY > 0 ? 1.18 : 1 / 1.18);
+      // anchor di KANAN (sekarang) seperti forex: zoom out membuka sejarah ke kiri
+      zoomAround(1, e.deltaY > 0 ? 1.18 : 1 / 1.18);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -279,8 +295,8 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
           <div className="flex items-center gap-1.5">
             {n > 1 ? (
               <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
-                <button type="button" aria-label="Perkecil" onClick={() => zoomAround(0.5, 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomOut className="h-4 w-4" /></button>
-                <button type="button" aria-label="Perbesar" onClick={() => zoomAround(0.5, 1 / 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomIn className="h-4 w-4" /></button>
+                <button type="button" aria-label="Perkecil" onClick={() => zoomAround(1, 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomOut className="h-4 w-4" /></button>
+                <button type="button" aria-label="Perbesar" onClick={() => zoomAround(1, 1 / 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomIn className="h-4 w-4" /></button>
                 <button type="button" aria-label="Reset zoom" onClick={() => setView({ a: 0, b: 1 })} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: zoomed ? C.gold : C.muted }}><RotateCcw className="h-4 w-4" /></button>
               </div>
             ) : null}
@@ -327,10 +343,10 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
                   <path d={linePath} fill="none" stroke={C.up} strokeWidth={8} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
                   <path d={linePath} fill="none" stroke="url(#liveStroke)" strokeWidth={2.4} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
 
-                  {/* titik live berdenyut di transaksi terakhir */}
-                  <circle cx={x(points[lastIdx].t)} cy={y(points[lastIdx].amount)} r={3.5} fill={C.up} />
+                  {/* titik live berdenyut di harga terkini (posisi "sekarang") */}
+                  <circle cx={x(nowT)} cy={y(points[lastIdx].amount)} r={3.5} fill={C.up} />
                   {active ? (
-                    <circle cx={x(points[lastIdx].t)} cy={y(points[lastIdx].amount)} r={4} fill="none" stroke={C.up} strokeWidth={1.5} vectorEffect="non-scaling-stroke">
+                    <circle cx={x(nowT)} cy={y(points[lastIdx].amount)} r={4} fill="none" stroke={C.up} strokeWidth={1.5} vectorEffect="non-scaling-stroke">
                       <animate attributeName="r" values="4;16" dur="1.6s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.7;0" dur="1.6s" repeatCount="indefinite" />
                     </circle>
@@ -353,7 +369,7 @@ function LiveCard({ points, active, domainStart, domainEnd }: { points: Terminal
               {/* Tag harga sekarang di ujung garis order (kanan), selalu tampil */}
               <div className="pointer-events-none absolute z-[3] -translate-y-1/2 rounded px-1.5 py-0.5 text-right text-[10px] font-extrabold leading-tight tabular-nums shadow-lg" style={{ right: 2, top: `${(y(points[lastIdx].amount) / H) * 100}%`, background: C.up, color: "#04121c" }}>
                 {rpShort(points[lastIdx].amount)}
-                <span className="block text-[8px] font-bold opacity-80">{fmtClock(points[lastIdx].t, false)}</span>
+                <span className="block text-[8px] font-bold opacity-80">{fmtClock(nowT, false)}</span>
               </div>
               {xLabelFracs.map((fr) => (
                 <span key={`x${fr}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-[10px]" style={{ left: `${((pad.l + fr * iw) / W) * 100}%`, color: C.muted }}>{fmtClock(vTmin + fr * vTspan, withDateVisible)}</span>
