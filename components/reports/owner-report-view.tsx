@@ -38,6 +38,8 @@ type KpiCard = {
   tone: KpiTone;
   icon: "chart" | "return" | "wallet" | "transaction" | "atv" | "purchase" | "supplier" | "profit";
   rows: { label: string; value: string; tone?: "default" | "good" | "danger" }[];
+  /** Penjelasan bahasa awam untuk owner (opsional) ditampilkan di detail. */
+  explain?: string;
 };
 
 type PaymentRow = {
@@ -185,10 +187,12 @@ type ProfitProductRow = {
   }[];
 };
 
-type MonthlySummaryItem = {
+type MonthlySummaryRow = {
   label: string;
-  value: string;
-  tone: KpiTone;
+  currentValue: string;
+  previousValue: string;
+  changePercent: number | null;
+  goodWhenUp: boolean;
 };
 
 export type OwnerReportViewData = {
@@ -234,6 +238,10 @@ export type OwnerReportViewData = {
     netCogs: string;
     grossProfit: string;
     netProfit: string;
+    operatingExpenses: string;
+    netProfitAfterExpenses: string;
+    netMargin: string;
+    netProfitNegative: boolean;
     margin: string;
     returnCostWarning: string | null;
     topProducts: ProfitProductRow[];
@@ -241,7 +249,8 @@ export type OwnerReportViewData = {
   };
   monthlySummary: {
     title: string;
-    items: MonthlySummaryItem[];
+    subtitle: string;
+    rows: MonthlySummaryRow[];
   };
   transactions: TransactionRow[];
   trend: TrendRow[];
@@ -278,10 +287,6 @@ const desktopTabs = [
 type DesktopReportTabId = (typeof desktopTabs)[number]["id"];
 
 const REPORT_SECTION_PREFERENCE_KEY = "owner-report-active-section";
-
-function isDesktopReportTabId(value: string | null): value is DesktopReportTabId {
-  return desktopTabs.some((tab) => tab.id === value);
-}
 
 const mobileTabs = [
   { id: "penjualan", label: "Penjualan" },
@@ -548,7 +553,7 @@ function MetricCard({
         className={cx(
           "group min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm shadow-slate-200/60 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
           clickable
-            ? "cursor-pointer hover:border-blue-200 active:scale-[0.99]"
+            ? "cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md active:scale-[0.99]"
             : "cursor-default",
         )}
       >
@@ -646,6 +651,17 @@ function MainKpiCard({
   );
 }
 
+const DAY_SHORT = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+
+// Ubah label DD/MM/YYYY jadi nama hari (Sen/Sel/Rab) untuk sumbu chart.
+// Kalau bukan format tanggal harian (mis. label bulanan), pakai label apa adanya.
+function trendAxisLabel(label: string) {
+  const parsed = parseTrendLabelDate(label);
+  if (!parsed) return label;
+  const d = new Date(parsed.year, parsed.month - 1, parsed.day);
+  return Number.isNaN(d.getTime()) ? label : DAY_SHORT[d.getDay()];
+}
+
 function TrendChart({ rows, compact = false }: { rows: TrendRow[]; compact?: boolean }) {
   const chartRows = rows.length ? rows : [{ label: "-", omzet: 0, transactions: 0 }];
   const width = 640;
@@ -715,7 +731,7 @@ function TrendChart({ rows, compact = false }: { rows: TrendRow[]; compact?: boo
               </circle>
               {labelIndexes.has(index) ? (
                 <text x={x} y={height - 12} textAnchor="middle" fontSize="12" fontWeight="700" fill="#475569">
-                  {row.label}
+                  {trendAxisLabel(row.label)}
                 </text>
               ) : null}
             </g>
@@ -931,10 +947,14 @@ function LowStockList({ rows, mobile = false }: { rows: LowStockRow[]; mobile?: 
     return (
       <div className="space-y-3">
         {rows.map((product) => (
-          <div key={product.id} className="rounded-2xl border border-slate-100 p-3">
+          <Link
+            key={product.id}
+            href={`/products?q=${encodeURIComponent(product.sku || product.name)}`}
+            className="block rounded-2xl border border-slate-100 p-3 transition hover:border-teal-200 hover:bg-slate-50 active:scale-[0.99] dark:border-slate-800 dark:hover:border-teal-500/40 dark:hover:bg-slate-900/60"
+          >
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-extrabold text-slate-950">{product.name}</p>
+                <p className="truncate text-sm font-extrabold text-slate-950 dark:text-white">{product.name}</p>
                 <p className="truncate text-xs font-semibold text-slate-500">{product.sku || "-"}</p>
               </div>
               <span
@@ -949,7 +969,7 @@ function LowStockList({ rows, mobile = false }: { rows: LowStockRow[]; mobile?: 
               </span>
             </div>
             <p className="mt-2 text-xs font-semibold text-slate-500">Minimum stok: {product.minimumStock}</p>
-          </div>
+          </Link>
         ))}
       </div>
     );
@@ -968,8 +988,15 @@ function LowStockList({ rows, mobile = false }: { rows: LowStockRow[]; mobile?: 
         </thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map((product) => (
-            <tr key={product.id}>
-              <td className="px-4 py-3 font-extrabold text-slate-950">{product.name}</td>
+            <tr key={product.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-900/60">
+              <td className="px-4 py-3 font-extrabold text-slate-950">
+                <Link
+                  href={`/products?q=${encodeURIComponent(product.sku || product.name)}`}
+                  className="text-teal-700 hover:underline dark:text-teal-300"
+                >
+                  {product.name}
+                </Link>
+              </td>
               <td className="px-4 py-3 font-semibold text-slate-500">{product.sku || "-"}</td>
               <td
                 className={cx(
@@ -1151,14 +1178,46 @@ function RecentTransactions({
 
 function MonthlySummary({ summary, mobile = false }: { summary: OwnerReportViewData["monthlySummary"]; mobile?: boolean }) {
   return (
-    <div className={cx("grid gap-3", mobile ? "grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-6")}>
-      {summary.items.map((item) => (
-        <div key={item.label} className={cx("rounded-2xl border p-4", toneClass[item.tone].border, toneClass[item.tone].soft)}>
-          <p className="text-xs font-bold text-slate-500">{item.label}</p>
-          <p className="mt-2 truncate text-lg font-extrabold text-slate-950">{item.value}</p>
-          <p className={cx("mt-2 text-xs font-semibold", toneClass[item.tone].text)}>Periode aktif</p>
-        </div>
-      ))}
+    <div className="min-w-0">
+      <p className="mb-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        {summary.subtitle}
+      </p>
+      <div className={cx("grid gap-3", mobile ? "grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-4")}>
+        {summary.rows.map((row) => {
+          const pct = row.changePercent;
+          const isGood =
+            pct === null || pct === 0
+              ? null
+              : (pct > 0 && row.goodWhenUp) || (pct < 0 && !row.goodWhenUp);
+          const deltaColor =
+            isGood === null
+              ? "text-slate-400 dark:text-slate-500"
+              : isGood
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400";
+          const arrow = pct === null || pct === 0 ? "" : pct > 0 ? "▲" : "▼";
+
+          return (
+            <div
+              key={row.label}
+              className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/60"
+            >
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{row.label}</p>
+              <p className="mt-2 break-words text-lg font-extrabold leading-tight text-slate-950 dark:text-white">
+                {row.currentValue}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className={cx("text-xs font-bold tabular-nums", deltaColor)}>
+                  {pct === null ? "Baru" : pct === 0 ? "Tetap" : `${arrow} ${Math.abs(pct)}%`}
+                </span>
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                  bln lalu: {row.previousValue}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1211,6 +1270,41 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
             <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{item.helper}</p>
           </div>
         ))}
+      </div>
+
+      {/* Laba Bersih = Laba Kotor - Pengeluaran Operasional */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-100 p-4 dark:border-slate-800">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Laba Kotor</p>
+          <p className="mt-2 text-lg font-extrabold text-slate-950 dark:text-slate-100">{summary.netProfit}</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Omzet Bersih − HPP</p>
+        </div>
+        <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-4 dark:border-rose-500/20 dark:bg-rose-500/10">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Pengeluaran Operasional</p>
+          <p className="mt-2 text-lg font-extrabold text-rose-700 dark:text-rose-300">− {summary.operatingExpenses}</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Listrik, gaji, dll</p>
+        </div>
+        <div
+          className={`rounded-2xl border p-4 ${
+            summary.netProfitNegative
+              ? "border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/15"
+              : "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/15"
+          }`}
+        >
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Laba Bersih</p>
+          <p
+            className={`mt-2 text-lg font-extrabold ${
+              summary.netProfitNegative
+                ? "text-rose-700 dark:text-rose-300"
+                : "text-emerald-700 dark:text-emerald-300"
+            }`}
+          >
+            {summary.netProfitAfterExpenses}
+          </p>
+          <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Setelah pengeluaran · Margin {summary.netMargin}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -1305,13 +1399,8 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
   );
 
   function canOpenKpi(kpi: KpiCard) {
-    if (kpi.id === "products-sold") {
-      return data.bestSellers.length > 0;
-    }
-
-    return ["gross", "returns", "net", "transactions", "atv", "purchase"].includes(
-      kpi.id,
-    );
+    // Semua kartu yang punya rincian (rows) bisa dibuka detailnya.
+    return kpi.rows.length > 0;
   }
 
   const filteredTransactions = useMemo(() => {
@@ -1384,21 +1473,9 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const savedSection = window.localStorage.getItem(REPORT_SECTION_PREFERENCE_KEY);
-
-      if (isDesktopReportTabId(savedSection)) {
-        setActiveReportSection(savedSection);
-
-        if (savedSection !== "ringkasan") {
-          scrollToSection(savedSection);
-        }
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
+  // Sengaja TIDAK memulihkan & scroll ke section terakhir saat halaman dibuka,
+  // supaya laporan selalu terbuka dari atas (bukan loncat ke tengah).
+  // Scroll hanya terjadi saat user mengklik tab secara sadar (selectReportSection).
 
   function selectReportSection(sectionId: DesktopReportTabId) {
     setActiveReportSection(sectionId);
@@ -2233,6 +2310,16 @@ function KpiDetailContent({
 }) {
   return (
     <div className="space-y-4">
+      {kpi.explain ? (
+        <div className="flex gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 dark:border-blue-500/20 dark:bg-blue-500/10">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white">
+            i
+          </span>
+          <p className="text-sm font-medium leading-relaxed text-blue-900 dark:text-blue-100">
+            {kpi.explain}
+          </p>
+        </div>
+      ) : null}
       <div className="space-y-3">
         {kpi.rows.map((row) => (
           <div
@@ -2276,6 +2363,15 @@ function KpiDetailContent({
 
       {kpi.id === "returns" ? <ReturnSummary summary={data.returnSummary} /> : null}
       {kpi.id === "purchase" ? <PurchasesList rows={data.recentPurchases} /> : null}
+      {kpi.id === "expenses" ? (
+        <Link
+          href="/expenses"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-[#fff] transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 active:scale-[0.99]"
+        >
+          Lihat Semua Pengeluaran
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
+      ) : null}
       {["gross", "net", "atv"].includes(kpi.id) ? (
         <div className="rounded-2xl border border-slate-100 p-3">
           <TrendChart rows={data.trend} compact />

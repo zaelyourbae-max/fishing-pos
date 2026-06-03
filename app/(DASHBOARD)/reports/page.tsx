@@ -4,6 +4,7 @@ import OwnerReportView, {
 import { requireReportsPage } from "@/lib/page-guards";
 import {
   LOW_STOCK_LIMIT,
+  getMonthlyComparison,
   getOwnerReportSummary,
   getOwnerReportTransactions,
   rupiah,
@@ -58,10 +59,6 @@ function parseInputDate(value: string | undefined, fallback: Date) {
   const parsed = new Date(`${value}T00:00:00`);
 
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
-}
-
-function formatMonthYear(date: Date) {
-  return formatDateID(date).slice(3);
 }
 
 function formatPercent(value: number) {
@@ -208,9 +205,17 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     from: rangeParams.from,
     to: rangeParams.to,
   };
-  const [report, transactions] = await Promise.all([
+  // Trend penjualan selalu 7 hari terakhir (independen dari periode laporan),
+  // supaya chart selalu punya banyak titik dan enak dibaca per hari.
+  const trendRange = {
+    from: startOfDay(addDays(new Date(), -6)),
+    to: endOfDay(new Date()),
+  };
+  const [report, transactions, monthlyComparison, trendTransactions] = await Promise.all([
     getOwnerReportSummary(range),
     getOwnerReportTransactions(2000, range),
+    getMonthlyComparison(),
+    getOwnerReportTransactions(2000, trendRange),
   ]);
   const grossOmzet = report.month.grossOmzet;
   const customerReturn = report.month.returnValue;
@@ -245,6 +250,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         helper: "Sebelum retur customer",
         tone: "emerald",
         icon: "chart",
+        explain:
+          "Total semua penjualan sebelum dikurangi retur. Ini uang masuk kotor dari jualan selama periode ini.",
         rows: [
           { label: "Omzet kotor", value: rupiah(grossOmzet), tone: "good" },
           { label: "Total transaksi", value: String(transactionCount) },
@@ -258,6 +265,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         helper: `${report.month.returnCount} retur customer`,
         tone: "rose",
         icon: "return",
+        explain:
+          "Nilai barang yang dikembalikan pelanggan selama periode ini. Semakin kecil angkanya, semakin baik.",
         rows: [
           { label: "Nilai retur customer", value: rupiah(customerReturn), tone: "danger" },
           { label: "Total retur", value: String(report.month.returnCount) },
@@ -271,6 +280,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         helper: "Omzet Kotor - Retur Customer",
         tone: "emerald",
         icon: "wallet",
+        explain:
+          "Omzet kotor setelah dikurangi retur pelanggan. Inilah omzet penjualan yang benar-benar bersih.",
         rows: [
           { label: "Omzet kotor", value: rupiah(grossOmzet) },
           { label: "Retur customer", value: rupiah(customerReturn), tone: "danger" },
@@ -284,6 +295,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         helper: "Transaksi selesai",
         tone: "blue",
         icon: "transaction",
+        explain:
+          "Berapa kali terjadi penjualan yang selesai pada periode ini. Daftar transaksinya bisa dilihat di bawah.",
         rows: [
           { label: "Total transaksi", value: String(transactionCount) },
           { label: "Payment tercatat", value: String(report.month.paymentSummary.length) },
@@ -297,6 +310,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         helper: "Avg. transaksi",
         tone: "violet",
         icon: "atv",
+        explain:
+          "ATV (Average Transaction Value) = rata-rata nilai belanja per transaksi (omzet dibagi jumlah transaksi). Makin tinggi, makin besar belanja tiap pelanggan.",
         rows: [
           { label: "Omzet kotor", value: rupiah(grossOmzet) },
           { label: "Total transaksi", value: String(transactionCount) },
@@ -310,6 +325,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         helper: "Data total qty belum tersedia",
         tone: "amber",
         icon: "purchase",
+        explain:
+          "Ringkasan produk yang terjual pada periode ini. Daftar produk terlaris ada di bawah.",
         rows: [
           { label: "Produk terlaris tercatat", value: String(report.bestSellers.length) },
           { label: "Catatan", value: "Total qty belum tersedia dari payload laporan" },
@@ -322,10 +339,27 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         helper: "Pembelian periode",
         tone: "amber",
         icon: "purchase",
+        explain:
+          "Total uang yang dikeluarkan untuk membeli/restok barang dari supplier selama periode ini.",
         rows: [
           { label: "Total pembelian", value: rupiah(purchaseTotal) },
           { label: "Retur supplier", value: rupiah(supplierReturn) },
           { label: "Net pembelian", value: rupiah(report.inventoryReturns.netPurchaseMonth) },
+        ],
+      },
+      {
+        id: "expenses",
+        title: "Pengeluaran Operasional",
+        value: rupiah(report.expenses.total),
+        helper: `${report.expenses.count} pengeluaran`,
+        tone: "rose",
+        icon: "return",
+        explain:
+          "Biaya operasional toko di luar pembelian barang — misalnya listrik, gaji, transport, sewa. Pakai tombol di bawah untuk lihat rinciannya per periode.",
+        rows: [
+          { label: "Total pengeluaran", value: rupiah(report.expenses.total), tone: "danger" },
+          { label: "Jumlah catatan", value: String(report.expenses.count) },
+          { label: "Periode", value: periodLabel },
         ],
       },
       ...(report.profit.hasUnitCostSnapshot
@@ -337,11 +371,19 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               helper: `Margin ${formatPercent(report.profit.marginPercent)}`,
               tone: "emerald" as const,
               icon: "profit" as const,
+              explain:
+                "Laba Kotor = Omzet bersih dikurangi modal barang yang terjual (HPP). Ini untung sebelum dipotong biaya operasional. Angka 'Laba bersih' di bawah sudah dipotong pengeluaran — itu untung yang sebenarnya masuk kantong.",
               rows: [
                 { label: "Omzet bersih", value: rupiah(report.profit.netRevenue), tone: "good" as const },
                 { label: "HPP bersih", value: rupiah(report.profit.netCogs) },
                 { label: "Laba kotor", value: rupiah(report.profit.netProfit), tone: "good" as const },
-                { label: "Margin", value: formatPercent(report.profit.marginPercent) },
+                { label: "Pengeluaran operasional", value: rupiah(report.profit.operatingExpenses), tone: "danger" as const },
+                {
+                  label: "Laba bersih",
+                  value: rupiah(report.profit.netProfitAfterExpenses),
+                  tone: report.profit.netProfitAfterExpenses < 0 ? ("danger" as const) : ("good" as const),
+                },
+                { label: "Margin bersih", value: formatPercent(report.profit.netMarginPercent) },
               ],
             },
           ]
@@ -439,15 +481,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     })),
     profitSummary: serializeProfitSummary(report.profit),
     monthlySummary: {
-      title: `Ringkasan Bulanan (${formatMonthYear(rangeParams.from)})`,
-      items: [
-        { label: "Omzet Kotor", value: rupiah(grossOmzet), tone: "emerald" },
-        { label: "Omzet Bersih", value: rupiah(netOmzet), tone: "emerald" },
-        { label: "Total Transaksi", value: String(transactionCount), tone: "blue" },
-        { label: "ATV", value: rupiah(report.month.averageTransaction), tone: "violet" },
-        { label: "Retur", value: rupiah(customerReturn), tone: "rose" },
-        { label: "Total Pembelian", value: rupiah(purchaseTotal), tone: "amber" },
-      ],
+      title: "Bulan Ini vs Bulan Lalu",
+      subtitle: `${monthlyComparison.thisMonthLabel} vs ${monthlyComparison.lastMonthLabel} — dibandingkan sampai tanggal ${monthlyComparison.cutoffDay}`,
+      rows: monthlyComparison.metrics.map((metric) => ({
+        label: metric.label,
+        currentValue: metric.isCurrency ? rupiah(metric.current) : String(metric.current),
+        previousValue: metric.isCurrency ? rupiah(metric.previous) : String(metric.previous),
+        changePercent: metric.changePercent,
+        goodWhenUp: metric.goodWhenUp,
+      })),
     },
     transactions: transactions.map((sale) => ({
       id: sale.id,
@@ -467,7 +509,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       itemCount: sale._count.items,
       returnCount: sale._count.returns,
     })),
-    trend: buildTrend(transactions, rangeParams.from, rangeParams.to),
+    trend: buildTrend(trendTransactions, trendRange.from, trendRange.to),
     cashiers: Array.from(new Set(transactions.map((sale) => sale.cashier.name))),
     paymentMethods: Array.from(
       new Set(transactions.map((sale) => sale.paymentMethod)),
