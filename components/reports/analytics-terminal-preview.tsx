@@ -202,8 +202,36 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
   // Ujung garis tak boleh MUNDUR ke belakang: kalau "sekarang" < transaksi terakhir
   // (terjadi di data CONTOH yang mengisi domain ke depan), pakai waktu transaksi terakhir.
   const headT = n ? Math.min(Math.max(nowT, points[n - 1].t), dEnd) : nowT;
-  // jendela minimum ~ 8 menit (atau full kalau rentang memang kecil)
-  const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / tSpan));
+  // ── Padatkan jeda kosong (jam tutup/sepi) seperti chart saham ──────────────
+  // Jeda > idleGap tanpa transaksi diciutkan jadi pemisah tipis (collapseTo), jadi
+  // "garis konsolidasi malam" yang panjang itu hilang. Data-driven: otomatis ikut
+  // jam buka/tutup yang berubah-ubah & weekend (lihat di mana ada/ tidak ada data).
+  const idleGap = 60 * 60 * 1000;     // >1 jam tanpa transaksi = dianggap tutup/sepi
+  const collapseTo = 10 * 60 * 1000;  // ditampilkan setara ~10 menit
+  const nodes: number[] = [dStart, ...(n ? points.map((p) => p.t) : []), headT];
+  for (let i = 1; i < nodes.length; i++) if (nodes[i] < nodes[i - 1]) nodes[i] = nodes[i - 1];
+  const cum: number[] = [0];
+  for (let i = 1; i < nodes.length; i++) {
+    const real = nodes[i] - nodes[i - 1];
+    cum[i] = cum[i - 1] + (real > idleGap ? collapseTo : real);
+  }
+  const totalVirt = cum[nodes.length - 1] || 1;
+  const realToVirt = (t: number) => {
+    if (t <= nodes[0]) return 0;
+    if (t >= nodes[nodes.length - 1]) return totalVirt;
+    let i = 1; while (i < nodes.length - 1 && nodes[i] < t) i++;
+    const a = nodes[i - 1], b = nodes[i], real = (b - a) || 1;
+    return cum[i - 1] + (cum[i] - cum[i - 1]) * ((t - a) / real);
+  };
+  const virtToReal = (v: number) => {
+    if (v <= 0) return nodes[0];
+    if (v >= totalVirt) return nodes[nodes.length - 1];
+    let i = 1; while (i < cum.length - 1 && cum[i] < v) i++;
+    const a = nodes[i - 1], b = nodes[i], vseg = (cum[i] - cum[i - 1]) || 1;
+    return a + (b - a) * ((v - cum[i - 1]) / vseg);
+  };
+  // jendela minimum zoom (~8 menit, relatif total waktu terpadatkan)
+  const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / totalVirt));
 
   // Reset zoom hanya saat periode (domain) berganti, BUKAN saat transaksi baru masuk
   // (transaksi baru cuma menambah titik di posisi jamnya, domain tetap).
@@ -216,10 +244,9 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
     return () => clearInterval(id);
   }, []);
 
-  const vw = view.b - view.a;
-  const vTmin = dStart + view.a * tSpan;
-  const vTspan = vw * tSpan || 1;
-  const x = (t: number) => pad.l + ((t - vTmin) / vTspan) * iw;
+  const vVmin = view.a * totalVirt;
+  const vVspan = (view.b - view.a) * totalVirt || 1;
+  const x = (t: number) => pad.l + ((realToVirt(t) - vVmin) / vVspan) * iw;
   const y = (a: number) => pad.t + (1 - (a - lo) / yRange) * plotH;
 
   // Path "step": MULAI dari 0 di awal periode, tahan datar, loncat naik/turun tiap
@@ -336,7 +363,8 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
   const lastIdx = n - 1;
   const zoomed = view.a > 0.0001 || view.b < 0.9999;
   const xLabelFracs = [0, 0.5, 1];
-  const withDateVisible = vTspan > 24 * 3600 * 1000;
+  // label waktu pakai waktu NYATA (dipetakan balik dari sumbu terpadatkan)
+  const withDateVisible = virtToReal(vVmin + vVspan) - virtToReal(vVmin) > 24 * 3600 * 1000;
 
   return (
     <div className="flex h-full flex-col">
@@ -432,7 +460,7 @@ function LiveCard({ points, active, demo, domainStart, domainEnd }: { points: Te
                 <span className="block text-[8px] font-bold opacity-80">{fmtClock(headT, false)}</span>
               </div>
               {xLabelFracs.map((fr) => (
-                <span key={`x${fr}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-[10px]" style={{ left: `${((pad.l + fr * iw) / W) * 100}%`, color: C.muted }}>{fmtClock(vTmin + fr * vTspan, withDateVisible)}</span>
+                <span key={`x${fr}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-[10px]" style={{ left: `${((pad.l + fr * iw) / W) * 100}%`, color: C.muted }}>{fmtClock(virtToReal(vVmin + fr * vVspan), withDateVisible)}</span>
               ))}
 
               {hover !== null ? (
