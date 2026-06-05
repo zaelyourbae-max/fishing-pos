@@ -117,9 +117,30 @@ function previousMonthStart(date: Date) {
 }
 
 function previousMonthEnd(date: Date) {
-  const next = new Date(date);
-  next.setDate(0);
-  next.setHours(23, 59, 59, 999);
+  // Dipotong sampai tanggal yang sama dengan bulan ini supaya perbandingan adil
+  // (mis. 1–6 vs 1–6), bukan membandingkan bulan berjalan dengan bulan lalu
+  // sebulan penuh. Dijaga tidak melebihi jumlah hari di bulan lalu.
+  const cutoffDay = date.getDate();
+  const lastDayPrevMonth = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    0,
+  ).getDate();
+  const day = Math.min(cutoffDay, lastDayPrevMonth);
+
+  return new Date(date.getFullYear(), date.getMonth() - 1, day, 23, 59, 59, 999);
+}
+
+// Salin "jam saat ini" ke tanggal lain — untuk membandingkan kemarin hanya
+// sampai jam yang sama dengan hari ini yang masih berjalan.
+function clampToTimeOfDay(dayStart: Date, timeSource: Date) {
+  const next = new Date(dayStart);
+  next.setHours(
+    timeSource.getHours(),
+    timeSource.getMinutes(),
+    timeSource.getSeconds(),
+    timeSource.getMilliseconds(),
+  );
 
   return next;
 }
@@ -350,11 +371,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const params = (await searchParams) ?? {};
   const selectedDate = parseSelectedDate(params.date);
   const selectedDateInput = dateInputValue(selectedDate);
+  const now = new Date();
+  // Apakah yang dilihat adalah hari ini yang masih berjalan? (bukan tanggal lampau)
+  const isLiveToday =
+    startOfDay(selectedDate).getTime() === startOfDay(now).getTime();
   const dayStart = startOfDay(selectedDate);
   const dayEnd = endOfDay(selectedDate);
   const priorDay = previousDay(selectedDate);
   const priorDayStart = startOfDay(priorDay);
-  const priorDayEnd = endOfDay(priorDay);
+  // Kalau hari ini masih berjalan, bandingkan kemarin HANYA sampai jam yang sama
+  // (mis. s/d jam 11:00) supaya adil — bukan kemarin sehari penuh.
+  const priorDayEnd = isLiveToday
+    ? clampToTimeOfDay(priorDayStart, now)
+    : endOfDay(priorDay);
   const monthStart = startOfMonth(selectedDate);
   const previousMonthFrom = previousMonthStart(selectedDate);
   const previousMonthTo = previousMonthEnd(selectedDate);
@@ -982,7 +1011,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         rows: [
           { label: "Omzet bulan berjalan", value: rupiah(grossMonth), tone: "good" },
           { label: "Transaksi bulan berjalan", value: String(salesMonth._count._all) },
-          { label: "Omzet bulan lalu", value: rupiah(grossPrevMonth) },
+          { label: "Omzet bln lalu (s/d tgl sama)", value: rupiah(grossPrevMonth) },
         ],
       },
     },

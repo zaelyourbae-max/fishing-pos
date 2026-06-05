@@ -67,7 +67,11 @@ export async function getOwnerReportTransactions(
   take = 200,
   range?: OwnerReportRange,
 ) {
-  const safeTake = Math.min(Math.max(take, 1), 200);
+  // Batas atas dinaikkan ke 5000: halaman Laporan Owner meminta 2000 (untuk
+  // tabel transaksi + grafik tren 7 hari). Sebelumnya dipaksa 200 sehingga di
+  // toko ramai grafik & daftar terpotong diam-diam. Default tetap 200 untuk
+  // pemanggil lain (ekspor PDF/Excel) yang sengaja minta sedikit.
+  const safeTake = Math.min(Math.max(take, 1), 5000);
   const where = finalSaleWhere(range, startOfMonth());
 
   const [sales, paymentMethods] = await Promise.all([
