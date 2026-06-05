@@ -153,8 +153,10 @@ export async function GET(req: Request) {
 
   const [report, transactions, returns] = await Promise.all([
     getOwnerReportSummary(),
-    getOwnerReportTransactions(),
-    getOwnerReportReturns(),
+    // Minta sampai 5000 baris supaya daftar transaksi & retur di file Excel
+    // tidak terpotong di bulan ramai (sebelumnya default 200).
+    getOwnerReportTransactions(5000),
+    getOwnerReportReturns(5000),
   ]);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Fishing POS";

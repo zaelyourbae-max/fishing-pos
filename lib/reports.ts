@@ -5,6 +5,18 @@ import { getSettings } from "@/lib/settings";
 
 export const LOW_STOCK_LIMIT = 10;
 
+// Batas jumlah baris RINCIAN transaksi yang ditampilkan per produk di tabel laba
+// (drill-down). TOTAL laba/HPP/omzet TIDAK dihitung dari daftar ini — diakumulasi
+// terpisah — jadi membatasi panjangnya aman & tidak mengubah angka. Tujuannya
+// memangkas beban laporan periode panjang (mis. tahunan) di layar.
+const PROFIT_DETAIL_ROW_LIMIT = 300;
+
+function takeRecent<T extends { createdAt: Date }>(rows: T[]) {
+  return [...rows]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, PROFIT_DETAIL_ROW_LIMIT);
+}
+
 export function startOfToday() {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
@@ -132,7 +144,9 @@ export async function getOwnerReportTransactions(
 }
 
 export async function getOwnerReportReturns(take = 200, range?: OwnerReportRange) {
-  const safeTake = Math.min(Math.max(take, 1), 200);
+  // Batas atas 5000 (sejalan dgn getOwnerReportTransactions) supaya daftar retur
+  // pada ekspor Excel tidak terpotong di bulan ramai. Default tetap 200.
+  const safeTake = Math.min(Math.max(take, 1), 5000);
 
   return prisma.saleReturn.findMany({
     where: {
@@ -305,7 +319,9 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       orderBy: {
         createdAt: "desc",
       },
-      take: 200,
+      // Pembelian/restok jauh lebih jarang dari penjualan, jadi 1000 cukup aman
+      // & ringan; sebelumnya 200 bisa memotong daftar pada periode panjang.
+      take: 1000,
       select: {
         id: true,
         purchaseNumber: true,
@@ -828,6 +844,8 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
         .sort((a, b) => b.profit - a.profit)
         .map((item) => ({
           ...item,
+          sales: takeRecent(item.sales),
+          returns: takeRecent(item.returns),
           marginPercent: marginPercent(item.profit, item.revenue),
         })),
       topProducts: Array.from(profitByProduct.values())
@@ -835,6 +853,8 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
         .slice(0, 5)
         .map((item) => ({
           ...item,
+          sales: takeRecent(item.sales),
+          returns: takeRecent(item.returns),
           marginPercent: marginPercent(item.profit, item.revenue),
         })),
     },

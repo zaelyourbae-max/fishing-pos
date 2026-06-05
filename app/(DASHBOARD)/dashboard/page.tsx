@@ -70,13 +70,21 @@ function dateInputValue(date: Date) {
 }
 
 function parseSelectedDate(value?: string) {
+  const now = new Date();
+
   if (!value) {
-    return new Date();
+    return now;
   }
 
   const date = new Date(`${value}T00:00:00`);
 
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+  if (Number.isNaN(date.getTime())) {
+    return now;
+  }
+
+  // Tanggal masa depan (mis. URL diketik manual) dikunci ke hari ini supaya
+  // dashboard tidak menampilkan periode kosong yang membingungkan.
+  return date > now ? now : date;
 }
 
 function startOfDay(date: Date) {
