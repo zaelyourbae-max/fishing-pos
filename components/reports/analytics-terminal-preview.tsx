@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { TerminalChartData, TerminalKpis, TerminalLivePoint, TerminalSpark } from "@/lib/analytics-terminal";
+import type { TerminalChartData, TerminalKpis, TerminalSpark } from "@/lib/analytics-terminal";
 import {
   Activity,
   ArrowDownRight,
@@ -10,17 +10,13 @@ import {
   CalendarRange,
   GitCompareArrows,
   Minus,
-  Radio,
-  RotateCcw,
   Sparkles,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 
 /* ──────────────────────────────────────────────────────────────────────────
-   PREVIEW MOCK — "Mode Analitik" ala Bloomberg / Binance.
+   "Mode Analitik" ala Bloomberg / Binance.
    Variasi chart banyak, bisa mode TUNGGAL atau PERBANDINGAN, ada custom rentang,
-   kartu 3D. Semua angka DATA CONTOH (dummy). Tidak terhubung ke data asli.
+   kartu 3D. DATA ASLI: kpis/chart datang dari props (lib/analytics-terminal).
    ────────────────────────────────────────────────────────────────────────── */
 
 const C = {
@@ -58,7 +54,7 @@ const styleChoices: { v: Style; label: string }[] = [
   { v: "spike", label: "Garis tajam" },
   { v: "bars", label: "Batang" },
   { v: "barline", label: "Batang + garis" },
-  { v: "volume", label: "Garis + volume" },
+  { v: "volume", label: "Garis + batang" },
 ];
 
 /* ── KPI ticker ──────────────────────────────────────────────────────────── */
@@ -100,415 +96,6 @@ function Spark({ data, color }: { data: number[]; color: string }) {
   return <svg width={w} height={h} className="overflow-visible"><polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
-/* ── MODE LIVE: grafik per-transaksi (papan saham intraday) ───────────────── */
-function fmtClock(t: number, withDate: boolean) {
-  const d = new Date(t);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return withDate ? `${d.getDate()}/${d.getMonth() + 1} ${hh}.${mm}` : `${hh}.${mm}`;
-}
-
-// Data CONTOH (dummy) untuk Mode Live — VISUAL SAJA, tidak menyentuh database.
-type DemoPreset = "ramai" | "harian" | "jam40" | "jam30" | "bebas7";
-
-function genDummyLive(domainStart: number, domainEnd: number, preset: DemoPreset): TerminalLivePoint[] {
-  const span = (domainEnd - domainStart) || 1;
-  const pts: TerminalLivePoint[] = [];
-  let seed = 24681357;
-  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-
-  if (preset === "ramai") {
-    // Dramatis: sesi buka 20rb + lika-liku, lalu sesi buka 200rb + lika-liku (~100 titik).
-    const session = (sf: number, wf: number, open: number, step: number, floor: number, count: number, label: string) => {
-      let v = open;
-      for (let i = 0; i < count; i++) {
-        const t = domainStart + span * (sf + wf * (i / count));
-        if (i > 0) v = Math.max(floor, v + (rnd() - 0.48) * step);
-        pts.push({ t: Math.round(t), amount: Math.round(v / 500) * 500, invoice: `${label}-${i + 1}` });
-      }
-    };
-    session(0.06, 0.40, 20000, 7000, 3000, 48, "DEMO-A");
-    session(0.50, 0.42, 200000, 42000, 25000, 52, "DEMO-B");
-    return pts;
-  }
-
-  if (preset === "harian") {
-    // Realistis sehari: ~40 transaksi, mayoritas receh + sesekali barang besar.
-    const count = 40;
-    for (let i = 0; i < count; i++) {
-      const t = domainStart + span * (0.06 + 0.88 * (i / (count - 1)));
-      const amt = rnd() < 0.15 ? 150000 + rnd() * 150000 : 10000 + rnd() * 60000;
-      pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${i + 1}` });
-    }
-    return pts;
-  }
-
-  if (preset === "bebas7") {
-    // Bebas: transaksi acak tersebar 7 hari terakhir dari domain (jam bebas),
-    // jumlah per hari & nominal sembarang. Untuk lihat tren mingguan.
-    const dayMs = 24 * 3600 * 1000;
-    const startT = Math.max(domainStart, domainEnd - 7 * dayMs);
-    const win = (domainEnd - startT) || 1;
-    const days = Math.max(1, Math.round(win / dayMs));
-    let idx = 0;
-    for (let d = 0; d < days; d++) {
-      const cnt = 15 + Math.floor(rnd() * 40);     // 15..54 transaksi/hari (bervariasi)
-      const recehMax = 20000 + rnd() * 50000;
-      for (let i = 0; i < cnt; i++) {
-        const t = startT + dayMs * (d + rnd());     // jam bebas sepanjang hari
-        if (t < domainStart || t > domainEnd) continue;
-        const amt = rnd() < 0.12 ? 100000 + rnd() * 200000 : 6000 + rnd() * recehMax;
-        pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${++idx}` });
-      }
-    }
-    pts.sort((a, b) => a.t - b.t);
-    return pts;
-  }
-
-  // "jam40" / "jam30": toko buka 08.00–18.00 tiap hari (nyambung ke hari berikutnya).
-  // Maks pembelian Rp100rb hanya 2x per hari, sisanya receh (Rp5rb–45rb).
-  // Tiap hari BERVARIASI: jumlah transaksi & nominal beda-beda. Maks ~Rp100rb 2x/hari.
-  const base = preset === "jam30" ? 30 : 40;
-  let idx = 0;
-  const day = new Date(domainStart); day.setHours(0, 0, 0, 0);
-  for (; day.getTime() <= domainEnd; day.setDate(day.getDate() + 1)) {
-    const openT = new Date(day); openT.setHours(8, 0, 0, 0);
-    const closeT = new Date(day); closeT.setHours(18, 0, 0, 0);
-    const dayLen = closeT.getTime() - openT.getTime();
-    const cnt = Math.max(6, Math.round(base * (0.4 + rnd() * 1.0)));  // mis. 30 → 12..42
-    const recehMax = 18000 + rnd() * 45000;                           // plafon receh hari ini
-    const bigVal = 70000 + rnd() * 35000;                             // barang besar hari ini (~70rb–105rb)
-    const big1 = Math.floor(cnt * (0.2 + rnd() * 0.2));
-    const big2 = Math.floor(cnt * (0.6 + rnd() * 0.25));
-    for (let i = 0; i < cnt; i++) {
-      const t = openT.getTime() + dayLen * ((i + rnd() * 0.6) / cnt);
-      if (t < domainStart || t > domainEnd) continue;
-      const amt = (i === big1 || i === big2) ? bigVal * (0.85 + rnd() * 0.3) : 4000 + rnd() * recehMax;
-      pts.push({ t: Math.round(t), amount: Math.round(amt / 500) * 500, invoice: `DEMO-${++idx}` });
-    }
-  }
-  return pts;
-}
-
-function LiveCard({ points, active, demo, viewKey, domainStart, domainEnd }: { points: TerminalLivePoint[]; active: boolean; demo?: boolean; viewKey?: string; domainStart: number; domainEnd: number }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const [view, setView] = useState<{ a: number; b: number }>({ a: 0, b: 1 });
-  const [clientNow, setClientNow] = useState<number | null>(null);
-  const wrap = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; moved: boolean } | null>(null);
-  const pinch = useRef<{ dist: number; frac: number } | null>(null);
-  const touched = useRef(false); // true setelah user zoom/geser manual
-  // Sumbu harga (Y) di KANAN seperti forex/TradingView → pad kanan lebar, kiri tipis.
-  const W = 760, H = 260, pad = { t: 20, r: 78, b: 32, l: 14 };
-  const iw = W - pad.l - pad.r;
-  const plotH = H - pad.t - pad.b;
-  const n = points.length;
-
-  // Domain waktu = PERIODE penuh (bukan sekadar rentang data). Jadi transaksi tampil
-  // di posisi jam aslinya & ada RUANG KOSONG di depan (waktu yang belum terjadi),
-  // persis aplikasi chart saham. Titik live jadi kelihatan dengan ruang di kanannya.
-  const validDomain = Number.isFinite(domainStart) && Number.isFinite(domainEnd) && domainEnd > domainStart;
-  const dStart = validDomain ? domainStart : (n ? points[0].t : 0);
-  const dEnd = validDomain ? domainEnd : (n ? points[n - 1].t : 1);
-  const tSpan = (dEnd - dStart) || 1;
-  // Skala harga SELALU mulai dari 0 di bawah (toko buka = harga 0), lalu naik
-  // mengikuti nilai penjualan. Tertinggi diberi sedikit bantalan di atas.
-  const amounts = n ? points.map((p) => p.amount) : [0];
-  const aMax = Math.max(...amounts, 0);
-  const lo = 0;
-  const hi = aMax > 0 ? aMax * 1.18 : 1;
-  const yRange = (hi - lo) || 1;
-  // "Sekarang" (ujung kanan garis = konsolidasi terkini). Dipakai dari state agar
-  // SSR & client cocok (hindari hydration mismatch dari Date.now() saat render).
-  const nowFallback = n ? points[n - 1].t : dEnd;
-  const nowT = Math.min(Math.max(clientNow ?? nowFallback, dStart), dEnd);
-  // Ujung garis tak boleh MUNDUR ke belakang: kalau "sekarang" < transaksi terakhir
-  // (terjadi di data CONTOH yang mengisi domain ke depan), pakai waktu transaksi terakhir.
-  const headT = n ? Math.min(Math.max(nowT, points[n - 1].t), dEnd) : nowT;
-  // ── Padatkan jeda kosong (jam tutup/sepi) seperti chart saham ──────────────
-  // Jeda > idleGap tanpa transaksi diciutkan jadi pemisah tipis (collapseTo), jadi
-  // "garis konsolidasi malam" yang panjang itu hilang. Data-driven: otomatis ikut
-  // jam buka/tutup yang berubah-ubah & weekend (lihat di mana ada/ tidak ada data).
-  const idleGap = 60 * 60 * 1000;     // >1 jam tanpa transaksi = dianggap tutup/sepi
-  const collapseTo = 10 * 60 * 1000;  // ditampilkan setara ~10 menit
-  const nodes: number[] = [dStart, ...(n ? points.map((p) => p.t) : []), headT];
-  for (let i = 1; i < nodes.length; i++) if (nodes[i] < nodes[i - 1]) nodes[i] = nodes[i - 1];
-  const cum: number[] = [0];
-  for (let i = 1; i < nodes.length; i++) {
-    const real = nodes[i] - nodes[i - 1];
-    cum[i] = cum[i - 1] + (real > idleGap ? collapseTo : real);
-  }
-  const totalVirt = cum[nodes.length - 1] || 1;
-  const realToVirt = (t: number) => {
-    if (t <= nodes[0]) return 0;
-    if (t >= nodes[nodes.length - 1]) return totalVirt;
-    let i = 1; while (i < nodes.length - 1 && nodes[i] < t) i++;
-    const a = nodes[i - 1], b = nodes[i], real = (b - a) || 1;
-    return cum[i - 1] + (cum[i] - cum[i - 1]) * ((t - a) / real);
-  };
-  const virtToReal = (v: number) => {
-    if (v <= 0) return nodes[0];
-    if (v >= totalVirt) return nodes[nodes.length - 1];
-    let i = 1; while (i < cum.length - 1 && cum[i] < v) i++;
-    const a = nodes[i - 1], b = nodes[i], vseg = (cum[i] - cum[i - 1]) || 1;
-    return a + (b - a) * ((v - cum[i - 1]) / vseg);
-  };
-  // jendela minimum zoom (~8 menit, relatif total waktu terpadatkan)
-  const MINW = Math.min(1, Math.max(1 / 4000, (8 * 60 * 1000) / totalVirt));
-
-  // Default tampilkan JENDELA NYAMAN (±90 titik terbaru), bukan semua dijejalkan ke
-  // satu layar. Sisanya bisa dilihat dgn zoom-out / geser — seperti aplikasi saham.
-  // Reset saat periode (domain) atau preset contoh berganti, BUKAN tiap transaksi baru.
-  useEffect(() => {
-    touched.current = false;     // kembali ke jendela-nyaman otomatis
-    setView({ a: 0, b: 1 });
-  }, [dStart, dEnd, viewKey]);
-
-  // Jam "sekarang" hidup di client → garis memanjang halus ke kanan tiap detik.
-  useEffect(() => {
-    setClientNow(Date.now());
-    const id = setInterval(() => setClientNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Jendela tampil: kalau belum disentuh user, default ~90 titik terbaru (lega).
-  // Setelah user zoom/geser, ikut view manual.
-  const target = 90;
-  const autoA = n > target ? Math.max(0, 1 - target / n) : 0;
-  const va = touched.current ? view.a : autoA;
-  const vb = touched.current ? view.b : 1;
-  const vVmin = va * totalVirt;
-  const vVspan = (vb - va) * totalVirt || 1;
-  const x = (t: number) => pad.l + ((realToVirt(t) - vVmin) / vVspan) * iw;
-  const y = (a: number) => pad.t + (1 - (a - lo) / yRange) * plotH;
-
-  // Path "step": MULAI dari 0 di awal periode, tahan datar, loncat naik/turun tiap
-  // transaksi, lalu tahan datar (konsolidasi) sampai "sekarang". Depan = kosong.
-  let linePath = "";
-  let areaPath = "";
-  if (n) {
-    const seg: string[] = [`M ${x(dStart)} ${y(0)}`];
-    for (let i = 0; i < n; i++) {
-      seg.push(`L ${x(points[i].t)} ${y(points[i].amount)}`); // sambung langsung antar transaksi (zig-zag/gigi gergaji)
-    }
-    seg.push(`L ${x(headT)} ${y(points[n - 1].amount)}`);       // tahan harga terakhir sampai sekarang (konsolidasi)
-    linePath = seg.join(" ");
-    const baseY = y(0);
-    areaPath = `${linePath} L ${x(headT)} ${baseY} L ${x(dStart)} ${baseY} Z`;
-  }
-
-  // frac 0..1 di area plot berdasar koordinat layar
-  function plotFrac(clientX: number) {
-    const r = wrap.current?.getBoundingClientRect();
-    if (!r) return 0.5;
-    const vx = ((clientX - r.left) / r.width) * W;
-    return Math.min(1, Math.max(0, (vx - pad.l) / iw));
-  }
-  function zoomAround(frac: number, factor: number) {
-    if (n <= 1) return;
-    const w = vb - va;
-    const nw = Math.min(1, Math.max(MINW, w * factor));
-    const center = va + frac * w;
-    let na = center - (center - va) * (nw / w);
-    let nb = na + nw;
-    if (na < 0) { na = 0; nb = nw; }
-    if (nb > 1) { nb = 1; na = 1 - nw; }
-    touched.current = true;
-    setView({ a: na, b: nb });
-  }
-  function panByPx(dxPx: number) {
-    const r = wrap.current?.getBoundingClientRect();
-    if (!r) return;
-    const plotPxW = r.width * (iw / W);
-    const w = vb - va;
-    const fd = (dxPx / plotPxW) * w;
-    let na = va - fd, nb = vb - fd;
-    if (na < 0) { na = 0; nb = w; }
-    if (nb > 1) { nb = 1; na = 1 - w; }
-    touched.current = true;
-    setView({ a: na, b: nb });
-  }
-  function nearestHover(clientX: number) {
-    const r = wrap.current?.getBoundingClientRect();
-    if (!r || !n) return;
-    const vx = ((clientX - r.left) / r.width) * W;
-    let best = 0, bestD = Infinity;
-    for (let i = 0; i < n; i++) { const d = Math.abs(x(points[i].t) - vx); if (d < bestD) { bestD = d; best = i; } }
-    setHover(best);
-  }
-
-  // wheel zoom (perlu non-passive agar bisa preventDefault scroll halaman)
-  useEffect(() => {
-    const el = wrap.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      // Zoom HANYA saat menahan Ctrl/⌘ (atau pinch trackpad yang mengirim ctrlKey).
-      // Tanpa itu, biarkan halaman scroll seperti biasa — supaya chart tidak
-      // "menculik" scroll halaman & tidak nge-zoom sendiri tanpa sengaja.
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      // anchor di KANAN (sekarang) seperti forex: zoom out membuka sejarah ke kiri
-      zoomAround(1, e.deltaY > 0 ? 1.18 : 1 / 1.18);
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n, MINW, tSpan, dStart]);
-
-  function onMouseDown(e: React.MouseEvent) { drag.current = { x: e.clientX, moved: false }; }
-  function onMouseMove(e: React.MouseEvent) {
-    if (drag.current) {
-      const dx = e.clientX - drag.current.x;
-      drag.current = { x: e.clientX, moved: true };
-      setHover(null);
-      panByPx(dx);
-    } else {
-      nearestHover(e.clientX);
-    }
-  }
-  function endDrag() { drag.current = null; }
-
-  function onTouchStart(e: React.TouchEvent) {
-    if (e.touches.length >= 2) {
-      const [a, b] = [e.touches[0], e.touches[1]];
-      pinch.current = { dist: Math.abs(a.clientX - b.clientX) || 1, frac: plotFrac((a.clientX + b.clientX) / 2) };
-    } else {
-      drag.current = { x: e.touches[0].clientX, moved: false };
-      nearestHover(e.touches[0].clientX);
-    }
-  }
-  function onTouchMove(e: React.TouchEvent) {
-    if (e.touches.length >= 2 && pinch.current) {
-      const [a, b] = [e.touches[0], e.touches[1]];
-      const dist = Math.abs(a.clientX - b.clientX) || 1;
-      zoomAround(pinch.current.frac, pinch.current.dist / dist);
-      pinch.current = { dist, frac: pinch.current.frac };
-    } else if (drag.current) {
-      const dx = e.touches[0].clientX - drag.current.x;
-      drag.current = { x: e.touches[0].clientX, moved: true };
-      panByPx(dx);
-    }
-  }
-  function endTouch() { drag.current = null; pinch.current = null; }
-
-  const lastIdx = n - 1;
-  const zoomed = va > 0.0001 || vb < 0.9999;
-  const xLabelFracs = [0, 0.5, 1];
-  // label waktu pakai waktu NYATA (dipetakan balik dari sumbu terpadatkan)
-  const withDateVisible = virtToReal(vVmin + vVspan) - virtToReal(vVmin) > 24 * 3600 * 1000;
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-col gap-2.5 border-b p-3 sm:p-4 lg:p-5" style={{ borderColor: C.border }}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              {active ? <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: C.up }} /> : null}
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: active ? C.up : C.muted }} />
-            </span>
-            <div>
-              <p className="flex items-center gap-1.5 text-sm font-extrabold lg:text-base xl:text-lg">Mode Live{demo ? <span className="rounded px-1.5 py-0.5 text-[9px] font-bold" style={{ background: C.gold + "22", color: C.gold, border: `1px solid ${C.gold}66` }}>CONTOH</span> : null}</p>
-              <p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>{demo ? "Data contoh — bukan transaksi asli" : "Tombol / cubit / Ctrl+scroll untuk zoom · geser untuk jalan"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {n > 1 ? (
-              <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
-                <button type="button" aria-label="Perkecil" onClick={() => zoomAround(1, 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomOut className="h-4 w-4" /></button>
-                <button type="button" aria-label="Perbesar" onClick={() => zoomAround(1, 1 / 1.4)} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: C.muted }}><ZoomIn className="h-4 w-4" /></button>
-                <button type="button" aria-label="Lihat semua" onClick={() => { touched.current = true; setView({ a: 0, b: 1 }); }} className="flex h-7 w-7 items-center justify-center rounded-md lg:h-8 lg:w-8" style={{ color: zoomed ? C.gold : C.muted }}><RotateCcw className="h-4 w-4" /></button>
-              </div>
-            ) : null}
-            <span className="rounded-lg px-2 py-1 text-[10px] font-bold lg:text-xs" style={{ background: C.up + "22", color: C.up, border: `1px solid ${C.up}55` }}>{n} transaksi</span>
-          </div>
-        </div>
-      </div>
-
-      {n === 0 ? (
-        <div className="flex flex-1 items-center justify-center px-3 py-12 text-center text-[12px]" style={{ color: C.muted }}>Belum ada transaksi pada periode ini.</div>
-      ) : (
-        <div className="flex-1 p-2 sm:p-3 lg:p-4">
-          <div className="relative h-full min-h-[230px] rounded-xl lg:min-h-[360px] xl:min-h-[440px]" style={inset}>
-            <div
-              ref={wrap}
-              className="relative h-full w-full select-none"
-              style={{ touchAction: "pan-y", cursor: drag.current ? "grabbing" : "grab" }}
-              onMouseDown={onMouseDown}
-              onMouseMove={onMouseMove}
-              onMouseUp={endDrag}
-              onMouseLeave={() => { endDrag(); setHover(null); }}
-              onTouchStart={onTouchStart}
-              onTouchMove={onTouchMove}
-              onTouchEnd={endTouch}
-            >
-              <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-                <defs>
-                  <linearGradient id="liveFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.up} stopOpacity="0.30" />
-                    <stop offset="60%" stopColor={C.up} stopOpacity="0.06" />
-                    <stop offset="100%" stopColor={C.up} stopOpacity="0" />
-                  </linearGradient>
-                  <linearGradient id="liveStroke" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#0ea5e9" />
-                    <stop offset="100%" stopColor={C.up} />
-                  </linearGradient>
-                  <clipPath id="livePlot"><rect x={pad.l} y={pad.t - 6} width={iw} height={plotH + 6} /></clipPath>
-                </defs>
-
-                {[0, 0.25, 0.5, 0.75, 1].map((p, i) => <line key={i} x1={pad.l} y1={pad.t + p * plotH} x2={W - pad.r} y2={pad.t + p * plotH} stroke={C.border} strokeWidth={1} vectorEffect="non-scaling-stroke" strokeDasharray="3 5" />)}
-
-                <g clipPath="url(#livePlot)">
-                  <path d={areaPath} fill="url(#liveFill)" />
-                  <path d={linePath} fill="none" stroke={C.up} strokeWidth={8} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
-                  <path d={linePath} fill="none" stroke="url(#liveStroke)" strokeWidth={2.4} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
-
-                  {/* titik live berdenyut di harga terkini (posisi "sekarang") */}
-                  <circle cx={x(headT)} cy={y(points[lastIdx].amount)} r={3.5} fill={C.up} />
-                  {active ? (
-                    <circle cx={x(headT)} cy={y(points[lastIdx].amount)} r={4} fill="none" stroke={C.up} strokeWidth={1.5} vectorEffect="non-scaling-stroke">
-                      <animate attributeName="r" values="4;16" dur="1.6s" repeatCount="indefinite" />
-                      <animate attributeName="opacity" values="0.7;0" dur="1.6s" repeatCount="indefinite" />
-                    </circle>
-                  ) : null}
-
-                  {hover !== null ? <>
-                    <line x1={x(points[hover].t)} y1={pad.t} x2={x(points[hover].t)} y2={pad.t + plotH} stroke={C.muted} strokeWidth={1} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
-                    <circle cx={x(points[hover].t)} cy={y(points[hover].amount)} r={3.5} fill={C.up} stroke={C.bg} strokeWidth={1.5} />
-                  </> : null}
-                </g>
-
-                {/* GARIS ORDER (harga sekarang) — selalu tampil penuh, tak ikut terpotong saat zoom */}
-                <line x1={pad.l} y1={y(points[lastIdx].amount)} x2={W - pad.r} y2={y(points[lastIdx].amount)} stroke={C.up} strokeWidth={1} strokeOpacity={0.75} vectorEffect="non-scaling-stroke" strokeDasharray="5 4" />
-              </svg>
-
-              {/* Label harga di KANAN (gaya forex) */}
-              {[1, 0.5, 0].map((p) => { const val = lo + p * yRange; return (
-                <span key={`y${p}`} className="pointer-events-none absolute z-[1] -translate-y-1/2 rounded px-1 text-[10px] font-semibold tabular-nums" style={{ right: 4, top: `${(y(val) / H) * 100}%`, background: C.panel, color: C.muted }}>{rpShort(val)}</span>
-              ); })}
-              {/* Tag harga sekarang di ujung garis order (kanan), selalu tampil */}
-              <div className="pointer-events-none absolute z-[3] -translate-y-1/2 rounded px-1.5 py-0.5 text-right text-[10px] font-extrabold leading-tight tabular-nums shadow-lg" style={{ right: 2, top: `${(y(points[lastIdx].amount) / H) * 100}%`, background: C.up, color: "#04121c" }}>
-                {rpShort(points[lastIdx].amount)}
-                <span className="block text-[8px] font-bold opacity-80">{fmtClock(headT, false)}</span>
-              </div>
-              {xLabelFracs.map((fr) => (
-                <span key={`x${fr}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-[10px]" style={{ left: `${((pad.l + fr * iw) / W) * 100}%`, color: C.muted }}>{fmtClock(virtToReal(vVmin + fr * vVspan), withDateVisible)}</span>
-              ))}
-
-              {hover !== null ? (
-                <div className="pointer-events-none absolute top-2 z-10 rounded-lg border px-3 py-2 text-[11px] shadow-xl" style={{ left: `${Math.min(82, Math.max(14, (x(points[hover].t) / W) * 100))}%`, transform: "translateX(-50%)", background: C.panel2, borderColor: C.border, color: C.text }}>
-                  <p className="font-bold">{fmtClock(points[hover].t, true)}</p>
-                  <p style={{ color: C.up }}>{rpShort(points[hover].amount)}</p>
-                  <p style={{ color: C.muted }}>{points[hover].invoice}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── Chart serbaguna ────────────────────────────────────────────────────── */
 function Chart({ style, labels, income, expense, unit, compare }: { style: Style; labels: string[]; income: number[]; expense: number[]; unit: Unit; compare: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -532,22 +119,31 @@ function Chart({ style, labels, income, expense, unit, compare }: { style: Style
   const volMax = Math.max(...(both ? expense : income)) * 1.2 || 1;
   const volY = (v: number) => pad.t + ih - (v / volMax) * (pad.t + ih - volTop);
 
+  // Garis bantu + label sumbu pakai SATU set tick yang sama (biar sinkron).
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  // gaya bergaris (bukan batang murni) → boleh diberi titik & penanda ujung.
+  const lineish = style === "line" || style === "spike" || style === "area" || style === "volume";
+  const showDots = n > 1 && n <= 31; // titik per data, tapi jangan saat datanya rapat.
+  const incW = 2.8, expW = 2.2; // pengeluaran sedikit lebih tipis → pemasukan jadi fokus.
+  // ganti key → animasi "menggambar" terputar ulang tiap ganti gaya/periode.
+  const animKey = `${style}-${both ? "c" : "s"}-${n}-${labels[0] ?? ""}-${labels[n - 1] ?? ""}`;
+
   function setFromX(clientX: number) {
     const r = wrap.current?.getBoundingClientRect(); if (!r) return;
     const frac = (((clientX - r.left) / r.width) * W - gx0) / iw;
     setHover(Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1)))));
   }
 
-  const area = (arr: number[], fillId: string, strokeId: string, glow: string) => (
+  const area = (arr: number[], fillId: string, strokeId: string, glow: string, w = incW) => (
     <>
-      <path d={`${smooth(XY(arr))} L ${x(n - 1)} ${plotBottom} L ${gx0} ${plotBottom} Z`} fill={`url(#${fillId})`} />
-      <path d={smooth(XY(arr))} fill="none" stroke={glow} strokeWidth={8} strokeOpacity={0.14} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-      <path d={smooth(XY(arr))} fill="none" stroke={`url(#${strokeId})`} strokeWidth={2.4} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+      <path className="chart-fade" d={`${smooth(XY(arr))} L ${x(n - 1)} ${plotBottom} L ${gx0} ${plotBottom} Z`} fill={`url(#${fillId})`} />
+      <path className="chart-fade" d={smooth(XY(arr))} fill="none" stroke={glow} strokeWidth={8} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+      <path className="chart-line" pathLength={1} d={smooth(XY(arr))} fill="none" stroke={`url(#${strokeId})`} strokeWidth={w} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
     </>
   );
 
   return (
-    <div ref={wrap} className="relative h-[210px] w-full select-none sm:h-[250px]" style={{ touchAction: "none" }} onMouseMove={(e) => setFromX(e.clientX)} onMouseLeave={() => setHover(null)} onTouchStart={(e) => setFromX(e.touches[0].clientX)} onTouchMove={(e) => setFromX(e.touches[0].clientX)}>
+    <div ref={wrap} className="relative h-[210px] w-full select-none sm:h-[250px]" style={{ touchAction: "pan-y" }} onMouseMove={(e) => setFromX(e.clientX)} onMouseLeave={() => setHover(null)} onTouchStart={(e) => setFromX(e.touches[0].clientX)} onTouchMove={(e) => setFromX(e.touches[0].clientX)}>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
         <defs>
           <linearGradient id="gi" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.income} stopOpacity="0.28" /><stop offset="55%" stopColor={C.income} stopOpacity="0.07" /><stop offset="100%" stopColor={C.income} stopOpacity="0" /></linearGradient>
@@ -558,35 +154,53 @@ function Chart({ style, labels, income, expense, unit, compare }: { style: Style
           <linearGradient id="be" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fb8392" stopOpacity="0.95" /><stop offset="100%" stopColor="#c52941" stopOpacity="0.55" /></linearGradient>
         </defs>
 
-        {[0, 0.25, 0.5, 0.75, 1].map((p, i) => <line key={i} x1={pad.l} y1={pad.t + p * plotH} x2={W - pad.r} y2={pad.t + p * plotH} stroke={C.border} strokeWidth={1} vectorEffect="non-scaling-stroke" strokeDasharray="3 5" />)}
+        {ticks.map((p, i) => <line key={i} x1={pad.l} y1={pad.t + p * plotH} x2={W - pad.r} y2={pad.t + p * plotH} stroke={C.border} strokeWidth={1} strokeOpacity={p === 1 ? 0.95 : 0.5} vectorEffect="non-scaling-stroke" strokeDasharray={p === 1 ? undefined : "2 7"} />)}
         {/* label sumbu dipindah ke HTML overlay (di bawah) supaya tidak distorsi di mobile */}
 
+        <g key={animKey}>
         {(style === "bars" || style === "barline") ? labels.map((_, i) => (
-          <g key={i}>
+          <g key={i} className="chart-rise" style={{ animationDelay: `${Math.min(i * 28, 420)}ms` }}>
             <rect x={both && style === "bars" ? cx(i) - bw - 1 : cx(i) - bw / 2} y={y(income[i])} width={bw} height={plotBottom - y(income[i])} rx={3} fill="url(#bi)" />
             {both && style === "bars" ? <rect x={cx(i) + 1} y={y(expense[i])} width={bw} height={plotBottom - y(expense[i])} rx={3} fill="url(#be)" /> : null}
           </g>
         )) : null}
-        {style === "barline" ? <><path d={smooth(XY(both ? expense : income))} fill="none" stroke={both ? C.expense : C.gold} strokeWidth={8} strokeOpacity={0.14} vectorEffect="non-scaling-stroke" strokeLinecap="round" /><path d={smooth(XY(both ? expense : income))} fill="none" stroke={both ? "url(#se)" : C.gold} strokeWidth={2.5} vectorEffect="non-scaling-stroke" strokeLinecap="round" /></> : null}
+        {style === "barline" ? <><path className="chart-fade" d={smooth(XY(both ? expense : income))} fill="none" stroke={both ? C.expense : C.gold} strokeWidth={8} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeLinecap="round" /><path className="chart-line" pathLength={1} d={smooth(XY(both ? expense : income))} fill="none" stroke={both ? "url(#se)" : C.gold} strokeWidth={both ? expW : 2.5} vectorEffect="non-scaling-stroke" strokeLinecap="round" /></> : null}
 
-        {style === "area" ? <>{area(income, "gi", "si", C.income)}{both ? area(expense, "ge", "se", C.expense) : null}</> : null}
+        {style === "area" ? <>{area(income, "gi", "si", C.income)}{both ? area(expense, "ge", "se", C.expense, expW) : null}</> : null}
         {style === "line" ? <>
-          <path d={smooth(XY(income))} fill="none" stroke={C.income} strokeWidth={8} strokeOpacity={0.14} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-          <path d={smooth(XY(income))} fill="none" stroke="url(#si)" strokeWidth={2.6} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-          {both ? <><path d={smooth(XY(expense))} fill="none" stroke={C.expense} strokeWidth={8} strokeOpacity={0.14} vectorEffect="non-scaling-stroke" strokeLinecap="round" /><path d={smooth(XY(expense))} fill="none" stroke="url(#se)" strokeWidth={2.6} vectorEffect="non-scaling-stroke" strokeLinecap="round" /></> : null}
+          <path className="chart-fade" d={smooth(XY(income))} fill="none" stroke={C.income} strokeWidth={8} strokeOpacity={0.14} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+          <path className="chart-line" pathLength={1} d={smooth(XY(income))} fill="none" stroke="url(#si)" strokeWidth={incW} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+          {both ? <><path className="chart-fade" d={smooth(XY(expense))} fill="none" stroke={C.expense} strokeWidth={8} strokeOpacity={0.10} vectorEffect="non-scaling-stroke" strokeLinecap="round" /><path className="chart-line" pathLength={1} d={smooth(XY(expense))} fill="none" stroke="url(#se)" strokeWidth={expW} vectorEffect="non-scaling-stroke" strokeLinecap="round" /></> : null}
         </> : null}
         {style === "spike" ? <>
-          <polyline points={XY(income).map((p) => p.join(",")).join(" ")} fill="none" stroke={C.income} strokeWidth={8} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeLinejoin="miter" />
-          <polyline points={XY(income).map((p) => p.join(",")).join(" ")} fill="none" stroke="url(#si)" strokeWidth={2.4} vectorEffect="non-scaling-stroke" strokeLinejoin="miter" />
-          {both ? <polyline points={XY(expense).map((p) => p.join(",")).join(" ")} fill="none" stroke="url(#se)" strokeWidth={2.4} vectorEffect="non-scaling-stroke" strokeLinejoin="miter" /> : null}
+          <polyline className="chart-fade" points={XY(income).map((p) => p.join(",")).join(" ")} fill="none" stroke={C.income} strokeWidth={8} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+          <polyline className="chart-line" pathLength={1} points={XY(income).map((p) => p.join(",")).join(" ")} fill="none" stroke="url(#si)" strokeWidth={incW} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+          {both ? <polyline className="chart-line" pathLength={1} points={XY(expense).map((p) => p.join(",")).join(" ")} fill="none" stroke="url(#se)" strokeWidth={expW} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" /> : null}
         </> : null}
 
         {usesVol ? <>
-          {(both ? expense : income).map((v, i) => <rect key={i} x={x(i) - bw / 2} y={volY(v)} width={bw} height={pad.t + ih - volY(v)} rx={2} fill={both ? "url(#be)" : C.vol} opacity={both ? 0.6 : 0.65} />)}
-          <path d={smooth(XY(income))} fill="none" stroke={C.income} strokeWidth={8} strokeOpacity={0.14} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-          <path d={smooth(XY(income))} fill="none" stroke="url(#si)" strokeWidth={2.6} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+          {(both ? expense : income).map((v, i) => <rect key={i} className="chart-rise" style={{ animationDelay: `${Math.min(i * 28, 420)}ms` }} x={x(i) - bw / 2} y={volY(v)} width={bw} height={pad.t + ih - volY(v)} rx={2} fill={both ? "url(#be)" : C.vol} opacity={both ? 0.6 : 0.65} />)}
+          <path className="chart-fade" d={smooth(XY(income))} fill="none" stroke={C.income} strokeWidth={8} strokeOpacity={0.14} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+          <path className="chart-line" pathLength={1} d={smooth(XY(income))} fill="none" stroke="url(#si)" strokeWidth={incW} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
           <line x1={pad.l} y1={volTop} x2={W - pad.r} y2={volTop} stroke={C.border} strokeWidth={1} vectorEffect="non-scaling-stroke" />
         </> : null}
+
+        {/* titik per data — biar hari sepi/Rp 0 tetap kelihatan ada datanya */}
+        {showDots && lineish ? XY(income).map(([px, py], i) => (
+          <circle key={`di${i}`} className="chart-fade" cx={px} cy={py} r={2.4} fill={C.income} stroke={C.bg} strokeWidth={1} />
+        )) : null}
+        {showDots && lineish && both ? XY(expense).map(([px, py], i) => (
+          <circle key={`de${i}`} className="chart-fade" cx={px} cy={py} r={2.4} fill={C.expense} stroke={C.bg} strokeWidth={1} />
+        )) : null}
+
+        {/* penanda titik terakhir (pemasukan) — supaya ujung garis tidak menggantung */}
+        {lineish && n > 0 ? (
+          <g className="chart-fade">
+            <circle cx={x(n - 1)} cy={y(income[n - 1])} r={6} fill={C.income} opacity={0.18} />
+            <circle cx={x(n - 1)} cy={y(income[n - 1])} r={3.2} fill={C.income} stroke={C.bg} strokeWidth={1.5} />
+          </g>
+        ) : null}
+        </g>
 
         {hover !== null ? <>
           <line x1={cx(hover)} y1={pad.t} x2={cx(hover)} y2={pad.t + ih} stroke={C.muted} strokeWidth={1} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
@@ -595,15 +209,15 @@ function Chart({ style, labels, income, expense, unit, compare }: { style: Style
         </> : null}
       </svg>
 
-      {[1, 0.5, 0].map((p, i) => (
-        <span key={`y${i}`} className="pointer-events-none absolute z-[1] -translate-y-1/2 rounded px-1 text-[10px] font-semibold tabular-nums" style={{ left: 2, top: `${(y(max * p) / H) * 100}%`, background: C.panel, color: C.muted }}>{rpShort(unitVal(max * p, unit))}</span>
+      {ticks.map((t, i) => (
+        <span key={`y${i}`} className="pointer-events-none absolute z-[1] -translate-y-1/2 rounded px-1 text-xs font-semibold tabular-nums" style={{ left: 2, top: `${((pad.t + t * plotH) / H) * 100}%`, background: C.panel, color: "#aab6c9" }}>{rpShort(unitVal(max * (1 - t), unit))}</span>
       ))}
       {labels.map((lb, i) => (i % labelStep === 0 || i === n - 1) ? (
-        <span key={`x${i}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-[10px]" style={{ left: `${(cx(i) / W) * 100}%`, color: C.muted }}>{lb}</span>
+        <span key={`x${i}`} className="pointer-events-none absolute bottom-0 -translate-x-1/2 text-xs font-medium" style={{ left: `${(cx(i) / W) * 100}%`, color: "#aab6c9" }}>{lb}</span>
       ) : null)}
 
       {hover !== null ? (
-        <div className="pointer-events-none absolute top-2 z-10 rounded-lg border px-3 py-2 text-[11px] shadow-xl" style={{ left: `${Math.min(88, Math.max(12, (cx(hover) / W) * 100))}%`, transform: "translateX(-50%)", background: C.panel2, borderColor: C.border, color: C.text }}>
+        <div className="pointer-events-none absolute top-2 z-10 rounded-lg border px-3 py-2 text-sm shadow-xl" style={{ left: `${Math.min(88, Math.max(12, (cx(hover) / W) * 100))}%`, transform: "translateX(-50%)", background: C.panel2, borderColor: C.border, color: C.text }}>
           <p className="font-bold">{labels[hover]}</p>
           <p style={{ color: C.income }}>{compare ? "Pemasukan" : "Nilai"}: {rpShort(unitVal(income[hover], unit))}</p>
           {compare ? <><p style={{ color: C.expense }}>Pengeluaran: {rpShort(unitVal(expense[hover], unit))}</p><p className="font-semibold" style={{ color: income[hover] - expense[hover] >= 0 ? C.up : C.down }}>Selisih: {rpShort(unitVal(income[hover] - expense[hover], unit))}</p></> : null}
@@ -634,30 +248,29 @@ function buildTickers(k: TerminalKpis, sp: TerminalSpark): Ticker[] {
     money("Omzet Kotor", "up", c.grossRevenue, p.grossRevenue, sp.grossRevenue),
     count("Total Transaksi", "up", c.transactions, p.transactions, sp.transactions),
     count("Produk Terjual", "up", c.itemsSold, p.itemsSold, sp.itemsSold),
-    money("ATV", "up", c.atv, p.atv, atvSpark),
+    money("Rata-rata Belanja", "up", c.atv, p.atv, atvSpark),
     money("Total Retur", "down", c.returnsValue, p.returnsValue, sp.returnsValue),
     money("Total Pembelian", "neutral", c.purchases, p.purchases, sp.purchases),
   ];
 }
 
-function buildTodayVsYesterday(k: TerminalKpis): { name: string; today: number; yest: number; isCount?: boolean; invert?: boolean }[] {
-  const t = k.today, y = k.yesterday;
+function buildTodayVsYesterday(k: TerminalKpis): { name: string; today: number; yest: number; yestSoFar: number; isCount?: boolean; invert?: boolean }[] {
+  const t = k.today, y = k.yesterday, ys = k.yesterdaySoFar;
   return [
-    { name: "Omzet", today: t.netRevenue, yest: y.netRevenue },
-    { name: "Transaksi", today: t.transactions, yest: y.transactions, isCount: true },
-    { name: "Pemasukan", today: t.grossRevenue, yest: y.grossRevenue },
-    { name: "Pengeluaran", today: t.purchases, yest: y.purchases, invert: true },
+    { name: "Omzet", today: t.netRevenue, yest: y.netRevenue, yestSoFar: ys.netRevenue },
+    { name: "Transaksi", today: t.transactions, yest: y.transactions, yestSoFar: ys.transactions, isCount: true },
+    { name: "Pemasukan", today: t.grossRevenue, yest: y.grossRevenue, yestSoFar: ys.grossRevenue },
+    { name: "Pengeluaran", today: t.purchases, yest: y.purchases, yestSoFar: ys.purchases, invert: true },
   ];
 }
 
 type Props = {
   kpis: TerminalKpis;
   chart: TerminalChartData;
-  live: TerminalLivePoint[];
   period: { from: string; to: string };
 };
 
-export default function AnalyticsTerminalPreview({ kpis, chart, live, period: initialPeriod }: Props) {
+export default function AnalyticsTerminalPreview({ kpis, chart, period: initialPeriod }: Props) {
   const router = useRouter();
   // 3 grafik (Harian/Bulanan/Tahunan) dari data asli, semuanya mengikuti periode.
   const sections: Section[] = chart.series.map((s) => ({
@@ -673,53 +286,39 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
   }));
 
   const [flipped, setFlipped] = useState(true);
-  const [compare, setCompare] = useState(true);
-  const [liveMode, setLiveMode] = useState(false);
-  const [demo, setDemo] = useState(false);
-  const [demoPreset, setDemoPreset] = useState<DemoPreset>("harian");
-  const [livePoints, setLivePoints] = useState(live);
+  // Default Mode Tunggal (bukan Perbandingan) — owner ingin tampilan tunggal dulu.
+  const [compare, setCompare] = useState(false);
+  // Jam "sekarang" untuk keterangan "hari ini baru sampai jam ...". null saat SSR
+  // (hindari hydration mismatch dari jam server vs client), terisi setelah mount.
+  const [nowLabel, setNowLabel] = useState<string | null>(null);
   const [styles, setStyles] = useState<Record<string, Style>>({});
   // Periode global: dipakai server untuk mengambil data. Diatur lewat URL (?from&to).
   const today = new Date();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  // Awal minggu ini (Senin). getDay(): 0=Min..6=Sab → mundur ke Senin terdekat.
+  const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+  // Bulan lalu: tgl 1 s/d hari terakhir bulan lalu (hari 0 bulan ini).
+  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const period = initialPeriod;
   const setPeriod = (next: { from: string; to: string }) => {
     router.push(`/reports/preview?from=${next.from}&to=${next.to}`);
   };
 
-  // Domain waktu untuk Mode Live (epoch ms) + data CONTOH (dummy) untuk demo.
-  const domainStart = useMemo(() => new Date(`${period.from}T00:00:00`).getTime(), [period.from]);
-  const domainEnd = useMemo(() => new Date(`${period.to}T23:59:59.999`).getTime(), [period.to]);
-  const dummyPoints = useMemo(() => genDummyLive(domainStart, domainEnd, demoPreset), [domainStart, domainEnd, demoPreset]);
-
-  // Sinkron ulang titik Live saat periode berganti (server kirim prop baru).
-  useEffect(() => { setLivePoints(live); }, [live]);
-
-  // Polling saat Mode Live aktif: transaksi baru muncul sendiri tiap ~9 detik
-  // tanpa reload halaman. Berhenti saat Mode Live dimatikan atau tab disembunyikan.
+  // Jam "sekarang" untuk keterangan perbandingan (diperbarui tiap menit).
   useEffect(() => {
-    if (!liveMode) return;
-    let alive = true;
-    const tick = async () => {
-      if (document.hidden) return;
-      try {
-        const res = await fetch(`/api/reports/terminal-live?from=${period.from}&to=${period.to}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (alive && Array.isArray(data.points)) setLivePoints(data.points as TerminalLivePoint[]);
-      } catch {
-        /* abaikan error jaringan sesaat; coba lagi di tick berikutnya */
-      }
-    };
-    const id = setInterval(tick, 9000);
-    tick();
-    return () => { alive = false; clearInterval(id); };
-  }, [liveMode, period.from, period.to]);
+    const set = () => { const d = new Date(); setNowLabel(`${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}`); };
+    set();
+    const id = setInterval(set, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   // angka KPI & "Hari ini vs Kemarin" dari data asli
   const tickers = buildTickers(kpis, chart.spark);
   const todayVsYesterday = buildTodayVsYesterday(kpis);
+  // Periode terpilih mencakup hari ini? (string ISO yyyy-mm-dd bisa dibanding langsung)
+  const includesToday = period.to >= iso(today);
 
   // Saat Mode Analitik aktif, gelapkan latar seluruh halaman (shell + root) supaya
   // terminal menyatu dengan background. Dipulihkan saat kembali ke Tampilan Normal.
@@ -770,31 +369,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                 <Activity className="h-5 w-5 shrink-0 lg:h-6 lg:w-6" style={{ color: C.gold }} />
                 <span className="text-base font-extrabold tracking-wide sm:text-lg lg:text-2xl xl:text-3xl">Terminal Analitik</span>
               </div>
-              <div className="flex w-fit items-center gap-2">
-                {/* tombol Mode Live — flip kartu Chart Harian jadi grafik per-transaksi */}
-                <button type="button" onClick={() => setLiveMode((v) => !v)} className="inline-flex h-9 w-fit items-center gap-2 rounded-xl px-3 text-xs font-bold transition-colors lg:h-11 lg:gap-2.5 lg:rounded-2xl lg:px-5 lg:text-sm" style={{ background: liveMode ? C.up + "22" : C.panel2, color: liveMode ? C.up : C.muted, border: `1px solid ${liveMode ? C.up + "55" : C.border}` }}>
-                  <Radio className="h-4 w-4 lg:h-5 lg:w-5" />
-                  Mode Live
-                </button>
-                {liveMode ? (
-                  <button type="button" onClick={() => setDemo((v) => !v)} className="inline-flex h-9 w-fit items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-colors lg:h-11 lg:rounded-2xl lg:px-4 lg:text-sm" style={{ background: demo ? C.gold + "22" : C.panel2, color: demo ? C.gold : C.muted, border: `1px solid ${demo ? C.gold + "55" : C.border}` }}>
-                    <Sparkles className="h-4 w-4 lg:h-5 lg:w-5" />
-                    Contoh
-                  </button>
-                ) : null}
-                {liveMode && demo ? (
-                  <div className="flex flex-wrap items-center gap-1 rounded-xl p-0.5 lg:rounded-2xl" style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
-                    {([
-                      { v: "ramai", label: "Ramai 100x" },
-                      { v: "harian", label: "Santai 40x" },
-                      { v: "jam40", label: "Buka 40x" },
-                      { v: "jam30", label: "Buka 30x" },
-                      { v: "bebas7", label: "Bebas 7hari" },
-                    ] as { v: DemoPreset; label: string }[]).map((opt) => (
-                      <button key={opt.v} type="button" onClick={() => setDemoPreset(opt.v)} className="rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors lg:px-3 lg:py-1.5 lg:text-xs" style={{ background: demoPreset === opt.v ? C.gold + "22" : "transparent", color: demoPreset === opt.v ? C.gold : C.muted }}>{opt.label}</button>
-                    ))}
-                  </div>
-                ) : null}
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-fit">
                 {/* toggle Perbandingan / Tunggal */}
                 <button type="button" onClick={() => setCompare((v) => !v)} className="inline-flex h-9 w-fit items-center gap-2 rounded-xl px-3 text-xs font-bold transition-colors lg:h-11 lg:gap-2.5 lg:rounded-2xl lg:px-5 lg:text-sm" style={{ background: compare ? C.income + "22" : C.panel2, color: compare ? C.income : C.muted, border: `1px solid ${compare ? C.income + "55" : C.border}` }}>
                   <GitCompareArrows className="h-4 w-4 lg:h-5 lg:w-5" />
@@ -809,20 +384,24 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                 <CalendarRange className="h-4 w-4 shrink-0 lg:h-5 lg:w-5" style={{ color: C.gold }} />
                 <span className="text-xs font-bold lg:text-sm xl:text-base" style={{ color: C.muted }}>Periode laporan</span>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <input type="date" value={period.from} max={period.to} onChange={(e) => setPeriod({ ...period, from: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none lg:h-9 lg:text-xs lg:px-3" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
+              <div className="flex flex-col gap-2 sm:items-end">
+                <div className="flex items-center gap-1.5">
+                <input type="date" value={period.from} max={period.to} onChange={(e) => setPeriod({ ...period, from: e.target.value })} className="h-9 rounded-lg px-2 text-xs font-semibold outline-none lg:h-10 lg:text-sm lg:px-3" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
                 <span style={{ color: C.muted }}>–</span>
-                <input type="date" value={period.to} min={period.from} max={iso(today)} onChange={(e) => setPeriod({ ...period, to: e.target.value })} className="h-8 rounded-lg px-2 text-[11px] font-semibold outline-none lg:h-9 lg:text-xs lg:px-3" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
-                <span className="ml-1 flex flex-wrap items-center gap-1.5">
+                <input type="date" value={period.to} min={period.from} max={iso(today)} onChange={(e) => setPeriod({ ...period, to: e.target.value })} className="h-9 rounded-lg px-2 text-xs font-semibold outline-none lg:h-10 lg:text-sm lg:px-3" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}`, colorScheme: "dark" }} />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
                   {([
                     { label: "Hari Ini", from: iso(today), to: iso(today) },
+                    { label: "Minggu Ini", from: iso(weekStart), to: iso(today) },
                     { label: "Bulan Ini", from: iso(monthStart), to: iso(today) },
+                    { label: "Bulan Lalu", from: iso(lastMonthStart), to: iso(lastMonthEnd) },
                     { label: "Tahun Ini", from: iso(new Date(today.getFullYear(), 0, 1)), to: iso(today) },
                   ] as const).map((q) => {
                     const on = period.from === q.from && period.to === q.to;
-                    return <button key={q.label} type="button" onClick={() => setPeriod({ from: q.from, to: q.to })} className="rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors lg:px-3 lg:py-1.5 lg:text-xs" style={{ background: on ? C.gold + "22" : "transparent", color: on ? C.gold : C.muted, border: `1px solid ${on ? C.gold + "55" : C.border}` }}>{q.label}</button>;
+                    return <button key={q.label} type="button" onClick={() => setPeriod({ from: q.from, to: q.to })} className="rounded-full px-3 py-1.5 text-xs font-bold transition-colors lg:px-4 lg:py-2 lg:text-sm" style={{ background: on ? C.gold + "22" : "transparent", color: on ? C.gold : C.muted, border: `1px solid ${on ? C.gold + "55" : C.border}` }}>{q.label}</button>;
                   })}
-                </span>
+                </div>
               </div>
             </div>
 
@@ -837,29 +416,39 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                       <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold lg:text-sm" style={{ background: col + "22", color: col }}>{t.goodWhen === "neutral" ? <Minus className="h-3 w-3" /> : up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}{up ? "+" : ""}{t.changePct}%</span>
                     </div>
                     {t.high && t.low ? (
-                      <div className="mt-2 flex items-center justify-between text-[10px] lg:text-xs" style={{ color: C.muted }}><span>Tertinggi {t.high}</span><span>Terendah {t.low}</span></div>
+                      <div className="mt-2 flex items-center justify-between text-xs lg:text-sm" style={{ color: C.muted }}><span>Tertinggi {t.high}</span><span>Terendah {t.low}</span></div>
                     ) : t.sub ? (
-                      <div className="mt-2 text-[10px] lg:text-xs" style={{ color: C.muted }}>{t.sub}</div>
+                      <div className="mt-2 text-xs lg:text-sm" style={{ color: C.muted }}>{t.sub}</div>
                     ) : null}
                   </div>
                 );
               })}
             </div>
+            {includesToday ? (
+              <p className="px-3 pb-1 text-xs sm:px-4 lg:px-5" style={{ color: C.muted }}>Periode ini belum selesai — persentase dibandingkan periode sebelumnya yang sama panjang.</p>
+            ) : null}
 
             {/* Hari ini vs Kemarin */}
             <div className="px-3 sm:px-4">
               <div className="rounded-2xl p-3 sm:p-4" style={card3d}>
-                <p className="mb-2 text-sm font-extrabold lg:text-base xl:text-lg">Hari Ini vs Kemarin</p>
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                  <p className="text-sm font-extrabold lg:text-base xl:text-lg">Hari Ini vs Kemarin</p>
+                  {nowLabel ? <p className="text-xs lg:text-sm" style={{ color: C.muted }}>Dibandingkan kemarin sampai jam {nowLabel}</p> : null}
+                </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {todayVsYesterday.map((m) => {
-                    const diff = m.today - m.yest, pct = m.yest ? (diff / m.yest) * 100 : 0;
+                    // Perbandingan ADIL: hari ini (berjalan) vs kemarin s/d jam yang sama.
+                    const diff = m.today - m.yestSoFar, pct = m.yestSoFar ? (diff / m.yestSoFar) * 100 : 0;
                     const good = m.invert ? diff <= 0 : diff >= 0, col = good ? C.up : C.down;
                     const fmt = (v: number) => (m.isCount ? String(v) : rpShort(v));
                     return (
                       <div key={m.name} className="rounded-xl p-2.5 lg:p-4" style={inset}>
-                        <p className="text-[11px] font-bold lg:text-xs xl:text-sm" style={{ color: C.muted }}>{m.name}</p>
-                        <p className="mt-1 text-base font-extrabold lg:text-xl xl:text-2xl">{fmt(m.today)}</p>
-                        <div className="mt-1 flex items-center justify-between text-[10px] lg:text-xs" style={{ color: C.muted }}><span>Kmrn {fmt(m.yest)}</span><span className="font-bold" style={{ color: col }}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span></div>
+                        <p className="truncate text-xs font-bold lg:text-sm xl:text-base" style={{ color: C.muted }}>{m.name}</p>
+                        <div className="mt-1 flex items-end justify-between gap-1.5">
+                          <span className="truncate text-base font-extrabold lg:text-xl xl:text-2xl">{fmt(m.today)}</span>
+                          <span className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold lg:text-sm" style={{ background: col + "22", color: col }}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>
+                        </div>
+                        <p className="mt-1 text-xs leading-snug lg:text-sm" style={{ color: C.muted }}>Kemarin jam ini: {fmt(m.yestSoFar)}</p>
                       </div>
                     );
                   })}
@@ -877,34 +466,38 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                   <div className="h-full rounded-2xl" style={card3d}>
                     <div className="flex flex-col gap-2.5 border-b p-3 sm:p-4 lg:p-5" style={{ borderColor: C.border }}>
                       <div className="flex items-center justify-between gap-2">
-                        <div><p className="text-sm font-extrabold lg:text-base xl:text-lg">Chart {s.title}</p><p className="text-[11px] lg:text-xs" style={{ color: C.muted }}>{s.rangeNote}</p></div>
-                        <select value={st} onChange={(e) => setStyles((p) => ({ ...p, [s.id]: e.target.value as Style }))} className="h-8 rounded-lg px-2 text-[11px] font-bold outline-none lg:h-10 lg:px-3 lg:text-sm" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
+                        <div><p className="text-sm font-extrabold lg:text-base xl:text-lg">Chart {s.title}</p><p className="text-xs lg:text-sm" style={{ color: C.muted }}>{s.rangeNote}</p></div>
+                        <select value={st} onChange={(e) => setStyles((p) => ({ ...p, [s.id]: e.target.value as Style }))} className="h-9 rounded-lg px-2 text-xs font-bold outline-none lg:h-10 lg:px-3 lg:text-sm" style={{ background: C.panel2, color: C.text, border: `1px solid ${C.border}` }}>
                           {styleChoices.map((c) => <option key={c.v} value={c.v} style={{ background: C.panel }}>{c.label}</option>)}
                         </select>
                       </div>
-                      {compare ? <div className="flex flex-wrap items-center gap-3 text-[11px] lg:text-sm" style={{ color: C.muted }}><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full lg:h-2.5 lg:w-2.5" style={{ background: C.income }} />Pemasukan</span><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full lg:h-2.5 lg:w-2.5" style={{ background: C.expense }} />Pengeluaran</span></div> : null}
+                      {compare ? <div className="flex flex-wrap items-center gap-3 text-xs lg:text-sm" style={{ color: C.muted }}><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full lg:h-2.5 lg:w-2.5" style={{ background: C.income }} />Pemasukan</span><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full lg:h-2.5 lg:w-2.5" style={{ background: C.expense }} />Pengeluaran</span></div> : null}
                     </div>
 
                     {labels.length === 0 ? (
-                      <div className="px-3 py-10 text-center text-[12px]" style={{ color: C.muted }}>Belum ada data pada periode ini.</div>
+                      <div className="px-3 py-10 text-center text-sm" style={{ color: C.muted }}>Belum ada data pada periode ini.</div>
                     ) : (
                     <div className="px-2 pt-3 sm:px-3"><div className="rounded-xl px-1 py-2" style={inset}><Chart style={st} labels={labels} income={income} expense={expense} unit={s.unit} compare={compare} /></div></div>
                     )}
 
                     {compare ? (
                       <div className="grid grid-cols-3 gap-2 px-3 pt-3 sm:px-4 lg:gap-3 lg:px-5 lg:pt-4">
-                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-[10px] lg:text-xs xl:text-sm" style={{ color: C.muted }}>Pemasukan</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div>
-                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-[10px] lg:text-xs xl:text-sm" style={{ color: C.muted }}>Pengeluaran</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: C.expense }}>{rpShort(unitVal(totExp, s.unit))}</p></div>
-                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-[10px] lg:text-xs xl:text-sm" style={{ color: C.muted }}>Arus Kas</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: selisih >= 0 ? C.up : C.down }}>{rpShort(unitVal(selisih, s.unit))}</p></div>
+                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-xs lg:text-sm xl:text-base" style={{ color: C.muted }}>Pemasukan</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div>
+                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-xs lg:text-sm xl:text-base" style={{ color: C.muted }}>Pengeluaran</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: C.expense }}>{rpShort(unitVal(totExp, s.unit))}</p></div>
+                        <div className="rounded-xl px-2 py-2 text-center lg:px-4 lg:py-3" style={inset}><p className="text-xs lg:text-sm xl:text-base" style={{ color: C.muted }}>Arus Kas</p><p className="mt-0.5 text-sm font-bold tabular-nums lg:text-base xl:text-lg" style={{ color: selisih >= 0 ? C.up : C.down }}>{rpShort(unitVal(selisih, s.unit))}</p></div>
                       </div>
                     ) : (
-                      <div className="px-3 pt-3 sm:px-4 lg:px-5"><div className="rounded-xl px-3 py-2 text-center lg:py-3" style={inset}><p className="text-[10px] lg:text-xs" style={{ color: C.muted }}>Total {s.title}</p><p className="mt-0.5 text-base font-extrabold tabular-nums lg:text-xl" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div></div>
+                      <div className="px-3 pt-3 sm:px-4 lg:px-5"><div className="rounded-xl px-3 py-2 text-center lg:py-3" style={inset}><p className="text-xs lg:text-sm" style={{ color: C.muted }}>Total {s.title}</p><p className="mt-0.5 text-base font-extrabold tabular-nums lg:text-xl" style={{ color: C.income }}>{rpShort(unitVal(totInc, s.unit))}</p></div></div>
                     )}
+
+                    {compare ? (
+                      <p className="px-3 pt-2 text-xs leading-relaxed sm:px-4 lg:px-5" style={{ color: C.muted }}>Pemasukan = uang dari penjualan · Pengeluaran = beli stok + biaya operasional · Arus Kas = Pemasukan − Pengeluaran (retur pelanggan belum dipotong)</p>
+                    ) : null}
 
                     <div className="p-3 sm:p-4 lg:p-5">
                       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                        <p className="text-[11px] font-bold lg:text-sm" style={{ color: C.muted }}>Rincian per {UNIT_WORD[s.id]} (terbaru)</p>
-                        <p className="text-[10px] lg:text-xs" style={{ color: C.muted }}>{compare ? "Arus Kas = Masuk − Keluar" : `Tren = vs ${UNIT_WORD[s.id].toLowerCase()} sebelumnya`}</p>
+                        <p className="text-sm font-bold lg:text-base" style={{ color: C.muted }}>Rincian 6 {UNIT_WORD[s.id]} Terakhir</p>
+                        <p className="text-xs lg:text-sm" style={{ color: C.muted }}>{compare ? "Arus Kas = Masuk − Keluar" : `Tren = dibanding ${UNIT_WORD[s.id].toLowerCase()} sebelumnya`}</p>
                       </div>
                       {(() => {
                         // prev dihitung dari deret PENUH (bukan yang sudah dipotong zoom),
@@ -916,7 +509,7 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                           .slice(-6);
                         return (
                           <div className="overflow-hidden rounded-xl" style={inset}>
-                            <div className="grid items-center gap-2 px-3 py-2 text-[10px] font-bold uppercase tracking-wide lg:text-xs" style={{ color: C.muted, borderBottom: `1px solid ${C.border}`, gridTemplateColumns: cols }}>
+                            <div className="grid items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide lg:text-sm" style={{ color: C.muted, borderBottom: `1px solid ${C.border}`, gridTemplateColumns: cols }}>
                               <span>{UNIT_WORD[s.id]}</span>
                               <span className="text-right">Masuk</span>
                               {compare ? <span className="text-right">Keluar</span> : null}
@@ -942,19 +535,6 @@ export default function AnalyticsTerminalPreview({ kpis, chart, live, period: in
                     </div>
                   </div>
                 );
-                // Hanya kartu "harian" yang bisa di-flip ke Mode Live.
-                if (s.id === "harian") {
-                  return (
-                    <div key={s.id} className="[perspective:1800px]">
-                      <div className="grid transition-transform duration-700 ease-out [transform-style:preserve-3d]" style={{ transform: liveMode ? "rotateY(180deg)" : "rotateY(0deg)" }}>
-                        <div className="[grid-area:1/1] [backface-visibility:hidden]">{front}</div>
-                        <div className="[grid-area:1/1] [backface-visibility:hidden] [transform:rotateY(180deg)] overflow-hidden rounded-2xl" style={card3d}>
-                          <LiveCard points={demo ? dummyPoints : livePoints} active={liveMode} demo={demo} viewKey={demo ? demoPreset : "live"} domainStart={domainStart} domainEnd={domainEnd} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
                 return <div key={s.id}>{front}</div>;
               })}
             </div>

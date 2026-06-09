@@ -292,8 +292,10 @@ const mobileTabs = [
   { id: "penjualan", label: "Penjualan" },
   { id: "pembayaran", label: "Pembayaran" },
   { id: "produk", label: "Produk" },
+  { id: "laba-margin", label: "Laba" },
   { id: "retur", label: "Retur" },
   { id: "stok", label: "Stok" },
+  { id: "pembelian", label: "Pembelian" },
   { id: "bulanan", label: "Bulanan" },
 ] as const;
 
@@ -363,6 +365,10 @@ function rupiahCompact(value: number) {
   if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(1)}jt`;
   if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}rb`;
   return `Rp ${value}`;
+}
+
+function rupiahFull(value: number) {
+  return `Rp ${Math.round(value).toLocaleString("id-ID")}`;
 }
 
 function ownerReportPdfFilename(period: OwnerReportViewData["period"]) {
@@ -557,19 +563,19 @@ function MetricCard({
             : "cursor-default",
         )}
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-start gap-2">
           <span className={cx("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl", toneClass[kpi.tone].badge)}>
             <Icon className="h-4 w-4" />
           </span>
-          <p className="min-w-0 flex-1 text-xs font-bold leading-tight text-slate-500">{kpi.title}</p>
-          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold leading-none text-slate-500">
+          <p className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500">{kpi.title}</p>
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-blue-300 bg-blue-50 text-[11px] font-bold leading-none text-blue-600">
             i
           </span>
         </div>
-        <p className="mt-3 break-words text-lg font-extrabold leading-snug tracking-tight text-slate-950">
+        <p className="mt-2 break-words text-lg font-extrabold leading-tight tracking-tight text-slate-950 tabular-nums">
           {kpi.value}
         </p>
-        <p className={cx("mt-2 text-xs font-semibold leading-tight", toneClass[kpi.tone].text)}>
+        <p className={cx("mt-1.5 break-words text-[11px] font-semibold leading-snug", toneClass[kpi.tone].text)}>
           {kpi.helper}
         </p>
       </button>
@@ -598,21 +604,21 @@ function MetricCard({
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <p className="truncate text-xs font-bold text-slate-500">{kpi.title}</p>
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold leading-none text-slate-500">
+          <div className="flex min-w-0 items-start gap-1.5">
+            <p className="min-w-0 flex-1 text-sm font-bold leading-tight text-slate-500 dark:text-slate-400">{kpi.title}</p>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-blue-300 bg-blue-50 text-[11px] font-bold leading-none text-blue-600 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300">
               i
             </span>
           </div>
           <p
             className={cx(
-              "mt-1 font-extrabold tracking-tight text-slate-950",
-              "text-xl leading-snug",
+              "mt-1.5 break-words font-extrabold tracking-tight text-slate-950 dark:text-white",
+              "text-2xl leading-snug tabular-nums",
             )}
           >
             {kpi.value}
           </p>
-          <p className={cx("mt-2 line-clamp-2 text-xs font-semibold", toneClass[kpi.tone].text)}>
+          <p className={cx("mt-2 break-words text-sm font-semibold leading-snug", toneClass[kpi.tone].text)}>
             {kpi.helper}
           </p>
         </div>
@@ -639,9 +645,9 @@ function MainKpiCard({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-blue-100">{kpi.title}</p>
-          <p className="mt-2 text-2xl font-extrabold tracking-tight text-[#fff]">{kpi.value}</p>
-          <p className="mt-2 text-xs font-semibold text-blue-100">{kpi.helper}</p>
+          <p className="text-base font-semibold text-blue-100">{kpi.title}</p>
+          <p className="mt-2 break-words text-3xl font-extrabold tracking-tight text-[#fff] tabular-nums">{kpi.value}</p>
+          <p className="mt-2 text-sm font-semibold text-blue-100">{kpi.helper}</p>
         </div>
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-[#fff]">
           <Icon className="h-5 w-5" />
@@ -662,8 +668,24 @@ function trendAxisLabel(label: string) {
   return Number.isNaN(d.getTime()) ? label : DAY_SHORT[d.getDay()];
 }
 
+const MONTH_SHORT_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+// Deret trend BULANAN bila tiap titik jatuh di tanggal 1 (bucket per bulan dari
+// buildTrend untuk periode >31 hari). Deret harian pasti memuat tanggal > 1.
+function isMonthlyTrend(rows: TrendRow[]) {
+  return rows.length >= 2 && rows.every((row) => parseTrendLabelDate(row.label)?.day === 1);
+}
+
+// Label sumbu: harian → nama hari (Sen/Sel), bulanan → nama bulan (Jun '26).
+function trendAxisLabelFor(label: string, monthly: boolean) {
+  if (!monthly) return trendAxisLabel(label);
+  const parsed = parseTrendLabelDate(label);
+  return parsed ? `${MONTH_SHORT_ID[parsed.month - 1]} '${String(parsed.year).slice(2)}` : label;
+}
+
 function TrendChart({ rows, compact = false }: { rows: TrendRow[]; compact?: boolean }) {
   const chartRows = rows.length ? rows : [{ label: "-", omzet: 0, transactions: 0 }];
+  const monthly = isMonthlyTrend(chartRows);
   const width = 640;
   const height = compact ? 220 : 260;
   const padding = { top: 18, right: 16, bottom: 40, left: 54 };
@@ -727,11 +749,11 @@ function TrendChart({ rows, compact = false }: { rows: TrendRow[]; compact?: boo
           return (
             <g key={`${row.label}-${index}`}>
               <circle cx={x} cy={y} r="4.5" fill="#2563eb">
-                <title>{`${row.label}: ${rupiahCompact(row.omzet)} (${row.transactions} transaksi)`}</title>
+                <title>{`${trendAxisLabelFor(row.label, monthly)}: ${rupiahCompact(row.omzet)} (${row.transactions} transaksi)`}</title>
               </circle>
               {labelIndexes.has(index) ? (
                 <text x={x} y={height - 12} textAnchor="middle" fontSize="12" fontWeight="700" fill="#475569">
-                  {trendAxisLabel(row.label)}
+                  {trendAxisLabelFor(row.label, monthly)}
                 </text>
               ) : null}
             </g>
@@ -941,12 +963,19 @@ function ReturnSummary({ summary }: { summary: OwnerReportViewData["returnSummar
 }
 
 function LowStockList({ rows, mobile = false }: { rows: LowStockRow[]; mobile?: boolean }) {
+  // Mobile: tampilkan 3 produk paling kritis, sisanya dilipat agar hemat tempat.
+  const [expanded, setExpanded] = useState(false);
+
   if (!rows.length) return <EmptyState label="Tidak ada stok rendah saat ini." />;
 
   if (mobile) {
+    const PREVIEW_COUNT = 3;
+    const visibleRows = expanded ? rows : rows.slice(0, PREVIEW_COUNT);
+    const hiddenCount = rows.length - PREVIEW_COUNT;
+
     return (
       <div className="space-y-3">
-        {rows.map((product) => (
+        {visibleRows.map((product) => (
           <Link
             key={product.id}
             href={`/products?q=${encodeURIComponent(product.sku || product.name)}`}
@@ -971,6 +1000,19 @@ function LowStockList({ rows, mobile = false }: { rows: LowStockRow[]; mobile?: 
             <p className="mt-2 text-xs font-semibold text-slate-500">Minimum stok: {product.minimumStock}</p>
           </Link>
         ))}
+        {hiddenCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            aria-expanded={expanded}
+            className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-100 px-3 py-2.5 text-xs font-extrabold text-blue-700 transition hover:bg-slate-50 dark:border-slate-800 dark:text-blue-300 dark:hover:bg-slate-900"
+          >
+            {expanded ? "Sembunyikan" : `Lihat ${hiddenCount} lainnya`}
+            <ChevronDown
+              className={cx("h-4 w-4 shrink-0 transition-transform", expanded && "rotate-180")}
+            />
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -1182,7 +1224,7 @@ function MonthlySummary({ summary, mobile = false }: { summary: OwnerReportViewD
       <p className="mb-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
         {summary.subtitle}
       </p>
-      <div className={cx("grid gap-3", mobile ? "grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-4")}>
+      <div className={cx("grid gap-3", mobile ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-4")}>
         {summary.rows.map((row) => {
           const pct = row.changePercent;
           const isGood =
@@ -1244,6 +1286,8 @@ function PurchasesList({ rows }: { rows: PurchaseRow[] }) {
 }
 
 function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummary"] }) {
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
   if (!summary.hasUnitCostSnapshot) {
     return (
       <EmptyState label="Data snapshot HPP belum tersedia. Laba dan margin akan muncul untuk transaksi baru setelah checkout menyimpan HPP." />
@@ -1258,34 +1302,33 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3">
         {[
           { label: "Omzet Bersih", value: summary.netRevenue, helper: "Setelah retur customer" },
           { label: "HPP Bersih", value: summary.netCogs, helper: "Snapshot HPP item terjual" },
-          { label: "Laba Kotor", value: summary.netProfit, helper: `Margin ${summary.margin}` },
         ].map((item) => (
           <div key={item.label} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.label}</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-950 dark:text-slate-100">{item.value}</p>
-            <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{item.helper}</p>
+            <p className="mt-2 text-base font-extrabold tabular-nums tracking-tight text-slate-950 dark:text-slate-100 sm:text-lg">{item.value}</p>
+            <p className="mt-2 text-xs font-semibold leading-snug text-emerald-700 dark:text-emerald-300">{item.helper}</p>
           </div>
         ))}
       </div>
 
       {/* Laba Bersih = Laba Kotor - Pengeluaran Operasional */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 p-4 dark:border-slate-800">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Laba Kotor</p>
-          <p className="mt-2 text-lg font-extrabold text-slate-950 dark:text-slate-100">{summary.netProfit}</p>
-          <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Omzet Bersih − HPP</p>
+          <p className="mt-2 text-base font-extrabold tabular-nums tracking-tight text-slate-950 dark:text-slate-100 sm:text-lg">{summary.netProfit}</p>
+          <p className="mt-2 text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">Omzet Bersih − HPP · Margin {summary.margin}</p>
         </div>
         <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-4 dark:border-rose-500/20 dark:bg-rose-500/10">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Pengeluaran Operasional</p>
-          <p className="mt-2 text-lg font-extrabold text-rose-700 dark:text-rose-300">− {summary.operatingExpenses}</p>
-          <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Listrik, gaji, dll</p>
+          <p className="mt-2 text-base font-extrabold tabular-nums tracking-tight text-rose-700 dark:text-rose-300 sm:text-lg">− {summary.operatingExpenses}</p>
+          <p className="mt-2 text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">Listrik, gaji, dll</p>
         </div>
         <div
-          className={`rounded-2xl border p-4 ${
+          className={`col-span-2 rounded-2xl border p-4 sm:col-span-1 ${
             summary.netProfitNegative
               ? "border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/15"
               : "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/15"
@@ -1293,7 +1336,7 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
         >
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Laba Bersih</p>
           <p
-            className={`mt-2 text-lg font-extrabold ${
+            className={`mt-2 text-base font-extrabold tabular-nums tracking-tight sm:text-lg ${
               summary.netProfitNegative
                 ? "text-rose-700 dark:text-rose-300"
                 : "text-emerald-700 dark:text-emerald-300"
@@ -1301,12 +1344,29 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
           >
             {summary.netProfitAfterExpenses}
           </p>
-          <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <p className="mt-2 text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">
             Setelah pengeluaran · Margin {summary.netMargin}
           </p>
         </div>
       </div>
 
+      <button
+        type="button"
+        onClick={() => setShowBreakdown((prev) => !prev)}
+        aria-expanded={showBreakdown}
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2.5 text-left text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
+      >
+        <span>{showBreakdown ? "Sembunyikan rincian" : "Rincian omzet & produk"}</span>
+        <ChevronDown
+          className={cx(
+            "h-4 w-4 shrink-0 text-slate-400 transition-transform",
+            showBreakdown && "rotate-180",
+          )}
+        />
+      </button>
+
+      {showBreakdown ? (
+        <>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-100 p-3 text-sm dark:border-slate-800">
           <div className="flex justify-between gap-3">
@@ -1331,7 +1391,25 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
       </div>
 
       {summary.topProducts.length ? (
-        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+        <div className="rounded-xl border border-slate-100 dark:border-slate-800 md:hidden">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {summary.topProducts.map((item) => (
+              <div key={item.productId} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-950 dark:text-slate-100">{item.name}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {item.netQty} terjual · margin {item.marginValid ? item.margin : "-"}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">{item.profit}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {summary.topProducts.length ? (
+        <div className="hidden overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800 md:block">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
               <tr>
@@ -1363,6 +1441,8 @@ function ProfitSummary({ summary }: { summary: OwnerReportViewData["profitSummar
           </table>
         </div>
       ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -1384,6 +1464,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
   const [showPaymentDetail, setShowPaymentDetail] = useState(false);
   const [showPurchaseDetail, setShowPurchaseDetail] = useState(false);
   const [showProfitDetail, setShowProfitDetail] = useState(false);
+  const [showAllMobileKpis, setShowAllMobileKpis] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("all");
   const [activeReportSection, setActiveReportSection] =
@@ -1391,6 +1472,14 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
 
   const netKpi = data.kpis.find((kpi) => kpi.id === "net") ?? data.kpis[0];
   const mobileKpis = data.kpis.filter((kpi) => kpi.id !== "net");
+  // Mobile: tampilkan kartu utama dulu, sisanya dilipat agar hemat tempat.
+  const PRIMARY_MOBILE_KPI_IDS = ["gross", "profit", "transactions", "expenses"];
+  const primaryMobileKpis = mobileKpis.filter((kpi) =>
+    PRIMARY_MOBILE_KPI_IDS.includes(kpi.id),
+  );
+  const secondaryMobileKpis = mobileKpis.filter(
+    (kpi) => !PRIMARY_MOBILE_KPI_IDS.includes(kpi.id),
+  );
   const trendTotal = data.trend.reduce((total, row) => total + row.omzet, 0);
   const trendTransactions = data.trend.reduce((total, row) => total + row.transactions, 0);
   const bestTrendDay = data.trend.reduce(
@@ -1865,8 +1954,14 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_45px_rgba(15,23,42,0.06)] dark:border-white/8 dark:bg-slate-900 md:hidden">
           <div className="space-y-3">
             <MainKpiCard kpi={netKpi} onOpen={setSelectedKpi} />
+            <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
+              Ketuk kartu untuk lihat penjelasan &amp; rinciannya.
+            </p>
             <div id="ringkasan-mobile" className="grid grid-cols-2 gap-3">
-              {mobileKpis.map((kpi) => (
+              {(showAllMobileKpis
+                ? [...primaryMobileKpis, ...secondaryMobileKpis]
+                : primaryMobileKpis
+              ).map((kpi) => (
                 <MetricCard
                   key={kpi.id}
                   kpi={kpi}
@@ -1875,6 +1970,20 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
                 />
               ))}
             </div>
+            {secondaryMobileKpis.length ? (
+              <button
+                type="button"
+                onClick={() => setShowAllMobileKpis((prev) => !prev)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-extrabold text-blue-700 transition active:scale-[0.99] dark:border-slate-800 dark:bg-slate-950 dark:text-blue-300"
+              >
+                {showAllMobileKpis
+                  ? "Sembunyikan sebagian"
+                  : `Lihat ${secondaryMobileKpis.length} angka lainnya`}
+                <ChevronDown
+                  className={cx("h-4 w-4 transition", showAllMobileKpis && "rotate-180")}
+                />
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -1897,7 +2006,10 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
               </button>
             ))}
           </nav>
-          <div id="ringkasan" className="grid grid-cols-2 gap-4 p-4 xl:grid-cols-3 min-[1500px]:grid-cols-4 min-[1800px]:grid-cols-7">
+          <p className="px-4 pt-3 text-xs font-medium text-slate-400 dark:text-slate-500">
+            Tip: ketuk kartu mana pun untuk lihat penjelasan &amp; rinciannya.
+          </p>
+          <div id="ringkasan" className="grid grid-cols-2 gap-4 p-4 xl:grid-cols-3 min-[1500px]:grid-cols-4 min-[1800px]:grid-cols-5">
             {data.kpis.map((kpi) => (
               <MetricCard
                 key={kpi.id}
@@ -1959,7 +2071,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
             id="produk"
             title="Produk Terlaris (Top 5)"
             action={
-              <Link href="/products" className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700">
+              <Link href="/products?filter=fast-moving" className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700">
                 Lihat semua <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             }
@@ -2010,8 +2122,8 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
                   <TrendChart rows={data.trend} compact />
                 </button>
                 <div className="grid grid-cols-2 gap-2">
-                  <InsightBox label="Total Omzet" value={rupiahCompact(trendTotal)} />
-                  <InsightBox label="Rata-rata / hari" value={rupiahCompact(Math.round(trendTotal / Math.max(data.trend.length, 1)))} />
+                  <InsightBox label="Total Omzet" value={rupiahFull(trendTotal)} />
+                  <InsightBox label="Rata-rata / hari" value={rupiahFull(Math.round(trendTotal / Math.max(data.trend.length, 1)))} />
                   <InsightBox label="Hari terbaik" value={bestTrendDay.label} />
                   <InsightBox label="Transaksi" value={String(trendTransactions)} />
                 </div>
@@ -2047,8 +2159,53 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
                 onSelect={setSelectedProduct}
               />
             ) : null}
+            {mobileTab === "laba-margin" ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-extrabold text-slate-950">Laba & Margin</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowProfitDetail(true)}
+                    className="shrink-0 text-xs font-extrabold text-blue-700"
+                    aria-label="Buka detail laba & margin"
+                  >
+                    Lihat detail
+                  </button>
+                </div>
+                <ProfitSummary summary={data.profitSummary} />
+              </div>
+            ) : null}
             {mobileTab === "retur" ? <ReturnSummary summary={data.returnSummary} /> : null}
-            {mobileTab === "stok" ? <LowStockList rows={data.lowStock} mobile /> : null}
+            {mobileTab === "stok" ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-extrabold text-slate-950">Stok Rendah</h3>
+                  <Link
+                    href="/products?filter=low-stock"
+                    className="inline-flex shrink-0 items-center gap-1 text-xs font-extrabold text-blue-700"
+                  >
+                    Lihat semua <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                <LowStockList rows={data.lowStock} mobile />
+              </div>
+            ) : null}
+            {mobileTab === "pembelian" ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-extrabold text-slate-950">Pembelian Periode Ini</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowPurchaseDetail(true)}
+                    className="shrink-0 text-xs font-extrabold text-blue-700"
+                    aria-label="Buka detail pembelian"
+                  >
+                    Lihat semua
+                  </button>
+                </div>
+                <PurchasesList rows={data.recentPurchases} />
+              </div>
+            ) : null}
             {mobileTab === "bulanan" ? <MonthlySummary summary={data.monthlySummary} mobile /> : null}
           </div>
         </section>
@@ -2087,7 +2244,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
             id="stok"
             title="Stok Rendah (<= Minimum Stok)"
             action={
-              <Link href="/products" className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700">
+              <Link href="/products?filter=low-stock" className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700">
                 Lihat semua <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             }
@@ -2096,15 +2253,29 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
           </ReportSectionCard>
         </div>
 
-        <ReportSectionCard id="transaksi-mobile" title="Transaksi Terakhir" className="md:hidden">
+        <ReportSectionCard
+          id="transaksi-mobile"
+          title="Transaksi Terakhir"
+          className="md:hidden"
+          action={
+            <Link href="/sales" className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700">
+              Lihat semua <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          }
+        >
           <div className="mb-4">
             {transactionFilters}
           </div>
           <RecentTransactions
-            rows={filteredTransactions}
+            rows={filteredTransactions.slice(0, 3)}
             mobile
             onSelect={setSelectedTransaction}
           />
+          {filteredTransactions.length > 3 ? (
+            <p className="mt-3 text-center text-xs font-medium text-slate-400 dark:text-slate-500">
+              Menampilkan 3 dari {filteredTransactions.length} transaksi
+            </p>
+          ) : null}
         </ReportSectionCard>
 
         <div className="hidden gap-5 md:grid lg:grid-cols-2">
@@ -2150,18 +2321,7 @@ export default function OwnerReportView({ data }: OwnerReportViewProps) {
 
         {selectedKpi ? (
           <ReportModal title={selectedKpi.title} onClose={() => setSelectedKpi(null)}>
-            <KpiDetailContent
-              kpi={selectedKpi}
-              data={data}
-              onSelectProduct={(product) => {
-                setSelectedKpi(null);
-                setSelectedProduct(product);
-              }}
-              onSelectTransaction={(transaction) => {
-                setSelectedKpi(null);
-                setSelectedTransaction(transaction);
-              }}
-            />
+            <KpiDetailContent kpi={selectedKpi} />
           </ReportModal>
         ) : null}
 
@@ -2297,16 +2457,18 @@ function ReportModal({
   );
 }
 
+// Tautan "Lihat semua" per kartu KPI — pop-up cukup ringkas, detail penuh
+// ada di halaman/bagian terkait (hindari duplikat di dalam pop-up).
+const KPI_DETAIL_LINKS: Record<string, { href: string; label: string }> = {
+  transactions: { href: "/sales", label: "Lihat semua transaksi" },
+  "products-sold": { href: "/products?filter=fast-moving", label: "Lihat produk terlaris" },
+  expenses: { href: "/expenses", label: "Lihat semua pengeluaran" },
+};
+
 function KpiDetailContent({
   kpi,
-  data,
-  onSelectProduct,
-  onSelectTransaction,
 }: {
   kpi: KpiCard;
-  data: OwnerReportViewData;
-  onSelectProduct: (product: ProductRow) => void;
-  onSelectTransaction: (sale: TransactionRow) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -2343,39 +2505,14 @@ function KpiDetailContent({
         ))}
       </div>
 
-      {kpi.id === "transactions" ? (
-        <div className="space-y-3">
-          <h3 className="text-sm font-extrabold text-slate-950">
-            Transaksi periode ini
-          </h3>
-          <RecentTransactions rows={data.transactions} mobile onSelect={onSelectTransaction} />
-        </div>
-      ) : null}
-
-      {kpi.id === "products-sold" ? (
-        <div className="space-y-3">
-          <h3 className="text-sm font-extrabold text-slate-950">
-            Produk terjual/top products
-          </h3>
-          <TopProducts products={data.bestSellers} mobile onSelect={onSelectProduct} />
-        </div>
-      ) : null}
-
-      {kpi.id === "returns" ? <ReturnSummary summary={data.returnSummary} /> : null}
-      {kpi.id === "purchase" ? <PurchasesList rows={data.recentPurchases} /> : null}
-      {kpi.id === "expenses" ? (
+      {KPI_DETAIL_LINKS[kpi.id] ? (
         <Link
-          href="/expenses"
+          href={KPI_DETAIL_LINKS[kpi.id].href}
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-extrabold text-[#fff] transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 active:scale-[0.99]"
         >
-          Lihat Semua Pengeluaran
+          {KPI_DETAIL_LINKS[kpi.id].label}
           <ArrowUpRight className="h-4 w-4" />
         </Link>
-      ) : null}
-      {["gross", "net", "atv"].includes(kpi.id) ? (
-        <div className="rounded-2xl border border-slate-100 p-3">
-          <TrendChart rows={data.trend} compact />
-        </div>
       ) : null}
     </div>
   );
@@ -2609,10 +2746,10 @@ function TrendDetailContent({
         <TrendChart rows={chartRows} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <InsightBox label="Total Omzet" value={rupiahCompact(totalOmzet)} />
+        <InsightBox label="Total Omzet" value={rupiahFull(totalOmzet)} />
         <InsightBox
           label={selectedMonth ? "Rata-rata / hari" : "Rata-rata / bulan"}
-          value={rupiahCompact(averageValue)}
+          value={rupiahFull(averageValue)}
         />
         <InsightBox
           label={selectedMonth ? "Hari terbaik" : "Bulan terbaik"}
@@ -2655,9 +2792,11 @@ function TrendDetailContent({
               <th className="px-4 py-3 text-right">Omzet</th>
               <th className="px-4 py-3 text-right">Jumlah transaksi</th>
               <th className="px-4 py-3 text-right">
-                {selectedMonth ? "ATV" : "Rata-rata harian"}
+                {selectedMonth ? "Rata-rata Belanja" : "Rata-rata harian"}
               </th>
-              {!selectedMonth ? <th className="px-4 py-3 text-right">ATV</th> : null}
+              {!selectedMonth ? (
+                <th className="px-4 py-3 text-right">Rata-rata Belanja</th>
+              ) : null}
               <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
           </thead>
@@ -2779,9 +2918,9 @@ function DailyTrendActivityDetail({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <InsightBox label="Omzet hari itu" value={rupiahCompact(day.omzet)} />
+        <InsightBox label="Omzet hari itu" value={rupiahFull(day.omzet)} />
         <InsightBox label="Jumlah transaksi" value={String(day.transactions)} />
-        <InsightBox label="ATV" value={day.transactions > 0 ? rupiahCompact(atv) : "-"} />
+        <InsightBox label="Rata-rata Belanja" value={day.transactions > 0 ? rupiahFull(atv) : "-"} />
         <InsightBox
           label="Retur"
           value={
@@ -3993,7 +4132,7 @@ function InsightBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
       <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 truncate text-sm font-extrabold text-slate-950 dark:text-slate-100">{value}</p>
+      <p className="mt-1 break-words text-sm font-extrabold leading-snug text-slate-950 dark:text-slate-100">{value}</p>
     </div>
   );
 }

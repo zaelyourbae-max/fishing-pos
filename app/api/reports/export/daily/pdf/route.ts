@@ -170,7 +170,7 @@ export async function GET(req: Request) {
     { label: "Transaksi",    value: String(d.transactions),       helper: "Jumlah transaksi",    accent: C_BLUE },
   ]);
   metricRow([
-    { label: "ATV",          value: rupiah(d.averageTransaction), helper: "Rata-rata transaksi", accent: C_BLUE },
+    { label: "Rata-rata Belanja", value: rupiah(d.averageTransaction), helper: "Per transaksi", accent: C_BLUE },
     { label: "Jumlah Retur", value: String(d.returnCount),        helper: "Customer return",     accent: C_ROSE },
     { label: "Nilai Retur",  value: rupiah(d.returnValue),        helper: "Total refund",        accent: C_ROSE },
   ]);

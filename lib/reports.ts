@@ -521,6 +521,8 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
             invoiceNumber: true,
             createdAt: true,
             paymentMethod: true,
+            subtotal: true,
+            subtotalBeforeLoyalty: true,
           },
         },
       },
@@ -607,6 +609,11 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
     (total, item) => total + item.qty * item.unitCost,
     0,
   );
+  // Total unit terjual sepanjang periode (untuk kartu "Produk Terjual").
+  const productsSoldQty = profitSaleItems.reduce(
+    (total, item) => total + item.qty,
+    0,
+  );
   const returnCogs = profitReturnItems.reduce(
     (total, item) => total + item.qty * item.unitCost,
     0,
@@ -653,7 +660,18 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
   >();
 
   for (const item of profitSaleItems) {
-    const itemRevenue = moneyNumber(item.subtotalAfterDiscount) || item.subtotal;
+    // Bagi diskon loyalty (level transaksi) ke tiap produk secara proporsional,
+    // supaya total omzet rincian per-produk cocok dengan Omzet Bersih utama
+    // (yang memakai sale.subtotal = sudah dipotong loyalty). Tanpa loyalty,
+    // rasio = 1 sehingga nilai tidak berubah.
+    const beforeLoyalty = Number(item.sale.subtotalBeforeLoyalty ?? 0);
+    const loyaltyRatio =
+      beforeLoyalty > 0
+        ? Math.min(Number(item.sale.subtotal) / beforeLoyalty, 1)
+        : 1;
+    const itemRevenue = Math.round(
+      (moneyNumber(item.subtotalAfterDiscount) || item.subtotal) * loyaltyRatio,
+    );
     const current = profitByProduct.get(item.productId) ?? {
       productId: item.productId,
       name: item.product.name,
@@ -779,6 +797,7 @@ export async function getOwnerReportSummaryForRange(range?: OwnerReportRange) {
       returnValue: monthReturnValue,
       netOmzet: Math.max((monthSales._sum.subtotal ?? 0) - monthReturnValue, 0),
       transactions: monthSales._count._all,
+      productsSoldQty,
       averageTransaction:
         monthSales._count._all > 0
           ? Math.round((monthSales._sum.subtotal ?? 0) / monthSales._count._all)
@@ -972,7 +991,7 @@ export async function getMonthlyComparison(): Promise<MonthlyComparison> {
     { key: "transactions", label: "Total Transaksi", isCurrency: false, goodWhenUp: true,
       current: current.transactions, previous: previous.transactions,
       changePercent: changePercent(current.transactions, previous.transactions) },
-    { key: "atv", label: "ATV", isCurrency: true, goodWhenUp: true,
+    { key: "atv", label: "Rata-rata Belanja", isCurrency: true, goodWhenUp: true,
       current: current.atv, previous: previous.atv,
       changePercent: changePercent(current.atv, previous.atv) },
     { key: "return", label: "Retur", isCurrency: true, goodWhenUp: false,
@@ -981,7 +1000,7 @@ export async function getMonthlyComparison(): Promise<MonthlyComparison> {
     { key: "purchase", label: "Total Pembelian", isCurrency: true, goodWhenUp: false,
       current: current.purchase, previous: previous.purchase,
       changePercent: changePercent(current.purchase, previous.purchase) },
-    { key: "expense", label: "Pengeluaran Ops", isCurrency: true, goodWhenUp: false,
+    { key: "expense", label: "Pengeluaran Operasional", isCurrency: true, goodWhenUp: false,
       current: current.expense, previous: previous.expense,
       changePercent: changePercent(current.expense, previous.expense) },
   ];

@@ -22,6 +22,7 @@ export type TerminalKpis = {
   previous: TerminalKpi; // periode sebelumnya yg setara (untuk % perubahan)
   today: TerminalKpi;
   yesterday: TerminalKpi;
+  yesterdaySoFar: TerminalKpi; // kemarin s/d jam yang sama dgn sekarang (perbandingan adil)
 };
 
 async function periodStats(from: Date, to: Date): Promise<TerminalKpi> {
@@ -163,37 +164,6 @@ function buildBuckets(id: TerminalSeriesId, from: Date, to: Date) {
   return { starts, labels, keyOf };
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   MODE LIVE — deret per-transaksi (bukan bucket).
-   Tiap nota penjualan final jadi satu titik {t, amount}. Dipakai grafik "saham"
-   intraday yang loncat tiap ada penjualan. Dibatasi agar payload tetap ringan.
-   ──────────────────────────────────────────────────────────────────────── */
-export type TerminalLivePoint = {
-  t: number;       // epoch ms waktu transaksi
-  amount: number;  // nominal subtotal nota
-  invoice: string; // nomor nota (untuk tooltip)
-};
-
-const LIVE_MAX_POINTS = 600;
-
-export async function getTerminalLive(range: {
-  from: Date;
-  to: Date;
-}): Promise<TerminalLivePoint[]> {
-  const { from, to } = range;
-  // Ambil yang TERBARU dulu (biar kalau kebanyak, yang dipangkas yang lama),
-  // lalu balik ke urutan menaik untuk digambar dari kiri ke kanan.
-  const rows = await prisma.sale.findMany({
-    where: { createdAt: { gte: from, lte: to }, ...FINAL_SALE_STATUS_WHERE },
-    select: { createdAt: true, subtotal: true, invoiceNumber: true },
-    orderBy: { createdAt: "desc" },
-    take: LIVE_MAX_POINTS,
-  });
-  return rows
-    .map((r) => ({ t: r.createdAt.getTime(), amount: r.subtotal, invoice: r.invoiceNumber }))
-    .sort((a, b) => a.t - b.t);
-}
-
 export async function getTerminalSeries(range: {
   from: Date;
   to: Date;
@@ -266,17 +236,22 @@ export async function getTerminalKpis(range: {
   const prevTo = new Date(from.getTime() - 1);
   const prevFrom = new Date(prevTo.getTime() - spanMs);
 
-  const todayStart = startOfDay(new Date());
-  const todayEnd = endOfDay(new Date());
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
   const yesterdayStart = startOfDay(new Date(todayStart.getTime() - 1));
   const yesterdayEnd = new Date(todayStart.getTime() - 1);
+  // Kemarin DARI 00:00 sampai jam yang sama dengan SEKARANG → pembanding adil
+  // untuk "hari ini" yang masih berjalan (bukan dibanding kemarin sehari penuh).
+  const yesterdaySoFarEnd = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  const [current, previous, today, yesterday] = await Promise.all([
+  const [current, previous, today, yesterday, yesterdaySoFar] = await Promise.all([
     periodStats(from, to),
     periodStats(prevFrom, prevTo),
     periodStats(todayStart, todayEnd),
     periodStats(yesterdayStart, yesterdayEnd),
+    periodStats(yesterdayStart, yesterdaySoFarEnd),
   ]);
 
-  return { current, previous, today, yesterday };
+  return { current, previous, today, yesterday, yesterdaySoFar };
 }

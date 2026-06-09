@@ -68,7 +68,10 @@ function formatPercent(value: number) {
 function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
   const now = new Date();
   const today = startOfDay(now);
-  const preset = params?.preset ?? "today";
+  // Default "Bulan Ini": saat dibuka, laporan langsung menampilkan data sebulan
+  // berjalan (bukan "Hari Ini" yang sering kosong di pagi/siang). Lebih bermakna
+  // & sejalan dengan "Ringkasan Bulanan" di dashboard.
+  const preset = params?.preset ?? "this-month";
 
   if (preset === "today") {
     return {
@@ -205,17 +208,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     from: rangeParams.from,
     to: rangeParams.to,
   };
-  // Trend penjualan selalu 7 hari terakhir (independen dari periode laporan),
-  // supaya chart selalu punya banyak titik dan enak dibaca per hari.
-  const trendRange = {
-    from: startOfDay(addDays(new Date(), -6)),
-    to: endOfDay(new Date()),
-  };
-  const [report, transactions, monthlyComparison, trendTransactions] = await Promise.all([
+  const [report, transactions, monthlyComparison] = await Promise.all([
     getOwnerReportSummary(range),
     getOwnerReportTransactions(2000, range),
     getMonthlyComparison(),
-    getOwnerReportTransactions(2000, trendRange),
   ]);
   const grossOmzet = report.month.grossOmzet;
   const customerReturn = report.month.returnValue;
@@ -296,7 +292,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         tone: "blue",
         icon: "transaction",
         explain:
-          "Berapa kali terjadi penjualan yang selesai pada periode ini. Daftar transaksinya bisa dilihat di bawah.",
+          "Berapa kali terjadi penjualan yang selesai pada periode ini. Daftar transaksinya bisa dibuka lewat tombol di bawah.",
         rows: [
           { label: "Total transaksi", value: String(transactionCount) },
           { label: "Payment tercatat", value: String(report.month.paymentSummary.length) },
@@ -305,31 +301,31 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       },
       {
         id: "atv",
-        title: "ATV",
+        title: "Rata-rata Belanja",
         value: rupiah(report.month.averageTransaction),
-        helper: "Avg. transaksi",
+        helper: "Rata-rata tiap struk",
         tone: "violet",
         icon: "atv",
         explain:
-          "ATV (Average Transaction Value) = rata-rata nilai belanja per transaksi (omzet dibagi jumlah transaksi). Makin tinggi, makin besar belanja tiap pelanggan.",
+          "Rata-rata Belanja (istilah Inggris: ATV / Average Transaction Value) = rata-rata nilai belanja per transaksi (omzet dibagi jumlah transaksi). Makin tinggi, makin besar belanja tiap pelanggan.",
         rows: [
           { label: "Omzet kotor", value: rupiah(grossOmzet) },
           { label: "Total transaksi", value: String(transactionCount) },
-          { label: "ATV", value: rupiah(report.month.averageTransaction), tone: "good" },
+          { label: "Rata-rata belanja", value: rupiah(report.month.averageTransaction), tone: "good" },
         ],
       },
       {
         id: "products-sold",
         title: "Produk Terjual",
-        value: "-",
-        helper: "Data total qty belum tersedia",
+        value: `${report.month.productsSoldQty.toLocaleString("id-ID")} unit`,
+        helper: "Total barang keluar periode ini",
         tone: "amber",
         icon: "purchase",
         explain:
-          "Ringkasan produk yang terjual pada periode ini. Daftar produk terlaris ada di bawah.",
+          "Jumlah seluruh unit barang yang terjual pada periode ini. Daftar produk paling laku bisa dibuka lewat tombol di bawah.",
         rows: [
-          { label: "Produk terlaris tercatat", value: String(report.bestSellers.length) },
-          { label: "Catatan", value: "Total qty belum tersedia dari payload laporan" },
+          { label: "Total unit terjual", value: `${report.month.productsSoldQty.toLocaleString("id-ID")} unit`, tone: "good" },
+          { label: "Jenis produk paling laku tercatat", value: String(report.bestSellers.length) },
         ],
       },
       {
@@ -368,7 +364,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               id: "profit",
               title: "Laba Kotor",
               value: rupiah(report.profit.netProfit),
-              helper: `Margin ${formatPercent(report.profit.marginPercent)}`,
+              helper: `Untung ${formatPercent(report.profit.marginPercent)} dari omzet`,
               tone: "emerald" as const,
               icon: "profit" as const,
               explain:
@@ -482,7 +478,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     profitSummary: serializeProfitSummary(report.profit),
     monthlySummary: {
       title: "Bulan Ini vs Bulan Lalu",
-      subtitle: `${monthlyComparison.thisMonthLabel} vs ${monthlyComparison.lastMonthLabel} — dibandingkan sampai tanggal ${monthlyComparison.cutoffDay}`,
+      subtitle: `Tgl 1–${monthlyComparison.cutoffDay} ${monthlyComparison.thisMonthLabel} vs tgl 1–${monthlyComparison.cutoffDay} ${monthlyComparison.lastMonthLabel} — periode sama panjang agar adil (bukan ${monthlyComparison.lastMonthLabel} sebulan penuh)`,
       rows: monthlyComparison.metrics.map((metric) => ({
         label: metric.label,
         currentValue: metric.isCurrency ? rupiah(metric.current) : String(metric.current),
@@ -509,7 +505,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       itemCount: sale._count.items,
       returnCount: sale._count.returns,
     })),
-    trend: buildTrend(trendTransactions, trendRange.from, trendRange.to),
+    // Grafik trend mengikuti periode laporan (≤31 hari = per hari, >31 = per
+    // bulan) supaya grafik & tabel selalu seperiode.
+    trend: buildTrend(transactions, rangeParams.from, rangeParams.to),
     cashiers: Array.from(new Set(transactions.map((sale) => sale.cashier.name))),
     paymentMethods: Array.from(
       new Set(transactions.map((sale) => sale.paymentMethod)),

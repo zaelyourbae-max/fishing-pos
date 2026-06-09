@@ -265,7 +265,7 @@ export async function GET(req: Request) {
     { label: "Total Transaksi", value: String(report.month.transactions), helper: "Transaksi periode", accent: C_BLUE },
   ]);
   metricRow([
-    { label: "ATV",             value: rupiah(report.month.averageTransaction),         helper: "Rata-rata transaksi", accent: C_BLUE },
+    { label: "Rata-rata Belanja", value: rupiah(report.month.averageTransaction),       helper: "Per transaksi", accent: C_BLUE },
     { label: "Total Pembelian", value: rupiah(report.inventoryReturns.totalPurchaseMonth), helper: "Pembelian periode", accent: C_AMBER },
     { label: "Retur Supplier",  value: rupiah(report.inventoryReturns.monthValue),      helper: "Inventory-side",      accent: C_AMBER },
   ]);
