@@ -635,14 +635,22 @@ export async function POST(req: Request) {
             throw new Error("LOYALTY_CUSTOMER_REQUIRED");
           }
         } else {
-          const validTransactions = await tx.sale.count({
-            where: {
-              customerId: saleCustomerId,
-              ...FINAL_SALE_STATUS_WHERE,
-            },
-          });
+          const [validTransactions, archivedTally] = await Promise.all([
+            tx.sale.count({
+              where: {
+                customerId: saleCustomerId,
+                ...FINAL_SALE_STATUS_WHERE,
+              },
+            }),
+            // Rekap transaksi arsip yang sudah dihapus permanen — ikut dihitung
+            // agar milestone loyalty tetap konsisten dengan riwayat asli.
+            tx.customer.findUnique({
+              where: { id: saleCustomerId },
+              select: { archivedSalesCount: true },
+            }),
+          ]);
           const progress = loyaltyProgressFromValidCount(
-            validTransactions,
+            validTransactions + (archivedTally?.archivedSalesCount ?? 0),
             loyaltyConfig.interval,
           );
           const eligibleMilestone = progress.eligibleMilestone;

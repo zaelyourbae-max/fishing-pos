@@ -2,8 +2,6 @@ import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import {
   Banknote,
-  Calendar,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Filter,
@@ -21,8 +19,8 @@ import PaymentProofActionButton from "@/components/sales/payment-proof-action-bu
 import PendingExpiryCountdown from "@/components/sales/pending-expiry-countdown";
 import SalesDateFilterFields from "@/components/sales/sales-date-filter-fields";
 import SoftFilterForm from "@/components/ui/soft-filter-form";
-import { formatDateID, formatDateTimeID } from "@/lib/date-format";
-import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
+import { formatDateTimeID } from "@/lib/date-format";
+import { FINAL_SALE_STATUS_WHERE, formatCancelReason } from "@/lib/sale-status";
 import { operatorLabel } from "@/lib/transaction-identity";
 
 type SalesPageProps = {
@@ -58,14 +56,6 @@ function dateRange(from?: string, to?: string) {
   }
 
   return Object.keys(createdAt).length ? createdAt : undefined;
-}
-
-function displayDate(value?: string) {
-  if (!value) {
-    return "";
-  }
-
-  return formatDateID(value);
 }
 
 function paymentIcon(paymentMethod: string) {
@@ -323,10 +313,6 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   const netOmzet = (revenueTotals._sum.subtotal ?? 0) - totalRefund;
   const pageCount = Math.max(1, Math.ceil(totalSales / PAGE_SIZE));
   const safePage = Math.min(currentPage, pageCount);
-  const rangeLabel =
-    params.from || params.to
-      ? `${displayDate(params.from) || "Awal"} - ${displayDate(params.to) || "Hari ini"}`
-      : "Semua tanggal";
   const pageParams = {
     from: params.from,
     to: params.to,
@@ -337,24 +323,13 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
   return (
     <div className="space-y-3 sm:space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="page-title">Riwayat Penjualan</h1>
-          <p className="mobile-section-copy">
-            {session.role === "cashier"
-              ? "Transaksi milik kasir login."
-              : "Semua transaksi dengan filter dasar."}
-          </p>
-        </div>
-        <div className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 sm:min-h-12 sm:gap-3 sm:px-4 sm:py-2 sm:text-sm">
-          <Calendar className="h-4 w-4 text-slate-500" />
-          <span className="min-w-0 break-words">{rangeLabel}</span>
-          <ChevronDown className="h-4 w-4 text-slate-400" />
-        </div>
-      </div>
+      <h1 className="page-title">Riwayat Penjualan</h1>
 
-      <SoftFilterForm className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-4">
-        <div className="grid gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-[180px_180px_1fr_1fr_1.2fr_160px]">
+      <SoftFilterForm
+        collapsibleLabel="Filter"
+        className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:p-4"
+      >
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-[240px_1fr_1fr_1.2fr_160px]">
           <SalesDateFilterFields from={params.from} to={params.to} />
 
           {session.role !== "cashier" ? (
@@ -415,38 +390,38 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
       </SoftFilterForm>
 
       <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2">
-        <div className="mobile-card-surface flex items-center gap-2.5 p-2.5 sm:gap-5 sm:rounded-2xl sm:p-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
-            <ShoppingCart className="h-5 w-5 sm:h-8 sm:w-8" />
-          </span>
-          <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
+        <div className="mobile-card-surface min-w-0 p-3 sm:rounded-2xl sm:p-5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-12 sm:w-12 sm:rounded-2xl">
+              <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+            <p className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Transaksi
             </p>
-            <h2 className="metric-value mt-0.5 text-lg sm:mt-1 sm:text-2xl">
-              {totalSales}
-            </h2>
-            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-              Transaksi
-            </p>
           </div>
+          <h2 className="mt-2 break-words text-xl font-extrabold leading-snug tracking-tight tabular-nums text-slate-950 dark:text-white sm:mt-3 sm:text-2xl">
+            {totalSales}
+          </h2>
+          <p className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-teal-700 dark:text-teal-300 sm:text-sm">
+            Transaksi
+          </p>
         </div>
 
-        <div className="mobile-card-surface flex items-center gap-2.5 p-2.5 sm:gap-5 sm:rounded-2xl sm:p-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-16 sm:w-16">
-            <TrendingUp className="h-5 w-5 sm:h-8 sm:w-8" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
+        <div className="mobile-card-surface min-w-0 p-3 sm:rounded-2xl sm:p-5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-12 sm:w-12 sm:rounded-2xl">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+            <p className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Omzet
             </p>
-            <h2 className="metric-value mt-0.5 truncate text-base sm:mt-1 sm:text-2xl">
-              {rupiah(netOmzet)}
-            </h2>
-            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-              Total penjualan
-            </p>
           </div>
+          <h2 className="mt-2 truncate text-lg font-extrabold leading-snug tracking-tight tabular-nums text-slate-950 dark:text-white sm:mt-3 sm:text-2xl">
+            {rupiah(netOmzet)}
+          </h2>
+          <p className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-teal-700 dark:text-teal-300 sm:text-sm">
+            Total penjualan
+          </p>
         </div>
       </div>
 
@@ -512,11 +487,6 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                               : ""}
                           </span>
                         ) : null}
-                        {sale.transactionStatus === "CANCELLED" ? (
-                          <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
-                            Dibatalkan
-                          </span>
-                        ) : null}
                         {isPendingQris ? (
                           <PendingExpiryCountdown
                             expiredAt={sale.expiredAt?.toISOString() ?? null}
@@ -524,8 +494,9 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                         ) : null}
                       </div>
                       {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
-                        <p className="mt-2 max-w-xs text-xs text-rose-600 dark:text-rose-300">
-                          {sale.cancelReason}
+                        <p className="mt-2 max-w-xs text-xs leading-relaxed text-rose-600 dark:text-rose-300">
+                          <span className="font-semibold">Alasan batal: </span>
+                          {formatCancelReason(sale.cancelReason)}
                         </p>
                       ) : null}
                     </td>
@@ -606,7 +577,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
             return (
               <div key={sale.id} className="mobile-card-surface p-2.5 sm:rounded-2xl sm:p-4">
-                <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="break-all text-[13px] font-bold leading-snug text-slate-950 dark:text-white sm:text-sm">
                       {sale.invoiceNumber}
@@ -615,105 +586,94 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       {formatDateTime(sale.createdAt)}
                     </p>
                   </div>
-                  <p
-                    className={`shrink-0 text-right text-sm font-bold tabular-nums ${
-                      hasReturn
-                        ? "text-rose-600 dark:text-rose-300"
-                        : "text-slate-950 dark:text-white"
-                    }`}
-                  >
-                    {hasReturn ? `- ${rupiah(refund)}` : rupiah(sale.subtotal)}
-                  </p>
-                </div>
-                <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 sm:mt-2 sm:gap-y-1.5 sm:text-xs">
-                  <p className="min-w-0">
-                    <span className="block text-[11px] font-medium text-slate-400">
-                      Customer
-                    </span>
-                    <span className="line-clamp-1 break-words">
-                      {sale.customer?.name ?? "Walk-in"}
-                    </span>
-                  </p>
-                  <p className="min-w-0">
-                    <span className="block text-[11px] font-medium text-slate-400">
-                      Operator
-                    </span>
-                    <span className="line-clamp-1 break-words">
-                      {operatorLabel(sale.cashier)}
-                    </span>
-                  </p>
-                  <p className="flex min-w-0 items-center gap-1">
-                    <span className="shrink-0 text-[11px] font-medium text-slate-400">
-                      Payment
-                    </span>
-                    {paymentIcon(sale.paymentMethod)}
-                    <span className="min-w-0 truncate">{paymentName}</span>
-                  </p>
-                  <div className="flex min-w-0 items-center gap-1">
-                    <span className="text-[11px] font-medium text-slate-400">
-                      Item
-                    </span>
-                    <span>{sale.items.length} item</span>
-                  </div>
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1 sm:mt-2 sm:gap-1.5">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadgeClass(sale.transactionStatus)}`}>
-                    {sale.transactionStatus}
-                  </span>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadgeClass(sale.paymentStatus)}`}>
-                    {sale.paymentStatus}
-                  </span>
-                  {hasReturn ? (
-                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
-                      Retur
-                    </span>
-                  ) : null}
-                  {discountTotal > 0 ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
-                      Diskon {rupiah(discountTotal)}
-                    </span>
-                  ) : null}
-                  {sale.loyaltyApplied ? (
-                    <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
-                      Loyalty
-                      {sale.loyaltyMilestone ? ` ke-${sale.loyaltyMilestone}` : ""}
-                    </span>
-                  ) : null}
-                  {sale.transactionStatus === "CANCELLED" ? (
-                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
-                      Dibatalkan
-                    </span>
-                  ) : null}
-                  {isPendingQris ? (
-                    <PendingExpiryCountdown
-                      expiredAt={sale.expiredAt?.toISOString() ?? null}
-                    />
-                  ) : null}
-                </div>
-                {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
-                  <p className="mt-2 rounded-xl border border-rose-100 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
-                    {sale.cancelReason}
-                  </p>
-                ) : null}
-                <div className="mt-2.5 flex flex-wrap justify-end gap-1.5 sm:mt-3 sm:gap-2">
-                  {isPendingQris ? (
-                    <PaymentProofActionButton
-                      saleId={sale.id}
-                      invoiceNumber={sale.invoiceNumber}
-                    />
-                  ) : null}
-                  {sale.transactionStatus === "PENDING" ? (
-                    <CancelSaleButton
-                      saleId={sale.id}
-                      invoiceNumber={sale.invoiceNumber}
-                    />
-                  ) : null}
                   <Link
                     href={`/invoices/${sale.id}`}
-                    className="inline-flex h-8 items-center justify-center rounded-lg border border-teal-300 px-3 text-xs font-semibold text-teal-700 dark:border-teal-500/50 dark:text-teal-200 sm:h-9"
+                    className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-teal-300 px-3 text-xs font-semibold text-teal-700 dark:border-teal-500/50 dark:text-teal-200 sm:h-9"
                   >
                     Invoice
                   </Link>
+                </div>
+                <div className="mt-1.5 grid grid-cols-1 gap-y-0.5 text-[11px] sm:mt-2 sm:text-xs">
+                  <p className="flex min-w-0 items-baseline gap-1">
+                    <span className="shrink-0 font-medium text-slate-400">
+                      Cust.
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">
+                      {sale.customer?.name ?? "Walk-in"}
+                    </span>
+                  </p>
+                  <p className="flex min-w-0 items-baseline gap-1">
+                    <span className="shrink-0 font-medium text-slate-400">
+                      Op
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">
+                      {sale.cashier?.name?.trim() || "Operator tidak diketahui"}
+                    </span>
+                  </p>
+                </div>
+                {sale.transactionStatus === "CANCELLED" && sale.cancelReason ? (
+                  <p className="mt-2 rounded-xl border border-rose-100 bg-rose-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200 sm:text-xs">
+                    <span className="font-semibold">Alasan batal: </span>
+                    {formatCancelReason(sale.cancelReason)}
+                  </p>
+                ) : null}
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:mt-2">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadgeClass(sale.transactionStatus)}`}>
+                      {sale.transactionStatus}
+                    </span>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadgeClass(sale.paymentStatus)}`}>
+                      {sale.paymentStatus}
+                    </span>
+                    {hasReturn ? (
+                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
+                        Retur
+                      </span>
+                    ) : null}
+                    {discountTotal > 0 ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+                        Diskon {rupiah(discountTotal)}
+                      </span>
+                    ) : null}
+                    {sale.loyaltyApplied ? (
+                      <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+                        Loyalty
+                        {sale.loyaltyMilestone ? ` ke-${sale.loyaltyMilestone}` : ""}
+                      </span>
+                    ) : null}
+                    {isPendingQris ? (
+                      <PendingExpiryCountdown
+                        expiredAt={sale.expiredAt?.toISOString() ?? null}
+                      />
+                    ) : null}
+                  </div>
+                  <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                    {isPendingQris ? (
+                      <PaymentProofActionButton
+                        saleId={sale.id}
+                        invoiceNumber={sale.invoiceNumber}
+                      />
+                    ) : null}
+                    {sale.transactionStatus === "PENDING" ? (
+                      <CancelSaleButton
+                        saleId={sale.id}
+                        invoiceNumber={sale.invoiceNumber}
+                      />
+                    ) : null}
+                    <p
+                      className={`shrink-0 text-right text-sm font-bold tabular-nums ${
+                        hasReturn
+                          ? "text-rose-600 dark:text-rose-300"
+                          : "text-slate-950 dark:text-white"
+                      }`}
+                    >
+                      {hasReturn ? `- ${rupiah(refund)}` : rupiah(sale.subtotal)}
+                      <span className="font-medium text-slate-400 dark:text-slate-500">
+                        {" "}
+                        / {paymentName}
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
             );

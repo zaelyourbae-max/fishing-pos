@@ -1,8 +1,9 @@
 import AutoPrintInvoice from "@/components/invoice/auto-print-invoice";
-import DownloadPdfButton from "@/components/invoice/download-pdf-button";
+import FitToWidth from "@/components/invoice/fit-to-width";
 import PaymentProofImage from "@/components/invoices/payment-proof-image";
 import PrintInvoiceButton from "@/components/invoice/print-invoice-button";
-import SaleMessageActions from "@/components/message-actions/sale-message-actions";
+// Disembunyikan sementara (menunggu integrasi AI):
+// import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import { requireProtectedPage } from "@/lib/page-guards";
 import { formatDateTimeID } from "@/lib/date-format";
 import { paymentProofEndpoint } from "@/lib/payment-proof-assets";
@@ -195,29 +196,32 @@ export default async function InvoicePage({
     <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950 print:bg-white print:px-0 print:py-0 sm:px-6">
       <AutoPrintInvoice enabled={shouldPrint} />
       <div className="mx-auto max-w-3xl">
-        <div className="mb-4 flex flex-col gap-3 print:hidden sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 grid grid-cols-3 gap-2 print:hidden sm:flex sm:flex-row sm:items-center sm:justify-between">
           <Link
             href="/sales"
-            className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-center text-sm font-semibold hover:bg-zinc-50"
+            className="rounded-xl border border-zinc-300 bg-white px-2 py-2 text-center text-xs font-semibold hover:bg-zinc-50 sm:px-4 sm:text-sm"
           >
             ← Kembali
           </Link>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="contents sm:flex sm:flex-wrap sm:gap-2">
             <a
               href={`/api/sales/${sale.id}/invoice/pdf`}
               download
-              className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 print:hidden"
+              className="rounded-xl bg-teal-600 px-2 py-2 text-center text-xs font-semibold text-white hover:bg-teal-700 print:hidden sm:px-4 sm:text-sm"
             >
               Download PDF
             </a>
-            <PrintInvoiceButton />
+            <PrintInvoiceButton className="rounded-xl bg-teal-600 px-2 py-2 text-center text-xs font-semibold text-white hover:opacity-90 print:hidden sm:px-4 sm:text-sm" />
           </div>
         </div>
-        <div className="mb-4 print:hidden">
+        {/* Disembunyikan sementara — menunggu integrasi AI (Send WhatsApp / Owner Report).
+            Hidupkan lagi dengan membuka komentar di bawah saat fitur AI siap. */}
+        {/* <div className="mb-4 print:hidden">
           <SaleMessageActions saleId={sale.id} />
-        </div>
+        </div> */}
 
+        <FitToWidth>
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm print:border-0 print:p-0 print:shadow-none sm:p-8">
           {/* HEADER */}
           <header className="mb-7 flex items-start justify-between border-b-2 border-teal-600 pb-5">
@@ -308,12 +312,6 @@ export default async function InvoicePage({
               <div className="mt-3 grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
                 <PaymentProofImage src={paymentProofImageSrc} />
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between gap-3 rounded-xl border border-zinc-100 px-3 py-2">
-                    <span className="text-zinc-500">Proof URL</span>
-                    <span className="max-w-[220px] truncate text-right font-semibold">
-                      {sale.paymentProofUrl}
-                    </span>
-                  </div>
                   <a
                     href={paymentProofImageSrc}
                     target="_blank"
@@ -492,6 +490,7 @@ export default async function InvoicePage({
             </div>
           </footer>
         </section>
+        </FitToWidth>
       </div>
     </main>
   );

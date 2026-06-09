@@ -411,7 +411,6 @@ export async function GET(
       dt(page, cut(value, 46), metaX + 8, my + 15, f.r600, 8.5, C_NAVY);
       my += rowH + 6;
     };
-    drawMetaRow("Proof URL", sale.paymentProofUrl ?? "-");
     if (canViewProofAudit) {
       drawMetaRow("Uploaded At", sale.paymentProofUploadedAt ? fmtDate(sale.paymentProofUploadedAt) : "-");
       drawMetaRow("Uploaded By", sale.paymentProofUploadedBy?.name ?? "-");
