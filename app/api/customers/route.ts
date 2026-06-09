@@ -8,7 +8,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 async function getCustomerLoyaltyProgress(customerId: number) {
-  const [validTransactions, reservedSales] = await Promise.all([
+  const [validTransactions, reservedSales, customer] = await Promise.all([
     prisma.sale.count({
       where: {
         customerId,
@@ -29,10 +29,16 @@ async function getCustomerLoyaltyProgress(customerId: number) {
         loyaltyMilestone: true,
       },
     }),
+    // Rekap transaksi yang sudah dihapus permanen dari arsip — ditambahkan agar
+    // status loyalty tetap valid meski transaksi lamanya sudah dibuang.
+    prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { archivedSalesCount: true },
+    }),
   ]);
   const loyaltyConfig = await getLoyaltyConfig();
   const progress = loyaltyProgressFromValidCount(
-    validTransactions,
+    validTransactions + (customer?.archivedSalesCount ?? 0),
     loyaltyConfig.interval,
   );
 
@@ -199,6 +205,7 @@ export async function GET(req: Request) {
       address: true,
       notes: true,
       loyaltyPoints: true,
+      archivedSalesCount: true,
       _count: {
         select: {
           sales: true,
@@ -219,7 +226,11 @@ export async function GET(req: Request) {
       ...(lookup === "pos"
         ? { loyalty_progress: await getCustomerLoyaltyProgress(item.id) }
         : {}),
-      ...(canViewAnalytics ? { total_transactions: item._count.sales } : {}),
+      // Tambah rekap arsip agar total transaksi tidak menyusut setelah data
+      // lama dihapus permanen.
+      ...(canViewAnalytics
+        ? { total_transactions: item._count.sales + item.archivedSalesCount }
+        : {}),
     })),
   );
 

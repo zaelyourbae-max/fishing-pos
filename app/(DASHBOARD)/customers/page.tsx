@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Award, History, MapPin, Search, Users } from "lucide-react";
+import { ArrowUpRight, Award, History, Search, Users } from "lucide-react";
 import { Prisma } from "@prisma/client";
 
 import LiveSearchInput from "@/components/search/live-search-input";
@@ -99,6 +99,10 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         phone: true,
         address: true,
         createdAt: true,
+        // Rekap arsip yang sudah dihapus permanen — agar poin loyalty & total
+        // belanja tetap valid walau transaksi lama sudah dibuang.
+        archivedSalesCount: true,
+        archivedSalesSpend: true,
         _count: {
           select: {
             sales: true,
@@ -143,11 +147,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Customer</h1>
-          <p className="mobile-section-copy max-w-2xl sm:text-base">
-            Data customer aktif dari transaksi POS. Kasir melihat data
-            operasional dasar, owner dan developer melihat histori pembelian
-            read-only.
-          </p>
         </div>
         <div className="mobile-pill w-fit sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
           <Users className="h-4 w-4 text-teal-600" />
@@ -170,9 +169,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           <h2 className="mobile-section-heading">
             Daftar Customer
           </h2>
-          <p className="mobile-section-copy">
-            Klik customer untuk melihat detail dan histori yang diizinkan role.
-          </p>
         </div>
 
         {customers.length === 0 ? (
@@ -209,7 +205,8 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {customers.map((customer) => {
                 const summary = summaryByCustomer.get(customer.id);
-                const loyaltyPoints = summary?._count._all ?? 0;
+                const loyaltyPoints =
+                  (summary?._count._all ?? 0) + customer.archivedSalesCount;
 
                 return (
                   <tr key={customer.id} className="text-sm">
@@ -243,10 +240,14 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                     {canViewAnalytics ? (
                       <>
                         <td className="px-5 py-4 text-right font-bold tabular-nums text-slate-950 dark:text-white">
-                          {summary?._count._all ?? customer._count.sales}
+                          {(summary?._count._all ?? customer._count.sales) +
+                            customer.archivedSalesCount}
                         </td>
                         <td className="px-5 py-4 text-right font-bold tabular-nums text-slate-950 dark:text-white">
-                          {rupiah(summary?._sum.subtotal ?? 0)}
+                          {rupiah(
+                            (summary?._sum.subtotal ?? 0) +
+                              customer.archivedSalesSpend,
+                          )}
                         </td>
                       </>
                     ) : null}
@@ -269,7 +270,8 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         <div className="space-y-1.5 bg-slate-50/70 p-1.5 lg:hidden dark:bg-slate-900/30">
           {customers.map((customer) => {
             const summary = summaryByCustomer.get(customer.id);
-            const loyaltyPoints = summary?._count._all ?? 0;
+            const loyaltyPoints =
+              (summary?._count._all ?? 0) + customer.archivedSalesCount;
 
             return (
               <Link
@@ -280,7 +282,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="line-clamp-1 break-words text-[13px] font-bold leading-snug text-slate-950 dark:text-white sm:text-sm">
+                      <p className="line-clamp-1 break-words text-[15px] font-bold leading-snug text-slate-950 dark:text-white sm:text-sm">
                         {customer.name}
                       </p>
                       {loyaltyPoints >= loyalThreshold ? (
@@ -290,7 +292,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-0.5 break-all text-xs text-slate-500">
+                    <p className="mt-0.5 hidden break-all text-xs text-slate-500 sm:block">
                       {customer.phone ?? "WhatsApp belum ada"}
                     </p>
                     <p className="mt-0.5 text-[11px] font-medium text-slate-400 dark:text-slate-500">
@@ -302,12 +304,6 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                   </span>
                 </div>
                 <div className="mt-1.5 grid gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 sm:mt-2 sm:gap-2 sm:text-xs">
-                  <p className="flex min-w-0 items-start gap-1.5">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="min-w-0 line-clamp-1 break-words">
-                      {customer.address ?? "-"}
-                    </span>
-                  </p>
                   {canViewAnalytics ? (
                     <div className="grid grid-cols-2 gap-1.5">
                       <div className="mobile-mini-stat sm:rounded-xl sm:py-1.5">
@@ -316,15 +312,19 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                           Transaksi
                         </p>
                         <p className="mt-0.5 font-bold tabular-nums text-slate-900 dark:text-slate-100">
-                          {summary?._count._all ?? customer._count.sales}
+                          {(summary?._count._all ?? customer._count.sales) +
+                            customer.archivedSalesCount}
                         </p>
                       </div>
                       <div className="mobile-mini-stat sm:rounded-xl sm:py-1.5">
                         <p className="text-[11px] font-medium text-slate-400">
                           Total belanja
                         </p>
-                        <p className="mt-0.5 truncate font-bold tabular-nums text-slate-900 dark:text-slate-100">
-                          {rupiah(summary?._sum.subtotal ?? 0)}
+                        <p className="mt-0.5 truncate font-bold tabular-nums text-teal-600 dark:text-teal-400 sm:text-slate-900 dark:sm:text-slate-100">
+                          {rupiah(
+                            (summary?._sum.subtotal ?? 0) +
+                              customer.archivedSalesSpend,
+                          )}
                         </p>
                       </div>
                     </div>
