@@ -53,6 +53,9 @@ export default function ReturnForm() {
   const [qtyByItem, setQtyByItem] = useState<QtyMap>({});
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  // Cara uang dikembalikan ke pembeli. TUNAI mengurangi kas laci saat tutup
+  // kasir; TRANSFER tidak (uang via bank). Default TUNAI.
+  const [refundMethod, setRefundMethod] = useState<"CASH" | "TRANSFER">("CASH");
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -162,6 +165,7 @@ export default function ReturnForm() {
         sale_id: selectedSale.id,
         reason,
         notes,
+        refund_method: refundMethod,
         items: selectedItems,
       }),
     });
@@ -179,6 +183,7 @@ export default function ReturnForm() {
     setQtyByItem({});
     setReason("");
     setNotes("");
+    setRefundMethod("CASH");
     setQuery("");
   }
 
@@ -544,6 +549,37 @@ export default function ReturnForm() {
                 placeholder="Catatan retur"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              Uang dikembalikan via
+            </label>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:max-w-xs">
+              {([
+                { value: "CASH", label: "Tunai" },
+                { value: "TRANSFER", label: "Transfer" },
+              ] as const).map((opt) => {
+                const active = refundMethod === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setRefundMethod(opt.value)}
+                    className={
+                      active
+                        ? "inline-flex h-11 items-center justify-center rounded-2xl bg-teal-600 text-sm font-bold text-white shadow-sm transition active:scale-95"
+                        : "inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white text-sm font-semibold text-slate-600 transition hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+              Tunai mengurangi uang kas laci saat tutup kasir. Transfer tidak.
+            </p>
           </div>
 
           <div className="flex flex-col gap-4 border-t border-slate-200 dark:border-slate-800 pt-5 md:flex-row md:items-center md:justify-between">

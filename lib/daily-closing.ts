@@ -116,7 +116,7 @@ export async function buildDailyClosingSnapshot(
     },
     ...FINAL_SALE_STATUS_WHERE,
   };
-  const [sales, paymentSummary, returns] = await Promise.all([
+  const [sales, paymentSummary, returns, cashReturns] = await Promise.all([
     client.sale.aggregate({
       where: saleWhere,
       _sum: {
@@ -157,6 +157,24 @@ export async function buildDailyClosingSnapshot(
         _all: true,
       },
     }),
+    // Refund retur yang dikembalikan TUNAI → uang ini keluar dari laci, jadi
+    // harus mengurangi "kas seharusnya" agar selisih saat tutup kasir adil.
+    // Memakai refundMethod yang dipilih kasir (bukan menebak dari cara bayar asli),
+    // sehingga kasus "beli tunai tapi refund transfer" terhitung benar.
+    client.saleReturn.aggregate({
+      where: {
+        returnType: "CUSTOMER_RETURN",
+        refundMethod: "CASH",
+        createdAt: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+        sale: FINAL_SALE_STATUS_WHERE,
+      },
+      _sum: {
+        totalRefund: true,
+      },
+    }),
   ]);
   const paymentRows = paymentSummary.map((item) => ({
     method: item.paymentMethod,
@@ -165,11 +183,17 @@ export async function buildDailyClosingSnapshot(
   }));
   const grossOmzet = sales._sum.subtotal ?? 0;
   const returnValue = returns._sum.totalRefund ?? 0;
-  const expectedCash =
+  const cashSales =
     paymentRows.find((item) => item.method.toUpperCase() === "CASH")?.total ?? 0;
+  const cashRefund = cashReturns._sum.totalRefund ?? 0;
+  // Kas seharusnya di laci = penjualan tunai − refund retur tunai (uang yang
+  // sudah keluar dari laci untuk mengembalikan ke pembeli). Tidak pernah minus.
+  const expectedCash = Math.max(cashSales - cashRefund, 0);
 
   return {
     expectedCash,
+    cashSales,
+    cashRefund,
     grossOmzet,
     netOmzet: Math.max(grossOmzet - returnValue, 0),
     transactionCount: sales._count._all,

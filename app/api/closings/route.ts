@@ -21,6 +21,7 @@ function serializeClosing(closing: Awaited<ReturnType<typeof getDailyClosing>>) 
     id: closing.id,
     closing_date: dateInputValue(closing.closingDate),
     status: closing.status,
+    opening_cash: closing.openingCash,
     expected_cash: closing.expectedCash,
     actual_cash: closing.actualCash,
     difference: closing.difference,
@@ -117,6 +118,9 @@ export async function POST(req: Request) {
   const rawDate = String(body.date ?? dateInputValue(new Date())).trim();
   const closingDate = closingDateFromInput(rawDate);
   const actualCash = Number(body.actual_cash ?? body.actualCash ?? 0);
+  // Modal awal laci (uang receh untuk kembalian yang sudah ada sejak pagi).
+  // Default 0 → perilaku lama. Ditambahkan ke "kas seharusnya" agar selisih adil.
+  const openingCash = Number(body.opening_cash ?? body.openingCash ?? 0);
   const notes = String(body.notes ?? "").trim();
 
   if (!closingDate) {
@@ -129,6 +133,13 @@ export async function POST(req: Request) {
   if (!Number.isFinite(actualCash) || actualCash < 0) {
     return NextResponse.json(
       { message: "Cash aktual tidak valid." },
+      { status: 422 },
+    );
+  }
+
+  if (!Number.isFinite(openingCash) || openingCash < 0) {
+    return NextResponse.json(
+      { message: "Modal awal laci tidak valid." },
       { status: 422 },
     );
   }
@@ -153,10 +164,14 @@ export async function POST(req: Request) {
         const snapshot = await buildDailyClosingSnapshot(tx, closingDate);
         const now = new Date();
         const actualCashInt = Math.round(actualCash);
-        const difference = actualCashInt - snapshot.expectedCash;
+        const openingCashInt = Math.round(openingCash);
+        // Kas seharusnya = modal awal + penjualan tunai − refund tunai.
+        const expectedCash = openingCashInt + snapshot.expectedCash;
+        const difference = actualCashInt - expectedCash;
         const data = {
           status: DAILY_CLOSING_STATUS.CLOSED,
-          expectedCash: snapshot.expectedCash,
+          openingCash: openingCashInt,
+          expectedCash,
           actualCash: actualCashInt,
           difference,
           grossOmzet: snapshot.grossOmzet,

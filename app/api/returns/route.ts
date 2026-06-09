@@ -114,6 +114,12 @@ export async function POST(req: Request) {
   const saleId = String(body.sale_id ?? "").trim();
   const reason = String(body.reason ?? "").trim();
   const notes = String(body.notes ?? "").trim();
+  // Cara uang dikembalikan: TUNAI (keluar dari laci) atau TRANSFER (via bank).
+  // Default TUNAI agar data lama/tanpa pilihan tetap aman.
+  const refundMethod =
+    String(body.refund_method ?? "CASH").trim().toUpperCase() === "TRANSFER"
+      ? "TRANSFER"
+      : "CASH";
   const items = (body.items ?? []) as ReturnItemInput[];
 
   if (!saleId) {
@@ -179,12 +185,24 @@ export async function POST(req: Request) {
             id: true,
             invoiceNumber: true,
             cashierId: true,
+            subtotal: true,
+            subtotalBeforeLoyalty: true,
           },
         });
 
         if (!sale) {
           throw new Error("SALE_NOT_FOUND");
         }
+
+        // Porsi yang BENAR-BENAR dibayar pelanggan setelah diskon loyalty
+        // (level transaksi). Tanpa ini, retur saat ada hadiah loyalty bisa
+        // mengembalikan uang lebih besar dari yang dibayar. Bila tak ada
+        // loyalty, subtotalBeforeLoyalty == subtotal sehingga rasio = 1.
+        const beforeLoyalty = Number(sale.subtotalBeforeLoyalty ?? 0);
+        const loyaltyPaidRatio =
+          beforeLoyalty > 0
+            ? Math.min(Number(sale.subtotal) / beforeLoyalty, 1)
+            : 1;
 
         const saleItemIds = [...requestedQty.keys()];
         const saleItems = await tx.saleItem.findMany({
@@ -265,14 +283,18 @@ export async function POST(req: Request) {
             qty,
             unitPrice:
               saleItem.qty > 0
-                ? Math.round(saleItem.subtotal / saleItem.qty)
-                : saleItem.price,
+                ? Math.round(
+                    (saleItem.subtotal / saleItem.qty) * loyaltyPaidRatio,
+                  )
+                : Math.round(saleItem.price * loyaltyPaidRatio),
             unitCost: saleItem.unitCost,
             subtotal:
               qty *
               (saleItem.qty > 0
-                ? Math.round(saleItem.subtotal / saleItem.qty)
-                : saleItem.price),
+                ? Math.round(
+                    (saleItem.subtotal / saleItem.qty) * loyaltyPaidRatio,
+                  )
+                : Math.round(saleItem.price * loyaltyPaidRatio)),
           });
         }
 
@@ -289,6 +311,7 @@ export async function POST(req: Request) {
             notes: notes || null,
             status: "COMPLETED",
             totalRefund,
+            refundMethod,
           },
         });
         const responseItems = [];

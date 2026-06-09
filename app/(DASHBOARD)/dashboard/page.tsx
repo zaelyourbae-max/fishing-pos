@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpRight,
+  Banknote,
   ClipboardList,
   LineChart,
   Package,
@@ -12,19 +13,19 @@ import {
 } from "lucide-react";
 
 import DashboardTopActions, {
+  DashboardClosingPanel,
   DashboardStatusChips,
 } from "@/components/dashboard/dashboard-top-actions";
-import KpiActionCard, {
+import {
   type KpiDetail,
   type KpiIconName,
 } from "@/components/dashboard/kpi-action-card";
+import DashboardKpiCards from "@/components/dashboard/dashboard-kpi-cards";
 import OperationalAlerts, {
   type OperationalAlert,
 } from "@/components/dashboard/operational-alerts";
-import ProductAnalyticsCard, {
-  type ProductAnalyticsCardItem,
-} from "@/components/dashboard/product-analytics-card";
 import TransactionPaymentPanel from "@/components/dashboard/transaction-payment-panel";
+import MobileFoldList from "@/components/ui/mobile-fold-list";
 import { formatDateID, formatDateTimeID } from "@/lib/date-format";
 import { requireOwnerPage } from "@/lib/page-guards";
 import {
@@ -35,7 +36,6 @@ import { prisma } from "@/lib/prisma";
 import { rupiah } from "@/lib/reports";
 import { RETURN_REASON_LABELS, type ReturnReason } from "@/lib/returns";
 import { FINAL_SALE_STATUS_WHERE } from "@/lib/sale-status";
-import { getSettings } from "@/lib/settings";
 import { transactionIdentityLabel } from "@/lib/transaction-identity";
 
 type DashboardPageProps = {
@@ -191,17 +191,23 @@ function trendLabel(current: number, previous: number, period: string) {
   };
 }
 
-function salesHref(date: string, extra?: string) {
-  const params = new URLSearchParams({
-    from: date,
-    to: date,
-  });
-
-  if (extra) {
-    params.set("payment", extra);
+/**
+ * Teks pembanding bulan-ini-vs-bulan-lalu dengan bahasa yang jelas untuk semua
+ * kalangan (naik/turun + arah), bukan "20% dari bulan lalu" yang ambigu atau
+ * "Baru dari bulan lalu" yang janggal.
+ */
+function monthCompareHelper(current: number, previous: number) {
+  if (previous === 0) {
+    return current > 0 ? "Belum ada data bulan lalu" : "Belum ada data";
   }
 
-  return `/sales?${params.toString()}`;
+  const percentage = Math.round(((current - previous) / previous) * 100);
+
+  if (percentage === 0) {
+    return "Sama dengan bulan lalu";
+  }
+
+  return `${percentage > 0 ? "Naik" : "Turun"} ${Math.abs(percentage)}% vs bulan lalu`;
 }
 
 function SectionHeader({
@@ -315,24 +321,15 @@ function EmptyState({
 }
 
 function ProductThumb({
-  imageUrl,
   name,
 }: {
-  imageUrl?: string | null;
   name: string;
 }) {
-  if (imageUrl) {
-    return (
-      <span
-        className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-cover bg-center dark:border-slate-800"
-        style={{ backgroundImage: `url("${imageUrl}")` }}
-        aria-label={name}
-      />
-    );
-  }
-
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+    <span
+      aria-label={name}
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200"
+    >
       <Package className="h-5 w-5" />
     </span>
   );
@@ -354,18 +351,18 @@ function MiniMetricCard({
   return (
     <div className="flex min-w-0 items-start gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-100 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/70 sm:items-center sm:gap-3 sm:p-4">
       <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12 ${toneClass[tone]}`}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12 lg:h-14 lg:w-14 ${toneClass[tone]}`}
       >
-        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+        <Icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">
+        <span className="block text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400 lg:text-sm">
           {title}
         </span>
-        <span className="mt-1 block whitespace-nowrap text-[13px] font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-base xl:text-lg">
+        <span className="mt-1 block break-words text-[13px] font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-base lg:text-xl xl:text-2xl">
           {value}
         </span>
-        <span className="mt-1 line-clamp-2 text-xs leading-snug text-slate-500 dark:text-slate-400">
+        <span className="mt-1 line-clamp-2 text-xs leading-snug text-slate-500 dark:text-slate-400 lg:text-sm">
           {helper}
         </span>
       </span>
@@ -430,10 +427,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     todayReturnsQuick,
     activeProductSamples,
     productAnalytics,
-    settings,
     currentUser,
     expensesToday,
     expensesMonth,
+    cashReturnsToday,
   ] = await Promise.all([
     prisma.sale.aggregate({
       where: saleDayWhere,
@@ -796,7 +793,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     getProductAnalyticsPreview({
       limit: DASHBOARD_PRODUCT_ANALYTICS_LIMIT,
     }),
-    getSettings(),
     prisma.user.findUnique({
       where: {
         id: session.sub,
@@ -814,6 +810,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       where: { date: { gte: monthStart, lte: dayEnd } },
       _sum: { amount: true },
       _count: { _all: true },
+    }),
+    // Refund retur yang dikembalikan TUNAI hari ini → uang keluar dari laci.
+    // Dipakai untuk "Uang Cash di Laci" (rumus sama dgn closing). Pakai
+    // refundMethod, bukan menebak dari cara bayar asli.
+    prisma.saleReturn.aggregate({
+      where: {
+        returnType: "CUSTOMER_RETURN",
+        refundMethod: "CASH",
+        createdAt: { gte: dayStart, lte: dayEnd },
+        sale: FINAL_SALE_STATUS_WHERE,
+      },
+      _sum: { totalRefund: true },
     }),
   ]);
 
@@ -865,9 +873,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     (total, item) => total + (item._sum.subtotal ?? 0),
     0,
   );
-  const cashTodayValue =
+  // "Uang Cash di Laci" = penjualan tunai − refund retur tunai (uang yang sudah
+  // dikembalikan ke pembeli secara tunai). Rumus ini WAJIB sama dengan
+  // buildDailyClosingSnapshot agar angka di kartu/dialog = angka yang disimpan
+  // saat tutup kasir. Tidak pernah minus.
+  const cashSalesToday =
     paymentTodaySummary.find((item) => item.paymentMethod.toUpperCase() === "CASH")
       ?._sum.subtotal ?? 0;
+  const cashRefundToday = cashReturnsToday._sum.totalRefund ?? 0;
+  const cashTodayValue = Math.max(cashSalesToday - cashRefundToday, 0);
   let paymentCursor = 0;
   const paymentGradient =
     paymentTodaySummary.length === 0 || paymentTotal === 0
@@ -922,6 +936,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     icon: KpiIconName;
     tone: StatTone;
     detail: KpiDetail;
+    href?: string;
   }[] = [
     {
       title: "Omzet Hari Ini",
@@ -936,15 +951,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         rows: [
           { label: "Omzet kotor", value: rupiah(grossToday), tone: "good" },
           { label: "Transaksi", value: String(salesToday._count._all) },
-          { label: "ATV", value: rupiah(averageTransactionToday) },
+          { label: "Rata-rata Belanja", value: rupiah(averageTransactionToday) },
         ],
       },
     },
     {
-      title: "Omzet Bersih Hari Ini",
+      title: "Omzet Bersih",
       value: rupiah(netToday),
-      helper: "setelah retur",
-      trend: trendLabel(netToday, Math.max(grossYesterday, 0), ""),
+      helper: "Hari ini",
       icon: "wallet",
       tone: "emerald",
       detail: {
@@ -958,9 +972,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       },
     },
     {
-      title: "Retur Hari Ini",
+      title: "Retur",
       value: String(returnsToday._count._all),
-      helper: rupiah(returnTodayValue),
+      helper: "Hari ini",
       icon: "rotate",
       tone: "violet",
       detail: {
@@ -984,7 +998,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       },
     },
     {
-      title: "ATV Hari Ini",
+      title: "Rata-rata Belanja Hari Ini",
       value: rupiah(averageTransactionToday),
       helper: "dari kemarin",
       trend: trendLabel(
@@ -997,12 +1011,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       icon: "shopping-cart",
       tone: "violet",
       detail: {
-        title: "ATV Hari Ini",
-        description: "Average transaction value pada tanggal aktif.",
+        title: "Rata-rata Belanja Hari Ini",
+        description:
+          "Rata-rata nilai belanja per transaksi pada tanggal aktif (omzet dibagi jumlah transaksi).",
         rows: [
           { label: "Total omzet", value: rupiah(grossToday) },
           { label: "Jumlah transaksi", value: String(salesToday._count._all) },
-          { label: "ATV", value: rupiah(averageTransactionToday), tone: "good" },
+          {
+            label: "Rata-rata Belanja",
+            value: rupiah(averageTransactionToday),
+            tone: "good",
+          },
         ],
       },
     },
@@ -1098,9 +1117,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     {
       title: "Stok Rendah",
       value: String(lowStockProducts.length),
-      helper: "Stok <= min stok",
+      helper: "Stok minimum",
       icon: "alert",
       tone: "rose",
+      href: "/products?filter=low-stock",
       detail: {
         title: "Stok Rendah",
         description: "Produk aktif dengan stok di bawah atau sama dengan min stok masing-masing.",
@@ -1158,12 +1178,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const cashKpiCard: (typeof kpiCards)[number] = {
     title: "Uang Cash di Laci",
     value: rupiah(cashTodayValue),
-    helper: "Sebelum closing",
+    helper: "Sebelum tutup kasir",
     icon: "wallet" as KpiIconName,
     tone: "amber" as StatTone,
     detail: {
       title: "Uang Cash di Laci",
-      description: "Total uang cash yang seharusnya ada di laci kasir dari transaksi hari ini, sebelum closing dilakukan.",
+      description: "Total uang cash yang seharusnya ada di laci kasir dari transaksi hari ini, sebelum kasir ditutup.",
       rows: [
         { label: "Total cash masuk", value: rupiah(cashTodayValue), tone: "good" as const },
         { label: "Jumlah transaksi", value: String(salesToday._count._all) },
@@ -1191,9 +1211,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const dashboardKpiCards = [
     kpiCards[1],
     kpiCards[3],
-    kpiCards[2],
-    cashKpiCard,
     expenseKpiCard,
+    cashKpiCard,
+    kpiCards[2],
     kpiCards[10],
   ];
   const recentSaleRows = recentSales.map((sale) => ({
@@ -1229,32 +1249,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       href: `/sales?from=${dateInputValue(monthStart)}&to=${selectedDateInput}&payment=${item.paymentMethod}`,
     };
   });
-  const slowMovingItems: ProductAnalyticsCardItem[] =
-    productAnalytics.slowMoving.items.map((product) => {
-      const query = product.sku ?? product.name;
-
-      return {
-        id: product.id,
-        name: product.name,
-        sku: product.sku,
-        stock: product.stock,
-        daysSinceLastSold: product.daysSinceLastSold,
-        detailHref: `/products?q=${encodeURIComponent(query)}`,
-      };
-    });
-  const deadStockItems: ProductAnalyticsCardItem[] =
-    productAnalytics.deadStock.items.map((product) => {
-      const query = product.sku ?? product.name;
-
-      return {
-        id: product.id,
-        name: product.name,
-        sku: product.sku,
-        stock: product.stock,
-        daysSinceLastSold: product.daysSinceLastSold,
-        detailHref: `/products?q=${encodeURIComponent(query)}`,
-      };
-    });
   const operationalAlerts: OperationalAlert[] = [
     ...(lowStockProducts.length > 0
       ? [
@@ -1329,44 +1323,46 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const greeting =
     currentHour < 11 ? "Selamat pagi" : currentHour < 15 ? "Selamat siang" : currentHour < 18 ? "Selamat sore" : "Selamat malam";
   const ownerName = currentUser?.name ?? "Owner";
-  const storeName = settings.storeName || "Toko Pancing";
   const headerDate = formatHeaderDate(selectedDate);
   const monthlyMetrics = [
     {
       title: "Omzet Kotor",
       value: rupiah(grossMonth),
-      helper: `${trendLabel(grossMonth, grossPrevMonth, "").text} dari bulan lalu`,
+      helper: monthCompareHelper(grossMonth, grossPrevMonth),
       icon: LineChart,
       tone: "emerald" as StatTone,
     },
     {
       title: "Omzet Bersih",
       value: rupiah(netMonth),
-      helper: `${trendLabel(netMonth, Math.max(grossPrevMonth - returnPrevMonthValue, 0), "").text} dari bulan lalu`,
+      helper: monthCompareHelper(
+        netMonth,
+        Math.max(grossPrevMonth - returnPrevMonthValue, 0),
+      ),
       icon: Wallet,
       tone: "emerald" as StatTone,
     },
     {
-      title: "Transaksi",
+      title: "Jumlah Transaksi",
       value: String(salesMonth._count._all),
-      helper: "Bulan berjalan",
+      helper: "Bulan ini",
       icon: ClipboardList,
       tone: "blue" as StatTone,
     },
     {
-      title: "ATV (Avg. Transaksi)",
+      title: "Rata-rata Belanja",
       value:
         salesMonth._count._all > 0
           ? rupiah(Math.round(grossMonth / salesMonth._count._all))
           : rupiah(0),
-      helper: "Rata-rata transaksi",
+      helper: "Per transaksi bulan ini",
       icon: ShoppingCart,
       tone: "violet" as StatTone,
     },
     {
-      title: "Retur",
+      title: "Nilai Retur",
       value: rupiah(returnMonthValue),
-      helper: `${returnsMonth._count._all} retur customer`,
+      helper: `${returnsMonth._count._all} retur customer bulan ini`,
       icon: RotateCcw,
       tone: "rose" as StatTone,
     },
@@ -1378,10 +1374,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       tone: "amber" as StatTone,
     },
     {
-      title: "Pengeluaran Ops",
+      title: "Pengeluaran Operasional",
       value: rupiah(expenseMonthValue),
       helper: `${expensesMonth._count._all} pengeluaran bulan ini`,
-      icon: RotateCcw,
+      icon: Banknote,
       tone: "rose" as StatTone,
     },
   ];
@@ -1389,56 +1385,44 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <div className="mx-auto w-full max-w-[1480px] space-y-4 sm:space-y-5">
       <section className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.045)] dark:border-white/8 dark:bg-slate-900 sm:p-5 xl:p-6">
-        <div className="min-w-0">
-          <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
-            {greeting}, <span className="text-teal-600 dark:text-teal-400">{ownerName}</span>
-          </h1>
-          <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
-            {storeName}
-          </p>
-        </div>
-
-        <div className="mt-4">
-          <DashboardStatusChips
-            selectedDateInput={selectedDateInput}
-            selectedDateLabel={formatDate(selectedDate)}
-            userName={ownerName}
-            role={session.role}
-            lowStockCount={lowStockProducts.length}
-          />
-        </div>
-      </section>
-
-      <section className="rounded-[24px] border border-slate-200/80 bg-white/95 p-3 shadow-[0_14px_38px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-950/80 sm:p-4">
-        <DashboardTopActions
-          selectedDateInput={selectedDateInput}
-          selectedDateLabel={headerDate}
-          cashAmount={rupiah(cashTodayValue)}
-          cashValue={cashTodayValue}
-          grossOmzet={rupiah(grossToday)}
-          returnValue={rupiah(returnTodayValue)}
-          transactionCount={salesToday._count._all}
-          alerts={operationalAlerts}
-          payments={paymentRows}
-          closedBy={ownerName}
-        />
-      </section>
-
-      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
-        {dashboardKpiCards.map((card, index) => (
-          <div
-            key={card.title}
-            className={`min-w-0 ${
-              index === dashboardKpiCards.length - 1 &&
-              dashboardKpiCards.length % 2 === 1
-                ? "col-span-2 lg:col-span-1"
-                : ""
-            }`}
-          >
-            <KpiActionCard key={card.title} {...card} />
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between xl:gap-6">
+          <div className="min-w-0">
+            <h1 className="text-[22px] font-extrabold leading-tight tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
+              {greeting}, <span className="text-teal-600 dark:text-teal-400">{ownerName}</span>
+            </h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <DashboardStatusChips
+                userName={ownerName}
+                role={session.role}
+              />
+            </div>
           </div>
-        ))}
-      </div>
+
+          <div className="w-full min-w-0 xl:w-auto xl:max-w-[60%] xl:shrink-0">
+            <DashboardTopActions
+              selectedDateInput={selectedDateInput}
+              alerts={operationalAlerts}
+            />
+          </div>
+        </div>
+      </section>
+
+      <DashboardClosingPanel
+        selectedDateInput={selectedDateInput}
+        selectedDateLabel={headerDate}
+        cashAmount={rupiah(cashTodayValue)}
+        cashValue={cashTodayValue}
+        grossOmzet={rupiah(grossToday)}
+        returnValue={rupiah(returnTodayValue)}
+        transactionCount={salesToday._count._all}
+        payments={paymentRows}
+        closedBy={ownerName}
+      />
+
+      <DashboardKpiCards
+        primary={dashboardKpiCards.slice(0, 4)}
+        secondary={dashboardKpiCards.slice(4)}
+      />
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
         <TransactionPaymentPanel
@@ -1450,9 +1434,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 items-stretch gap-5 lg:grid-cols-2 xl:grid-cols-12">
-        <section className="flex h-full min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 xl:col-span-4">
-          <SectionHeader title="Produk Terlaris Hari Ini" href={salesHref(selectedDateInput)} />
+      <div className="grid min-w-0 grid-cols-1 items-stretch gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+        <section className="flex h-full min-w-0 flex-col rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70">
+          <SectionHeader title="Produk Terlaris Hari Ini" href="/products?filter=fast-moving" />
           <div className="mt-4 flex-1 rounded-2xl border border-slate-100 bg-slate-50/40 p-2 dark:border-slate-800 dark:bg-slate-900/30">
             {visibleBestSellerGroups.length === 0 ? (
               <EmptyState
@@ -1462,6 +1446,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             ) : null}
             {visibleBestSellerGroups.length > 0 ? (
               <div className="space-y-2 p-3">
+                <MobileFoldList visible={3}>
                 {visibleBestSellerGroups.map((item, index) => {
                   const product = productMap.get(item.productId);
 
@@ -1475,7 +1460,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-xs font-bold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
                           {index + 1}
                         </span>
-                        <ProductThumb imageUrl={product?.imageUrl} name={product?.name ?? "Produk"} />
+                        <ProductThumb name={product?.name ?? "Produk"} />
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-bold text-slate-950 dark:text-white">
                             {product?.name ?? "Produk tidak ditemukan"}
@@ -1499,40 +1484,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     </Link>
                   );
                 })}
+                </MobileFoldList>
               </div>
             ) : null}
           </div>
         </section>
 
-        <div className="min-w-0 xl:col-span-4">
+        <div className="min-w-0">
           <OperationalAlerts
             alerts={operationalAlerts}
             maxItems={DASHBOARD_ALERT_LIMIT}
           />
         </div>
 
-        <div className="min-w-0 xl:col-span-4">
-          <ProductAnalyticsCard
-            slowMoving={{
-              title: "Slow Moving",
-              helper: `Tidak terjual >= ${productAnalytics.slowMoving.thresholdDays} hari`,
-              href: "/products?filter=slow-moving",
-              total: productAnalytics.slowMoving.total,
-              items: slowMovingItems,
-              tone: "amber",
-            }}
-            deadStock={{
-              title: "Dead Stock",
-              helper: `Tidak terjual >= ${productAnalytics.deadStock.thresholdDays} hari`,
-              href: "/products?filter=dead-stock",
-              total: productAnalytics.deadStock.total,
-              items: deadStockItems,
-              tone: "rose",
-            }}
-          />
-        </div>
-
-        <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 lg:col-span-2 xl:col-span-12">
+        <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 lg:col-span-2 xl:col-span-2">
           <SectionHeader title={`Ringkasan Bulanan (${formatMonthYear(monthStart)})`} href="/reports" />
           <div className="mt-4 grid min-w-0 grid-cols-2 gap-3 md:grid-cols-2 2xl:grid-cols-3">
             {monthlyMetrics.map((metric) => (

@@ -7,7 +7,6 @@ import {
   Banknote,
   Bell,
   Calendar,
-  CalendarDays,
   CreditCard,
   Download,
   FileText,
@@ -33,23 +32,24 @@ type PaymentClosingRow = {
 
 type DashboardTopActionsProps = {
   selectedDateInput: string;
+  alerts: OperationalAlert[];
+};
+
+type DashboardClosingPanelProps = {
+  selectedDateInput: string;
   selectedDateLabel: string;
   cashAmount: string;
   cashValue: number;
   grossOmzet: string;
   returnValue: string;
   transactionCount: number;
-  alerts: OperationalAlert[];
   payments: PaymentClosingRow[];
   closedBy: string;
 };
 
 type DashboardStatusChipsProps = {
-  selectedDateInput: string;
-  selectedDateLabel: string;
   userName: string;
   role: string;
-  lowStockCount: number;
 };
 
 type ClosingStatus = "OPEN" | "CLOSED" | "REOPENED";
@@ -58,6 +58,7 @@ type ClosingRecord = {
   id: string;
   date: string;
   status: ClosingStatus;
+  openingCash: number;
   expectedCash: number;
   actualCash: number;
   difference: number;
@@ -125,7 +126,7 @@ function DashboardDateFilter({
   return (
     <form
       onSubmit={handleSubmit}
-      className="contents sm:flex sm:min-w-0 sm:flex-none sm:items-center sm:gap-2"
+      className="flex w-full items-center gap-2 sm:w-auto"
     >
       <input
         ref={hiddenInputRef}
@@ -133,7 +134,7 @@ function DashboardDateFilter({
         name="date"
         defaultValue={selectedDateInput}
       />
-      <div className="relative col-start-2 row-start-1 min-w-0 sm:flex-none">
+      <div className="relative min-w-0 flex-1 sm:flex-none">
         <label className="sr-only" htmlFor="dashboard-date-filter">
           Pilih tanggal dashboard
         </label>
@@ -149,7 +150,7 @@ function DashboardDateFilter({
             setError("");
           }}
           onBlur={(event) => normalizeDateInput(event.target.value)}
-          className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-52 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-blue-500/10"
+          className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-44 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-blue-500/10"
           title="Pilih tanggal dashboard"
         />
         {error ? (
@@ -160,7 +161,7 @@ function DashboardDateFilter({
       </div>
       <button
         type="submit"
-        className="col-span-1 col-start-1 row-start-2 inline-flex h-11 min-w-[120px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:min-w-0 sm:px-4 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+        className="inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
       >
         Terapkan
       </button>
@@ -170,37 +171,10 @@ function DashboardDateFilter({
 
 export default function DashboardTopActions({
   selectedDateInput,
-  selectedDateLabel,
-  cashAmount,
-  cashValue,
-  grossOmzet,
-  returnValue,
-  transactionCount,
   alerts,
-  payments,
-  closedBy,
 }: DashboardTopActionsProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [closingOpen, setClosingOpen] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
-  const todayInput = useMemo(() => dateInputValue(new Date()), []);
-  const selectedClosingRecord = useClosingRecord(selectedDateInput);
-  const todayClosingRecord = useClosingRecord(todayInput);
-  const isSelectedToday = selectedDateInput === todayInput;
-  const selectedStatus = selectedClosingRecord.status;
-  const isSelectedClosed = selectedStatus === "CLOSED";
-  const closingButtonLabel = isSelectedToday
-    ? isSelectedClosed
-      ? "Lihat Closing Hari Ini"
-      : "Closing Hari Ini"
-    : selectedClosingRecord.closing
-      ? "Lihat Closing Tanggal Ini"
-      : "Lihat Status Tanggal Ini";
-  const closingButtonTitle = isSelectedToday
-    ? isSelectedClosed
-      ? "Lihat closing hari ini"
-      : "Mulai closing hari ini"
-    : "Lihat closing untuk tanggal yang dipilih";
   const exportPdfHref = `/api/reports/export/daily/pdf?date=${encodeURIComponent(
     selectedDateInput,
   )}`;
@@ -223,9 +197,14 @@ export default function DashboardTopActions({
   }
 
   return (
-    <>
-      <div className="grid w-full grid-cols-[minmax(120px,0.8fr)_minmax(0,1.2fr)_44px] gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 xl:justify-end">
-        <div className="relative col-start-1 row-start-1 flex shrink-0 justify-end">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 xl:justify-end">
+      <DashboardDateFilter
+        key={selectedDateInput}
+        selectedDateInput={selectedDateInput}
+      />
+
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="relative shrink-0">
           <button
             type="button"
             onClick={() => setNotificationOpen((open) => !open)}
@@ -316,14 +295,9 @@ export default function DashboardTopActions({
           ) : null}
         </div>
 
-        <DashboardDateFilter
-          key={selectedDateInput}
-          selectedDateInput={selectedDateInput}
-        />
-
         <a
           href={`/dashboard?date=${selectedDateInput}`}
-          className="col-start-3 row-start-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-12 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:text-blue-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:h-12 sm:w-12 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:border-blue-500/60 dark:focus:ring-blue-500/10"
           aria-label="Refresh dashboard"
           title="Refresh dashboard"
         >
@@ -334,7 +308,7 @@ export default function DashboardTopActions({
           type="button"
           onClick={exportPdf}
           disabled={exportingPdf}
-          className="col-span-2 col-start-2 row-start-2 inline-flex h-11 min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:flex-none sm:px-5 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
+          className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:flex-none sm:px-5 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10"
           title="Download PDF"
         >
           {exportingPdf ? (
@@ -344,17 +318,92 @@ export default function DashboardTopActions({
           )}
           {exportingPdf ? "Mengunduh..." : "Download PDF"}
         </button>
+      </div>
+    </div>
+  );
+}
 
+export function DashboardStatusChips({
+  userName,
+  role,
+}: DashboardStatusChipsProps) {
+  const roleLabel =
+    role === "cashier"
+      ? `Kasir: ${userName}`
+      : role === "developer"
+        ? `Developer`
+        : `Owner: ${userName}`;
+
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full border border-teal-100 bg-teal-50/70 px-3 py-1 text-xs font-bold text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200">
+      {roleLabel}
+    </span>
+  );
+}
+
+export function DashboardClosingPanel({
+  selectedDateInput,
+  selectedDateLabel,
+  cashAmount,
+  cashValue,
+  grossOmzet,
+  returnValue,
+  transactionCount,
+  payments,
+  closedBy,
+}: DashboardClosingPanelProps) {
+  const [closingOpen, setClosingOpen] = useState(false);
+  const todayInput = useMemo(() => dateInputValue(new Date()), []);
+  const selectedClosingRecord = useClosingRecord(selectedDateInput);
+  const todayClosingRecord = useClosingRecord(todayInput);
+  const isSelectedToday = selectedDateInput === todayInput;
+  const selectedStatus = selectedClosingRecord.status;
+  const isSelectedClosed = selectedStatus === "CLOSED";
+  const operationalStatus = isSelectedToday
+    ? selectedStatus
+    : todayClosingRecord.status;
+  const closingButtonLabel = isSelectedToday
+    ? isSelectedClosed
+      ? "Lihat Closing Hari Ini"
+      : "Closing Hari Ini"
+    : selectedClosingRecord.closing
+      ? "Lihat Closing Tanggal Ini"
+      : "Lihat Status Tanggal Ini";
+  const closingButtonTitle = isSelectedToday
+    ? isSelectedClosed
+      ? "Lihat closing hari ini"
+      : "Mulai closing hari ini"
+    : "Lihat closing untuk tanggal yang dipilih";
+
+  return (
+    <section className="rounded-[24px] border border-slate-200/80 bg-white/95 p-3 shadow-[0_14px_38px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-950/80 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200">
+            <LockKeyhole className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-extrabold text-slate-950 dark:text-white">
+              Closing Toko
+            </p>
+            <p
+              className={`mt-0.5 text-xs font-bold ${
+                operationalStatus === "CLOSED"
+                  ? "text-teal-700 dark:text-teal-300"
+                  : operationalStatus === "REOPENED"
+                    ? "text-blue-700 dark:text-blue-300"
+                    : "text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              Operasional: {closingStatusLabel(operationalStatus)}
+              {!isSelectedToday ? " · beda tgl" : ""}
+            </p>
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => setClosingOpen(true)}
-          className={`col-span-3 row-start-3 inline-flex h-11 w-full min-w-0 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 sm:h-12 sm:w-auto sm:min-w-[150px] dark:focus:ring-teal-500/10 ${
-            isSelectedClosed
-              ? "bg-teal-600 hover:bg-teal-700"
-              : isSelectedToday
-                ? "bg-teal-600 hover:bg-teal-700"
-                : "bg-teal-600 hover:bg-teal-700"
-          }`}
+          className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-teal-600 px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-teal-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-100 sm:h-12 sm:w-auto sm:min-w-[180px] dark:focus:ring-teal-500/10"
           title={closingButtonTitle}
         >
           {isSelectedClosed ? (
@@ -388,104 +437,7 @@ export default function DashboardTopActions({
           onClose={() => setClosingOpen(false)}
         />
       ) : null}
-    </>
-  );
-}
-
-export function DashboardStatusChips({
-  selectedDateInput,
-  selectedDateLabel,
-  userName,
-  role,
-  lowStockCount,
-}: DashboardStatusChipsProps) {
-  const todayInput = useMemo(() => dateInputValue(new Date()), []);
-  const selectedClosingRecord = useClosingRecord(selectedDateInput);
-  const todayClosingRecord = useClosingRecord(todayInput);
-  const isSelectedToday = selectedDateInput === todayInput;
-  const closing = selectedClosingRecord.closing;
-  const status = selectedClosingRecord.status;
-  const operationalStatus = isSelectedToday ? status : todayClosingRecord.status;
-  const roleLabel =
-    role === "cashier"
-      ? `Kasir: ${userName}`
-      : role === "developer"
-        ? `Login sebagai Developer`
-        : `Owner: ${userName}`;
-
-  return (
-    <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-4 xl:gap-2.5">
-      <span className="flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border border-teal-100 bg-white px-2 py-2 text-[10px] font-bold text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-slate-950/70 dark:text-teal-200 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 xl:h-10 xl:w-10 xl:rounded-xl">
-          <span className="h-2 w-2 rounded-full bg-teal-500 xl:h-2.5 xl:w-2.5" />
-        </span>
-        <span className="min-w-0">
-          <span className="block line-clamp-1">Login Aktif</span>
-          <span className="mt-0.5 block truncate font-medium text-slate-500 dark:text-slate-400 xl:mt-1">
-            {roleLabel}
-          </span>
-        </span>
-      </span>
-      <span
-        className={`flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border px-2 py-2 text-[10px] font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs ${
-          status === "CLOSED"
-            ? "border-teal-200 bg-white text-teal-700"
-            : status === "REOPENED"
-              ? "border-blue-200 bg-white text-blue-700"
-              : "border-slate-200 bg-white text-amber-700"
-        }`}
-      >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 xl:h-10 xl:w-10 xl:rounded-xl">
-          <CalendarDays className="h-3 w-3 xl:h-4 xl:w-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block line-clamp-1">Tgl: {closingStatusLabel(status)}</span>
-          <span className="sr-only">
-          {status === "CLOSED"
-            ? "✓ Sudah Closing"
-            : status === "REOPENED"
-              ? "Reopened"
-              : "Belum Closing"}
-          </span>
-          <span className="mt-0.5 block truncate font-medium text-slate-500 dark:text-slate-400 xl:mt-1">
-            {status === "CLOSED" && closing?.closedAt
-              ? `${selectedDateLabel} • ${formatTime(closing.closedAt)}`
-              : selectedDateLabel}
-          </span>
-        </span>
-      </span>
-      <span
-        className={`flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border px-2 py-2 text-[10px] font-bold shadow-sm dark:border-slate-800 dark:bg-slate-950/70 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs ${
-          operationalStatus === "CLOSED"
-            ? "border-teal-200 bg-white text-teal-700"
-            : operationalStatus === "REOPENED"
-              ? "border-blue-200 bg-white text-blue-700"
-              : "border-slate-200 bg-white text-amber-700"
-        }`}
-      >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 xl:h-10 xl:w-10 xl:rounded-xl">
-          <LockKeyhole className="h-3 w-3 xl:h-4 xl:w-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block line-clamp-1">Operasional</span>
-          <span className="mt-0.5 block truncate font-medium xl:mt-1">
-            {closingStatusLabel(operationalStatus)}
-            {!isSelectedToday ? " · beda tgl" : ""}
-          </span>
-        </span>
-      </span>
-      <span className="flex min-h-[52px] min-w-0 items-center gap-1.5 rounded-2xl border border-rose-100 bg-white px-2 py-2 text-[10px] font-bold text-rose-600 shadow-sm dark:border-rose-500/20 dark:bg-slate-950/70 dark:text-rose-200 xl:min-h-[64px] xl:gap-3 xl:px-3.5 xl:py-3 xl:text-xs">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-200 xl:h-10 xl:w-10 xl:rounded-xl">
-          <AlertTriangle className="h-3 w-3 xl:h-4 xl:w-4" />
-        </span>
-        <span className="min-w-0">
-          <span className="block line-clamp-1">{lowStockCount} Stok Rendah</span>
-          <span className="mt-0.5 block truncate font-medium text-rose-500 dark:text-rose-200 xl:mt-1">
-            Stok &lt; min
-          </span>
-        </span>
-      </span>
-    </div>
+    </section>
   );
 }
 
@@ -608,6 +560,7 @@ function normalizeClosing(raw: unknown): ClosingRecord {
       objectValue(raw, "closing_date") ?? objectValue(raw, "date") ?? "",
     ),
     status: String(objectValue(raw, "status") ?? "OPEN") as ClosingStatus,
+    openingCash: numberValue(objectValue(raw, "opening_cash")),
     expectedCash: numberValue(objectValue(raw, "expected_cash")),
     actualCash: numberValue(objectValue(raw, "actual_cash")),
     difference: numberValue(objectValue(raw, "difference")),
@@ -660,7 +613,7 @@ function ClosingDialog({
   isOperationalDate,
   onChanged,
   onClose,
-}: Omit<DashboardTopActionsProps, "notificationCount"> & {
+}: DashboardClosingPanelProps & {
   existingClosing: ClosingRecord | null;
   closingStatus: ClosingStatus;
   operationalStatus: ClosingStatus;
@@ -676,6 +629,10 @@ function ClosingDialog({
     isClosed && existingClosing ? String(existingClosing.actualCash) : "",
   );
   const [notes, setNotes] = useState(isClosed ? (existingClosing?.notes ?? "") : "");
+  // Modal awal laci (uang receh untuk kembalian dari pagi). Default 0.
+  const [openingCash, setOpeningCash] = useState(
+    isClosed && existingClosing ? String(existingClosing.openingCash ?? 0) : "",
+  );
   const [saving, setSaving] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -687,7 +644,13 @@ function ClosingDialog({
   const actualValue = Number(actualCashInput);
   const actualCashValid =
     actualCashFilled && /^\d+$/.test(actualCashInput) && Number.isFinite(actualValue);
-  const difference = actualCashValid ? actualValue - cashValue : 0;
+  // Modal awal: kosong dianggap 0. Hanya angka bulat non-negatif.
+  const openingInput = openingCash.trim();
+  const openingValue = openingInput === "" ? 0 : Number(openingInput);
+  const openingValid = openingInput === "" || /^\d+$/.test(openingInput);
+  // Kas seharusnya di laci = modal awal + kas transaksi (tunai − refund tunai).
+  const expectedTotal = cashValue + (openingValid ? openingValue : 0);
+  const difference = actualCashValid ? actualValue - expectedTotal : 0;
   const differenceLabel = formatSignedRupiah(difference);
   const canCreateClosing = isOperationalDate;
 
@@ -720,6 +683,7 @@ function ClosingDialog({
         body: JSON.stringify({
           date: selectedDateInput,
           actual_cash: actualValue,
+          opening_cash: openingValue,
           notes,
         }),
       });
@@ -1003,24 +967,37 @@ function ClosingDialog({
             <>
               {step === 1 ? (
                 <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <ClosingMetric label="Omzet hari ini" value={grossOmzet} />
-                    <ClosingMetric
-                      label="Total transaksi"
-                      value={String(transactionCount)}
-                    />
-                    <ClosingMetric
-                      label="Cash (Expected)"
-                      value={paymentMap.cash}
-                    />
-                    <ClosingMetric label="QRIS" value={paymentMap.qris} />
-                    <ClosingMetric label="Transfer" value={paymentMap.transfer} />
-                    <ClosingMetric
-                      label="Retur"
-                      value={returnValue}
-                      tone="danger"
-                    />
-                  </div>
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-extrabold text-slate-950 dark:text-white">
+                      Ringkasan Transaksi
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ClosingMetric label="Omzet hari ini" value={grossOmzet} />
+                      <ClosingMetric
+                        label="Total transaksi"
+                        value={String(transactionCount)}
+                      />
+                    </div>
+                  </section>
+
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-extrabold text-slate-950 dark:text-white">
+                      Rincian Pembayaran
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ClosingMetric
+                        label="Cash (Expected)"
+                        value={paymentMap.cash}
+                      />
+                      <ClosingMetric label="QRIS" value={paymentMap.qris} />
+                      <ClosingMetric label="Transfer" value={paymentMap.transfer} />
+                      <ClosingMetric
+                        label="Retur"
+                        value={returnValue}
+                        tone="danger"
+                      />
+                    </div>
+                  </section>
                   <div className="flex gap-3 rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
@@ -1033,10 +1010,44 @@ function ClosingDialog({
 
               {step === 2 ? (
                 <div className="space-y-4">
-                  <ClosingMetric
-                    label="Cash seharusnya (Expected)"
-                    value={cashAmount}
-                  />
+                  <label className="block">
+                    <span className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                      Modal awal laci
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                        Opsional
+                      </span>
+                    </span>
+                    <div className="relative mt-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={groupThousands(openingCash)}
+                        onChange={(event) => {
+                          setOpeningCash(event.target.value.replace(/[^\d]/g, ""));
+                          setError("");
+                        }}
+                        placeholder="Uang receh kembalian dari pagi (kosongkan jika tidak ada)"
+                        className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-14 text-lg font-bold text-slate-950 caret-teal-600 shadow-sm outline-none transition duration-200 placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-white/8 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-teal-500/10"
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                        Rp
+                      </span>
+                    </div>
+                  </label>
+                  <div className="space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+                    <div className="flex items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
+                      <span className="min-w-0">Kas transaksi (tunai − refund tunai)</span>
+                      <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-slate-900 dark:text-slate-100">{cashAmount}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
+                      <span className="min-w-0">Modal awal laci</span>
+                      <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatRupiah(openingValid ? openingValue : 0)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3 border-t border-slate-200 pt-2 text-sm font-bold text-slate-900 dark:border-slate-700 dark:text-white">
+                      <span className="min-w-0">Cash seharusnya (Expected)</span>
+                      <span className="shrink-0 whitespace-nowrap tabular-nums">{formatRupiah(expectedTotal)}</span>
+                    </div>
+                  </div>
                   <label className="block">
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                       Cash aktual
@@ -1131,7 +1142,8 @@ function ClosingDialog({
                       date: selectedDateInput,
                       id: "preview",
                       status: "OPEN",
-                      expectedCash: cashValue,
+                      openingCash: openingValue,
+                      expectedCash: expectedTotal,
                       actualCash: actualValue,
                       difference,
                       notes,
@@ -1215,14 +1227,31 @@ function ClosingMetric({
 
   return (
     <div
-      className={`flex min-h-24 items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition duration-200 dark:bg-slate-950 ${
+      className={`flex min-h-24 flex-col gap-2 rounded-2xl border bg-white p-3 shadow-sm transition duration-200 dark:bg-slate-950 sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
         isDanger
           ? "border-rose-100 dark:border-rose-500/20"
           : "border-slate-100 dark:border-slate-800"
       }`}
     >
+      {/* Mobile: ikon + judul satu baris di atas (mengikuti kartu KPI dashboard). */}
+      <div className="flex min-w-0 items-start gap-2 sm:hidden">
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+            isDanger
+              ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-200"
+              : "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200"
+          }`}
+        >
+          {renderClosingMetricIcon(label)}
+        </span>
+        <span className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400">
+          {label}
+        </span>
+      </div>
+
+      {/* Desktop: ikon di kiri. */}
       <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+        className={`hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:flex ${
           isDanger
             ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-200"
             : "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200"
@@ -1230,12 +1259,12 @@ function ClosingMetric({
       >
         {renderClosingMetricIcon(label)}
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-bold leading-snug text-slate-500">
+      <div className="min-w-0 sm:flex-1">
+        <p className="hidden text-xs font-bold leading-snug text-slate-500 sm:block">
           {label}
         </p>
         <p
-          className={`mt-1 whitespace-nowrap text-xl font-extrabold leading-tight ${
+          className={`break-words text-lg font-extrabold leading-snug tracking-tight sm:mt-1 sm:text-xl ${
             isDanger ? "text-rose-600" : "text-slate-950 dark:text-white"
           }`}
         >

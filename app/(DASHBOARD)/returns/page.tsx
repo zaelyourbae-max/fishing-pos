@@ -137,10 +137,6 @@ export default async function ReturnsPage({ searchParams }: ReturnsPageProps) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Retur Customer</h1>
-          <p className="mt-3 text-slate-500 dark:text-slate-400">
-            Barang dikembalikan customer dari invoice penjualan. Retur ini
-            mengurangi omzet bersih.
-          </p>
         </div>
 
         <div className="responsive-action-row">
