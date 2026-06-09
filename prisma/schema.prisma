@@ -72,6 +72,7 @@ model Product {
   stockOpnameItems    StockOpnameItem[]
 
   @@index([supplierId])
+  @@index([isActive, stock])
   @@map("products")
 }
 
@@ -97,6 +98,12 @@ model Sale {
   cancelReason             String?           @map("cancel_reason")
   cancelledAt              DateTime?         @map("cancelled_at")
   cancelledById            Int?              @map("cancelled_by_id")
+  // Daur hidup arsip (housekeeping data lama). Lihat lib/archive.ts.
+  // archivedAt: transaksi sudah dipindah ke "gudang arsip" (HANYA penanda —
+  //   TIDAK mengubah angka laporan/loyalty; data tetap dihitung penuh).
+  // exportedAt: arsip sudah diekspor ke file → membuka kunci Hapus Permanen.
+  archivedAt               DateTime?         @map("archived_at")
+  exportedAt               DateTime?         @map("exported_at")
   createdAt                DateTime          @default(now())
   cashierId                Int
   customerId               Int?              @map("customer_id")
@@ -116,6 +123,8 @@ model Sale {
   @@index([paymentProofUploadedById, paymentProofUploadedAt])
   @@index([transactionStatus, paymentStatus, expiredAt])
   @@index([cancelledById, cancelledAt])
+  // Percepat halaman Arsip Data: cari transaksi lama yg belum/ sudah diarsip.
+  @@index([archivedAt, createdAt])
   @@map("sales")
 }
 
@@ -153,6 +162,9 @@ model SaleReturn {
   notes       String?
   status      String           @default("COMPLETED")
   totalRefund Int?             @map("total_refund")
+  // Cara uang dikembalikan ke pembeli: "CASH" (keluar dari laci) atau
+  // "TRANSFER" (via bank, laci tidak terpengaruh). Dipakai saat tutup kasir.
+  refundMethod String          @default("CASH") @map("refund_method")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
   sale        Sale             @relation(fields: [saleId], references: [id])
@@ -237,6 +249,7 @@ model DailyClosing {
   id               String            @id @default(cuid())
   closingDate      DateTime          @unique @map("closing_date") @db.Date
   status           String            @default("OPEN")
+  openingCash      Int               @default(0) @map("opening_cash")
   expectedCash     Int               @default(0) @map("expected_cash")
   actualCash       Int               @default(0) @map("actual_cash")
   difference       Int               @default(0)
@@ -293,6 +306,11 @@ model Customer {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   deletedAt     DateTime? @map("deleted_at")
+  // Rekap transaksi yang sudah DIHAPUS PERMANEN dari arsip. Dipakai agar
+  // hitungan loyalty & total belanja pelanggan TETAP VALID walau transaksi
+  // lamanya sudah dibuang. Loyalty asli = (transaksi final live) + count ini.
+  archivedSalesCount Int  @default(0) @map("archived_sales_count")
+  archivedSalesSpend Int  @default(0) @map("archived_sales_spend")
   sales         Sale[]
 
   @@index([name])
@@ -344,6 +362,7 @@ model SupplierReturn {
   @@index([supplierId, createdAt])
   @@index([createdById, createdAt])
   @@index([status, createdAt])
+  @@index([createdAt])
   @@map("supplier_returns")
 }
 
@@ -385,6 +404,7 @@ model Purchase {
   @@index([supplierId, purchaseDate])
   @@index([userId, purchaseDate])
   @@index([status, purchaseDate])
+  @@index([createdAt])
   @@map("purchases")
 }
 
