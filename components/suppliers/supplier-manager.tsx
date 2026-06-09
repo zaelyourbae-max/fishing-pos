@@ -149,10 +149,7 @@ export default function SupplierManager({ suppliers }: SupplierManagerProps) {
           <h2 className="text-2xl font-bold text-slate-950 dark:text-white">
             {isEditing ? "Edit Supplier" : "Tambah Supplier"}
           </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Supplier aktif akan tersedia di form pembelian. Boleh berupa
-            distributor, grosir, sales, atau toko kecil.
-          </p>
+
         </div>
 
         {message ? (

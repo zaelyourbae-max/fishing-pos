@@ -27,10 +27,7 @@ export default async function SuppliersPage() {
     <div className="space-y-8">
       <div>
         <h1 className="page-title">Supplier</h1>
-        <p className="mt-3 text-slate-400">
-          Catat asal barang untuk pembelian stok. Bisa distributor, grosir,
-          sales, atau toko kecil.
-        </p>
+
       </div>
 
       <SupplierManager suppliers={suppliers} />

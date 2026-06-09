@@ -37,16 +37,16 @@ export default async function PurchaseDetailPage({ params }: PurchaseDetailPageP
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-4">
           <Link
             href="/purchases"
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             <ArrowLeft size={18} />
           </Link>
-          <div>
-            <h1 className="page-title">{purchase.purchaseNumber}</h1>
+          <div className="min-w-0">
+            <h1 className="text-base font-semibold text-slate-900 dark:text-white truncate">{purchase.purchaseNumber}</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Detail pembelian
             </p>
@@ -55,7 +55,7 @@ export default async function PurchaseDetailPage({ params }: PurchaseDetailPageP
         <Link
           href={`/purchases/${purchase.id}/print`}
           target="_blank"
-          className="flex items-center gap-2 rounded-2xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 transition-colors"
+          className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
         >
           <Download size={16} />
           Download PDF
