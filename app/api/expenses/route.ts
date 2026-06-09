@@ -21,8 +21,13 @@ export async function POST(request: Request) {
   if (!category || typeof category !== "string" || category.trim() === "") {
     return NextResponse.json({ error: "Kategori wajib diisi" }, { status: 400 });
   }
-  if (!amount || typeof amount !== "number" || amount <= 0) {
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "Nominal harus lebih dari 0" }, { status: 400 });
+  }
+  // Rupiah selalu bilangan bulat; tolak nominal tak masuk akal (salah ketik).
+  const amountValue = Math.round(amount);
+  if (amountValue <= 0 || amountValue > 1_000_000_000_000) {
+    return NextResponse.json({ error: "Nominal tidak valid" }, { status: 400 });
   }
 
   const parsedDate = date ? new Date(`${date}T00:00:00`) : new Date();
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
     data: {
       expenseNumber: generateExpenseNumber(),
       category: category.trim(),
-      amount,
+      amount: amountValue,
       description: description?.trim() || null,
       date: parsedDate,
       createdById: auth.session.sub,

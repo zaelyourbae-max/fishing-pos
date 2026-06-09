@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowUpRight, FileText, Wallet, X } from "lucide-react";
-import {
-  operatorLabel,
-  transactionIdentityLabel,
-} from "@/lib/transaction-identity";
+import { ArrowUpRight, ChevronDown, FileText, Wallet, X } from "lucide-react";
+
+import MobileFoldList from "@/components/ui/mobile-fold-list";
 
 type SaleRow = {
   id: string;
@@ -114,20 +112,38 @@ function paymentTone(method: string) {
   return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
 }
 
-function statusTone(status: string) {
-  if (status === "SUCCESS" || status === "PAID") {
-    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
-  }
+const TONE_OK =
+  "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
+const TONE_WAIT =
+  "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200";
+const TONE_BAD =
+  "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200";
 
-  if (status === "PENDING" || status === "WAITING_PROOF") {
-    return "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200";
-  }
+/** Istilah metode bayar dari database -> bahasa owner. */
+function paymentLabel(method: string) {
+  const m = method.toUpperCase();
 
-  if (status === "CANCELLED" || status === "FAILED") {
-    return "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200";
-  }
+  if (m.includes("QRIS")) return "QRIS";
+  if (m.includes("TRANSFER") || m.includes("BANK")) return "Transfer";
 
-  return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+  // Hanya ada 3 metode resmi (CASH/QRIS/TRANSFER) & kolom default-nya "CASH",
+  // jadi sisanya selalu dianggap Tunai — tidak pernah tampil kode mentah.
+  return "Tunai";
+}
+
+/**
+ * Gabungkan status transaksi + status bayar jadi SATU status ringkas yang
+ * mudah dipahami owner (mis. "Lunas"), bukan 2-3 label Inggris mentah.
+ */
+function saleStateBadge(transactionStatus: string, paymentStatus: string) {
+  if (transactionStatus === "CANCELLED") return { label: "Dibatalkan", tone: TONE_BAD };
+  if (paymentStatus === "FAILED") return { label: "Gagal", tone: TONE_BAD };
+  if (paymentStatus === "PAID" && transactionStatus === "SUCCESS")
+    return { label: "Lunas", tone: TONE_OK };
+  if (paymentStatus === "WAITING_PROOF") return { label: "Menunggu bukti", tone: TONE_WAIT };
+  if (paymentStatus === "UNPAID") return { label: "Belum dibayar", tone: TONE_WAIT };
+
+  return { label: "Diproses", tone: TONE_WAIT };
 }
 
 export default function TransactionPaymentPanel({
@@ -139,6 +155,9 @@ export default function TransactionPaymentPanel({
 }: TransactionPaymentPanelProps) {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [selectedSale, setSelectedSale] = useState<SaleRow | null>(null);
+  // Khusus mobile: rincian + Perkiraan Uang di Laci bisa dilipat (donat tetap tampil).
+  // Di desktop (lg+) semua selalu terbuka — lihat kelas lg: di bawah.
+  const [showPaymentDetail, setShowPaymentDetail] = useState(false);
   const filteredSales = useMemo(() => {
     if (!selectedPayment) {
       return recentSales;
@@ -174,98 +193,100 @@ export default function TransactionPaymentPanel({
               helper="Transaksi POS akan muncul di sini."
             />
           ) : null}
-          {filteredSales.map((sale) => (
-            <button
-              key={sale.id}
-              type="button"
-              onClick={() => setSelectedSale(sale)}
-              className="flex w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-100 p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-sm active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10 sm:gap-4"
-              title={`Lihat quick detail ${sale.invoiceNumber}`}
-            >
-              <span className="flex min-w-0 flex-1 items-center gap-3">
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    sale.returnCount > 0
-                      ? "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200"
-                      : "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200"
-                  }`}
-                >
-                  <FileText className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                    <span className="max-w-full truncate text-sm font-extrabold text-slate-950 dark:text-white">
+          <MobileFoldList visible={3}>
+          {filteredSales.map((sale) => {
+            const state = saleStateBadge(
+              sale.transactionStatus,
+              sale.paymentStatus,
+            );
+
+            return (
+              <button
+                key={sale.id}
+                type="button"
+                onClick={() => setSelectedSale(sale)}
+                className="flex w-full min-w-0 cursor-pointer items-end justify-between gap-3 rounded-2xl border border-slate-100 p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-sm active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus:ring-teal-500/10 sm:gap-4"
+                title={`Lihat detail ${sale.invoiceNumber}`}
+              >
+                <span className="flex min-w-0 flex-1 items-center gap-3">
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                      sale.returnCount > 0
+                        ? "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200"
+                        : "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200"
+                    }`}
+                  >
+                    <FileText className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    {/* Utama: nomor invoice. */}
+                    <span className="block truncate text-sm font-extrabold text-slate-950 dark:text-white">
                       {sale.invoiceNumber}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${paymentTone(
-                        sale.paymentMethod,
-                      )}`}
-                    >
-                      {sale.paymentMethod}
-                    </span>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusTone(sale.transactionStatus)}`}>
-                      {sale.transactionStatus}
-                    </span>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${statusTone(sale.paymentStatus)}`}>
-                      {sale.paymentStatus}
-                    </span>
-                    {sale.returnCount > 0 ? (
-                      <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
-                        Ada retur
+                    {/* Status ringkas: metode bayar + satu status. */}
+                    <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${paymentTone(
+                          sale.paymentMethod,
+                        )}`}
+                      >
+                        {paymentLabel(sale.paymentMethod)}
                       </span>
-                    ) : null}
-                  </span>
-                  <span className="mt-1 block truncate text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {transactionIdentityLabel({
-                      operator: {
-                        name: sale.cashierName,
-                        role: {
-                          name: sale.cashierRoleName,
-                          slug: sale.cashierRoleSlug,
-                        },
-                      },
-                      customer: { name: sale.customerName },
-                    })}
-                  </span>
-                  <span className="mt-1 block truncate text-xs text-slate-500">
-                    {sale.createdAt} - {sale.itemCount} item
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${state.tone}`}
+                      >
+                        {state.label}
+                      </span>
+                      {sale.returnCount > 0 ? (
+                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
+                          Ada retur
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="mt-1 block truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {sale.cashierName}
+                    </span>
                   </span>
                 </span>
-              </span>
-              <span
-                className={`shrink-0 whitespace-nowrap text-right text-sm font-extrabold tabular-nums ${
-                  sale.returnCount > 0
-                    ? "text-rose-600 dark:text-rose-300"
-                    : "text-slate-950 dark:text-white"
-                }`}
-              >
-                {sale.returnCount > 0 ? "-" : ""}
-                {sale.subtotal}
-              </span>
-            </button>
-          ))}
+                <span
+                  className={`shrink-0 whitespace-nowrap text-right text-sm font-extrabold tabular-nums ${
+                    sale.returnCount > 0
+                      ? "text-rose-600 dark:text-rose-300"
+                      : "text-slate-950 dark:text-white"
+                  }`}
+                >
+                  {sale.returnCount > 0 ? "-" : ""}
+                  {sale.subtotal}
+                </span>
+              </button>
+            );
+          })}
+          </MobileFoldList>
         </div>
       </section>
 
       <section className="order-1 min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 sm:p-5 xl:order-2">
-        <SectionHeader title="Ringkasan Pembayaran Hari Ini" href="/reports" action="Lihat detail" />
-        <div className="mt-5 grid min-w-0 items-center gap-5 lg:grid-cols-[minmax(140px,176px)_1fr]">
-          <div className="relative mx-auto flex h-36 w-36 items-center justify-center rounded-full sm:h-40 sm:w-40">
+        <SectionHeader title="Pembayaran Hari Ini" href="/reports" action="Lihat detail" />
+        <div className="mt-5 flex min-w-0 flex-col items-center gap-5">
+          <div className="relative mx-auto flex h-36 w-36 items-center justify-center rounded-full sm:h-40 sm:w-40 lg:h-56 lg:w-56">
             <div
               className="absolute inset-0 rounded-full transition duration-300"
               style={{ background: `conic-gradient(${paymentGradient})` }}
             />
-            <div className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white text-center shadow-sm ring-1 ring-slate-100 dark:bg-slate-950 dark:ring-slate-800">
-              <span className="text-sm font-extrabold text-slate-950 dark:text-white sm:text-base">
+            <div className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white text-center shadow-sm ring-1 ring-slate-100 dark:bg-slate-950 dark:ring-slate-800 lg:h-36 lg:w-36">
+              <span className="text-sm font-extrabold text-slate-950 dark:text-white sm:text-base lg:text-xl">
                 {paymentTotal}
               </span>
               <span className="mt-1 text-xs text-slate-500">Total Omzet</span>
             </div>
           </div>
-          <div className="min-w-0 space-y-3">
+          <div
+            className={`w-full min-w-0 space-y-3 lg:block ${
+              showPaymentDetail ? "block" : "hidden"
+            }`}
+          >
             {paymentSummary.length === 0 ? (
-              <EmptyState icon="wallet" label="Belum ada pembayaran bulan ini." />
+              <EmptyState icon="wallet" label="Belum ada pembayaran hari ini." />
             ) : null}
             {paymentSummary.map((item) => {
               const isSelected = selectedPayment === item.method;
@@ -303,20 +324,38 @@ export default function TransactionPaymentPanel({
             })}
           </div>
         </div>
-        <div className="mt-4 flex min-h-12 items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-teal-50/70 px-4 py-3 text-sm dark:border-teal-500/30 dark:bg-teal-500/10">
+        <div
+          className={`mt-4 min-h-12 items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-teal-50/70 px-4 py-3 text-sm dark:border-teal-500/30 dark:bg-teal-500/10 lg:flex ${
+            showPaymentDetail ? "flex" : "hidden"
+          }`}
+        >
           <span className="font-bold text-teal-700 dark:text-teal-200">
-            Expected Cash Drawer
+            Perkiraan Uang di Laci
           </span>
           <span className="text-right text-base font-extrabold tabular-nums text-teal-800 dark:text-teal-100">
             {expectedCash}
           </span>
         </div>
+        {/* Tombol lipat — hanya muncul di mobile; desktop (lg+) sudah selalu terbuka. */}
+        <button
+          type="button"
+          onClick={() => setShowPaymentDetail((open) => !open)}
+          aria-expanded={showPaymentDetail}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 active:scale-[0.99] dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 lg:hidden"
+        >
+          {showPaymentDetail ? "Sembunyikan rincian" : "Lihat rincian pembayaran"}
+          <ChevronDown
+            className={`h-4 w-4 transition-transform duration-200 ${
+              showPaymentDetail ? "rotate-180" : ""
+            }`}
+          />
+        </button>
       </section>
 
       {selectedSale ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 sm:items-center sm:p-6">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3 sm:p-6">
+          <div className="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800">
               <div>
                 <h2 className="text-lg font-bold text-slate-950 dark:text-white">
                   Detail Transaksi Cepat
@@ -334,36 +373,34 @@ export default function TransactionPaymentPanel({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-5">
-              {[
-                ["Customer", selectedSale.customerName],
-                [
-                  "Operator",
-                  operatorLabel({
-                    name: selectedSale.cashierName,
-                    role: {
-                      name: selectedSale.cashierRoleName,
-                      slug: selectedSale.cashierRoleSlug,
-                    },
-                  }),
-                ],
-                ["Waktu", selectedSale.createdAt],
-                ["Payment", selectedSale.paymentMethod],
-                ["Transaction Status", selectedSale.transactionStatus],
-                ["Payment Status", selectedSale.paymentStatus],
-                ["Item", `${selectedSale.itemCount} item`],
-                ["Total", selectedSale.subtotal],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 dark:border-slate-800"
-                >
-                  <span className="text-sm text-slate-500">{label}</span>
-                  <span className="text-right text-sm font-bold text-slate-950 dark:text-white">
-                    {value}
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-3 overflow-y-auto p-5">
+              <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+                {[
+                  ["Pelanggan", selectedSale.customerName],
+                  ["Operator", selectedSale.cashierName],
+                  ["Waktu", selectedSale.createdAt],
+                  ["Metode bayar", paymentLabel(selectedSale.paymentMethod)],
+                  [
+                    "Status",
+                    saleStateBadge(
+                      selectedSale.transactionStatus,
+                      selectedSale.paymentStatus,
+                    ).label,
+                  ],
+                  ["Jumlah item", `${selectedSale.itemCount} item`],
+                  ["Total", selectedSale.subtotal],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                  >
+                    <span className="text-sm text-slate-500">{label}</span>
+                    <span className="text-right text-sm font-bold text-slate-950 dark:text-white">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
               {selectedSale.returnCount > 0 ? (
                 <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
                   Transaksi ini memiliki {selectedSale.returnCount} retur.

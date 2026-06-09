@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Settings,
   ShoppingCart,
+  Trophy,
   Truck,
   Users,
   X,
@@ -28,6 +29,7 @@ import ThemeToggle from "@/components/layout/theme-toggle";
 import PaletteToggle from "@/components/layout/palette-toggle";
 import { useGlobalInteractionCleanup } from "@/lib/global-interaction-state";
 import {
+  canAccessPerformance,
   canAccessReports,
   canAccessReturns,
   canAccessSettings,
@@ -102,6 +104,10 @@ function buildMenuSections(role: RoleSlug): MenuSection[] {
     main.push({ name: "Laporan", href: "/reports", icon: BarChart3 });
   }
 
+  if (canAccessPerformance(role)) {
+    main.push({ name: "Performa", href: "/performance", icon: Trophy });
+  }
+
   // Operasional — aktivitas harian toko
   const operasional: MenuItem[] = [
     { name: "POS", href: "/pos", icon: ShoppingCart },
@@ -140,6 +146,9 @@ function buildMenuSections(role: RoleSlug): MenuSection[] {
 
   if (canAccessSettings(role)) {
     sistem.push({ name: "Pengaturan", href: "/settings", icon: Settings });
+  } else if (role === "cashier") {
+    // Kasir hanya dapat pengaturan tampilan (palet warna).
+    sistem.push({ name: "Pengaturan", href: "/appearance", icon: Settings });
   }
 
   return [

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDateID } from "@/lib/date-format";
 import { rupiah } from "@/lib/reports";
 import ExpenseListClient from "@/components/expenses/expense-list-client";
+import CollapsibleFilter from "@/components/expenses/collapsible-filter";
 import DatePicker from "@/components/ui/date-picker";
 import { Receipt, TrendingDown, CalendarDays, Tag } from "lucide-react";
 
@@ -166,26 +167,6 @@ export default async function ExpensesPage({ searchParams }: PageProps) {
             </p>
           </div>
         </div>
-
-        {/* Toggle periode cepat */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {periodPresets.map((preset) => {
-            const active = currentFrom === preset.from && currentTo === preset.to;
-            return (
-              <Link
-                key={preset.key}
-                href={periodHref(preset)}
-                className={
-                  active
-                    ? "inline-flex h-9 items-center rounded-xl bg-teal-600 px-4 text-sm font-bold text-white shadow-sm transition active:scale-95"
-                    : "inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-teal-500/60"
-                }
-              >
-                {preset.label}
-              </Link>
-            );
-          })}
-        </div>
       </section>
 
       {/* Summary cards */}
@@ -195,21 +176,21 @@ export default async function ExpensesPage({ searchParams }: PageProps) {
           return (
             <div
               key={card.title}
-              className="flex min-h-[88px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_-8px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-8px_rgba(15,23,42,0.18)] dark:border-slate-800 dark:bg-slate-950/70"
+              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_20px_-8px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-8px_rgba(15,23,42,0.18)] dark:border-slate-800 dark:bg-slate-950/70"
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
-                <Icon className="h-6 w-6" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <div className="flex min-w-0 items-start gap-2">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400">
                   {card.title}
                 </span>
-                <span className="mt-1 block truncate text-base font-extrabold tabular-nums text-slate-950 dark:text-white xl:text-lg">
-                  {card.value}
-                </span>
-                <span className="mt-0.5 block text-xs text-slate-400 dark:text-slate-500">
-                  {card.helper}
-                </span>
+              </div>
+              <span className="mt-2 block break-words text-xl font-extrabold leading-snug tracking-tight tabular-nums text-slate-950 dark:text-white">
+                {card.value}
+              </span>
+              <span className="mt-1.5 block break-words text-[13px] font-semibold leading-snug text-slate-400 dark:text-slate-500">
+                {card.helper}
               </span>
             </div>
           );
@@ -218,16 +199,36 @@ export default async function ExpensesPage({ searchParams }: PageProps) {
 
       {/* Filter + Daftar */}
       <section className="rounded-[24px] border border-slate-200/80 bg-white shadow-[0_14px_36px_-12px_rgba(15,23,42,0.12),0_4px_10px_-6px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-[0_14px_36px_-12px_rgba(0,0,0,0.5)]">
-        {/* Filter bar */}
-        <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <form method="GET" className="flex flex-wrap items-end gap-3">
+        {/* Filter bar (bisa dilipat di mobile) */}
+        <CollapsibleFilter>
+          {/* Toggle periode cepat */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            {periodPresets.map((preset) => {
+              const active = currentFrom === preset.from && currentTo === preset.to;
+              return (
+                <Link
+                  key={preset.key}
+                  href={periodHref(preset)}
+                  scroll={false}
+                  className={
+                    active
+                      ? "inline-flex h-9 items-center justify-center rounded-xl bg-teal-600 px-4 text-sm font-bold text-white shadow-sm transition active:scale-95"
+                      : "inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-teal-300 hover:text-teal-700 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-teal-500/60"
+                  }
+                >
+                  {preset.label}
+                </Link>
+              );
+            })}
+          </div>
+          <form method="GET" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Dari</label>
               <DatePicker
                 name="from"
                 defaultValue={params.from ?? toInput(monthStart)}
                 max={toInput(today)}
-                className="w-[160px]"
+                className="w-full sm:w-[160px]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -236,15 +237,15 @@ export default async function ExpensesPage({ searchParams }: PageProps) {
                 name="to"
                 defaultValue={params.to ?? toInput(today)}
                 max={toInput(today)}
-                className="w-[160px]"
+                className="w-full sm:w-[160px]"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="col-span-2 flex flex-col gap-1.5 sm:col-auto">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Kategori</label>
               <select
                 name="category"
                 defaultValue={params.category ?? ""}
-                className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900 focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-teal-500/20"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900 focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-teal-500/20 sm:w-auto"
               >
                 <option value="">Semua kategori</option>
                 {categories.map((c) => (
@@ -256,12 +257,12 @@ export default async function ExpensesPage({ searchParams }: PageProps) {
             </div>
             <button
               type="submit"
-              className="h-9 rounded-xl border border-slate-200 bg-slate-100 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="col-span-2 h-9 rounded-xl border border-slate-200 bg-slate-100 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:col-auto"
             >
               Terapkan
             </button>
           </form>
-        </div>
+        </CollapsibleFilter>
 
         {/* List + tombol tambah */}
         <div className="p-5">
