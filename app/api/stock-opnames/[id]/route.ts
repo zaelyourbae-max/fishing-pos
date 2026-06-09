@@ -1,4 +1,4 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import { getStockOpnameDetail } from "@/lib/stock-opname";
 import { NextResponse } from "next/server";
 
@@ -8,7 +8,7 @@ export async function GET(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = await requireCashier(request);
+  const auth = await requireOwner(request);
 
   if (!auth.ok) {
     return auth.response;

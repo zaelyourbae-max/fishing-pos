@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import StockOpnameStatusBadge from "@/components/stock-opname/stock-opname-status-badge";
+import PaginationLinks from "@/components/ui/pagination-links";
 
 type StockOpnameListItem = {
   id: string;
@@ -40,11 +41,33 @@ export default function StockOpnameList({
   canManage: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(sessions.length / PAGE_SIZE));
+  const requestedPage = Math.max(Number(searchParams.get("page") ?? 1) || 1, 1);
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pagedSessions = sessions.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  function hrefForPage(targetPage: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (targetPage > 1) {
+      params.set("page", String(targetPage));
+    } else {
+      params.delete("page");
+    }
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }
 
   async function createSession() {
     setLoading(true);
@@ -82,10 +105,6 @@ export default function StockOpnameList({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Stock Opname</h1>
-          <p className="mt-3 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
-            Audit stok massal berbasis Excel. Upload hanya mengisi stok fisik;
-            stok produk berubah saat owner/developer approve.
-          </p>
         </div>
       </div>
 
@@ -163,7 +182,7 @@ export default function StockOpnameList({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {sessions.map((session) => (
+                  {pagedSessions.map((session) => (
                     <tr key={session.id}>
                       <td className="px-5 py-4">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">
@@ -201,7 +220,7 @@ export default function StockOpnameList({
 
             {/* Mobile card list — hidden on sm+ */}
             <div className="divide-y divide-slate-200 sm:hidden dark:divide-slate-800">
-              {sessions.map((session) => (
+              {pagedSessions.map((session) => (
                 <Link
                   key={session.id}
                   href={`/stock-opname/${session.id}`}
@@ -218,29 +237,41 @@ export default function StockOpnameList({
                     </div>
                     <StockOpnameStatusBadge status={session.status} />
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-                    <div>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Progress</span>
-                      <p className="font-medium text-slate-700 dark:text-slate-200">
-                        {session.countedItems}/{session.totalItems} item
-                      </p>
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3 text-sm dark:border-slate-800">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="w-16 shrink-0 text-xs text-slate-500 dark:text-slate-400">Progress</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-200">
+                          {session.countedItems}/{session.totalItems} item
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="w-16 shrink-0 text-xs text-slate-500 dark:text-slate-400">Dibuat</span>
+                        <span className="truncate text-slate-600 dark:text-slate-300">
+                          {formatDate(session.createdAt)}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Selisih</span>
-                      <p className="font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="shrink-0 text-right">
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">Selisih</span>
+                      <span className="block text-lg font-bold tabular-nums text-slate-900 dark:text-slate-100">
                         {session.totalDifference}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Dibuat</span>
-                      <p className="text-slate-600 dark:text-slate-300">
-                        {formatDate(session.createdAt)}
-                      </p>
+                      </span>
                     </div>
                   </div>
                 </Link>
               ))}
             </div>
+
+            {totalPages > 1 ? (
+              <PaginationLinks
+                currentPage={currentPage}
+                totalItems={sessions.length}
+                pageSize={PAGE_SIZE}
+                hrefForPage={hrefForPage}
+                itemLabel="sesi"
+              />
+            ) : null}
           </>
         )}
       </section>

@@ -50,7 +50,6 @@ export default async function StockOpnameDetailPage({
           productNameSnapshot: item.productNameSnapshot,
           categorySnapshot: item.categorySnapshot,
           unitSnapshot: item.unitSnapshot,
-          rackLocationSnapshot: item.rackLocationSnapshot,
           systemStock: item.systemStock,
           physicalStock: item.physicalStock,
           difference: item.difference,

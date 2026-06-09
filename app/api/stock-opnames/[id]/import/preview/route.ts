@@ -1,4 +1,4 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import {
   STOCK_OPNAME_IMPORT_HEADERS,
   STOCK_OPNAME_MAX_FILE_SIZE_BYTES,
@@ -110,7 +110,7 @@ export async function POST(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = await requireCashier(request);
+  const auth = await requireOwner(request);
 
   if (!auth.ok) {
     return auth.response;

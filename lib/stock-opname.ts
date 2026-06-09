@@ -14,7 +14,6 @@ export const STOCK_OPNAME_IMPORT_HEADERS = [
   "barcode",
   "name",
   "category",
-  "rackLocation",
   "unit",
   "systemStock",
   "physicalStock",
@@ -38,7 +37,6 @@ export type StockOpnameValidatedImportRow = {
   barcode: string;
   name: string;
   category: string;
-  rackLocation: string;
   unit: string;
   systemStock: number | null;
   physicalStock: number | null;
@@ -326,7 +324,6 @@ export async function validateStockOpnameImportRows(input: {
       const barcode = readUpperText(row.barcode);
       const name = readText(row.name);
       const category = readText(row.category);
-      const rackLocation = readText(row.rackLocation);
       const unit = readText(row.unit);
       const systemStock = parseInteger(row.systemStock);
       const physicalStock = parseInteger(row.physicalStock);
@@ -339,38 +336,38 @@ export async function validateStockOpnameImportRows(input: {
           : null;
 
       if (sessionNumber !== session.opnameNumber) {
-        errors.push("[sessionNumber] Nomor sesi tidak cocok");
+        errors.push("Baris ini berasal dari sesi Stock Opname yang berbeda");
       }
 
       if (!item) {
-        errors.push("[itemId] Item tidak ditemukan di sesi SO");
+        errors.push("Produk ini tidak terdaftar di sesi ini");
       }
 
       if (!Number.isInteger(productId) || productId === null || productId <= 0) {
-        errors.push("[productId] Product ID tidak valid");
+        errors.push("Data produk tidak terbaca (jangan ubah kolom otomatis)");
       } else {
         if (seenProductIds.has(productId)) {
-          errors.push("[productId] Product ID duplikat di file");
+          errors.push("Produk ini muncul lebih dari sekali di file");
         }
         seenProductIds.add(productId);
       }
 
       if (itemId) {
         if (seenItemIds.has(itemId)) {
-          errors.push("[itemId] Item ID duplikat di file");
+          errors.push("Baris produk ini muncul lebih dari sekali di file");
         }
         seenItemIds.add(itemId);
       }
 
       if (sku) {
         if (seenSkus.has(sku)) {
-          errors.push("[sku] SKU duplikat di file");
+          errors.push("SKU ini muncul lebih dari sekali di file");
         }
         seenSkus.add(sku);
       }
 
       if (item && productId !== item.productId) {
-        errors.push("[productId] Product ID tidak cocok dengan item");
+        errors.push("Data produk di baris ini diubah (jangan ubah kolom otomatis)");
       }
 
       if (
@@ -379,17 +376,19 @@ export async function validateStockOpnameImportRows(input: {
         item.productSkuSnapshot &&
         sku !== item.productSkuSnapshot.toUpperCase()
       ) {
-        errors.push("[sku] SKU tidak cocok dengan snapshot");
+        errors.push("SKU di baris ini diubah (jangan ubah kolom otomatis)");
       }
 
       if (item && Number.isInteger(systemStock) && systemStock !== item.systemStock) {
-        errors.push("[systemStock] Stok sistem tidak cocok dengan snapshot");
+        errors.push("Stok sistem di baris ini diubah (jangan ubah kolom otomatis)");
       }
 
-      if (validPhysicalStock === null) {
-        errors.push("[physicalStock] Stok fisik wajib angka bulat");
-      } else if (validPhysicalStock < 0) {
-        errors.push("[physicalStock] Stok fisik tidak boleh negatif");
+      if (physicalStock === null) {
+        errors.push("Kolom stok fisik belum diisi");
+      } else if (Number.isNaN(physicalStock)) {
+        errors.push("Stok fisik harus angka bulat (tanpa titik atau koma)");
+      } else if (physicalStock < 0) {
+        errors.push("Stok fisik tidak boleh minus");
       }
 
       return {
@@ -401,7 +400,6 @@ export async function validateStockOpnameImportRows(input: {
         barcode,
         name,
         category,
-        rackLocation,
         unit,
         systemStock: Number.isInteger(systemStock) ? systemStock : null,
         physicalStock: validPhysicalStock,
@@ -417,6 +415,14 @@ export async function validateStockOpnameImportRows(input: {
   );
 
   const errorRows = rows.filter((row) => row.status === "error").length;
+  // Diagnostik untuk pesan ramah di tampilan: berapa baris dari sesi lain &
+  // berapa baris yang stok fisiknya belum diisi.
+  const wrongSessionRows = rows.filter(
+    (row) => row.sessionNumber !== session.opnameNumber,
+  ).length;
+  const missingPhysicalRows = rows.filter(
+    (row) => row.physicalStock === null,
+  ).length;
 
   return {
     session: {
@@ -429,6 +435,8 @@ export async function validateStockOpnameImportRows(input: {
       totalRows: rows.length,
       validRows: rows.length - errorRows,
       errorRows,
+      wrongSessionRows,
+      missingPhysicalRows,
     },
   };
 }

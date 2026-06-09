@@ -1,4 +1,4 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import {
   parsePhysicalStock,
   stockOpnameErrorPayload,
@@ -13,7 +13,7 @@ export async function PATCH(
     params: Promise<{ id: string; itemId: string }>;
   },
 ) {
-  const auth = await requireCashier(request);
+  const auth = await requireOwner(request);
 
   if (!auth.ok) {
     return auth.response;

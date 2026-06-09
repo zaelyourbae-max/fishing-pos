@@ -1,4 +1,4 @@
-﻿import { requireCashier, requireOwner } from "@/lib/auth-session";
+﻿import { requireOwner } from "@/lib/auth-session";
 import {
   createStockOpnameSession,
   getStockOpnameList,
@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const auth = await requireCashier(request);
+  const auth = await requireOwner(request);
 
   if (!auth.ok) {
     return auth.response;

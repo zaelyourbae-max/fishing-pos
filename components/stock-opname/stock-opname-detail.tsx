@@ -58,6 +58,8 @@ export default function StockOpnameDetail({
   const [loadingAction, setLoadingAction] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  // Panel nilai selisih dilipat default di HP; di desktop selalu terbuka.
+  const [selisihOpen, setSelisihOpen] = useState(false);
 
   const stats = useMemo(() => {
     const counted = session.items.filter(
@@ -214,7 +216,7 @@ export default function StockOpnameDetail({
         </p>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           ["Total item", stats.total],
           ["Sudah dihitung", stats.counted],
@@ -223,7 +225,7 @@ export default function StockOpnameDetail({
         ].map(([label, value]) => (
           <div
             key={label}
-            className="surface-panel rounded-3xl p-5"
+            className="surface-panel rounded-3xl p-4 sm:p-5"
           >
             <div className="text-xs font-semibold uppercase text-slate-500">
               {label}
@@ -239,59 +241,122 @@ export default function StockOpnameDetail({
       {(session.status === "REVIEW" || session.status === "APPROVED") &&
         stats.totalProdukSelisih > 0 ? (
         <section className="surface-panel rounded-3xl p-5 sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Estimasi Nilai Selisih
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                Berdasarkan HPP (cost price) saat sesi dibuat ·{" "}
-                {stats.totalProdukSelisih} produk selisih
-              </p>
-            </div>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setSelisihOpen((value) => !value)}
+              className="flex flex-1 items-start justify-between gap-3 text-left sm:pointer-events-none"
+              aria-expanded={selisihOpen}
+            >
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  Perkiraan Nilai Selisih
+                </h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Dihitung pakai harga modal saat opname dibuat ·{" "}
+                  {stats.totalProdukSelisih} produk berbeda dari catatan
+                </p>
+                {!selisihOpen ? (
+                  <p
+                    className={`mt-2 text-sm font-bold sm:hidden ${
+                      stats.netNilaiSelisih < 0
+                        ? "text-rose-600 dark:text-rose-400"
+                        : stats.netNilaiSelisih > 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-slate-600 dark:text-slate-300"
+                    }`}
+                  >
+                    {stats.netNilaiSelisih < 0
+                      ? `Toko rugi ${rupiah(stats.netNilaiSelisih)}`
+                      : stats.netNilaiSelisih > 0
+                        ? `Toko untung ${rupiah(stats.netNilaiSelisih)}`
+                        : "Stok pas, tidak ada selisih"}{" "}
+                    · ketuk untuk lihat detail
+                  </p>
+                ) : null}
+              </div>
+              <span
+                className={`mt-1 shrink-0 text-slate-400 transition-transform sm:hidden ${
+                  selisihOpen ? "rotate-180" : ""
+                }`}
+                aria-hidden="true"
+              >
+                ▾
+              </span>
+            </button>
             {stats.itemsWithZeroHpp > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-                ⚠ {stats.itemsWithZeroHpp} produk HPP = 0, nilai tidak dihitung
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                ⚠ {stats.itemsWithZeroHpp} produk belum ada harga modal, nilainya belum dihitung
               </span>
             ) : null}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            {/* Minus */}
-            <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-rose-500 dark:text-rose-400">
-                Selisih Minus (kurang)
-              </p>
-              <p className="mt-2 text-xl font-bold tabular-nums text-rose-700 dark:text-rose-300">
-                {stats.totalQtyMinus} pcs
-              </p>
-              <p className="mt-1 text-sm font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                {rupiah(stats.totalNilaiMinus)}
-              </p>
-              <p className="mt-0.5 text-[11px] text-rose-400 dark:text-rose-500">
-                Estimasi kerugian HPP
-              </p>
+          <div
+            className={`gap-4 sm:grid sm:grid-cols-3 ${
+              selisihOpen ? "grid" : "hidden"
+            }`}
+          >
+            {/* Stok berkurang dari catatan */}
+            <div className="flex flex-col rounded-2xl border border-rose-100 bg-rose-50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100 text-lg font-bold text-rose-600 dark:bg-rose-500/20 dark:text-rose-300">
+                  ↓
+                </span>
+                <div>
+                  <p className="text-base font-bold leading-tight text-rose-700 dark:text-rose-300">
+                    Stok Hilang
+                  </p>
+                  <p className="text-xs text-rose-500/90 dark:text-rose-400/90">
+                    Lebih sedikit dari catatan
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 border-t border-rose-100 pt-3 dark:border-rose-500/20">
+                <p className="text-2xl font-extrabold tabular-nums leading-none text-rose-700 dark:text-rose-300">
+                  {Math.abs(stats.totalQtyMinus)}{" "}
+                  <span className="text-sm font-semibold">barang</span>
+                </p>
+                <p className="mt-2 text-lg font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                  ≈ {rupiah(stats.totalNilaiMinus)}
+                </p>
+                <p className="mt-1 text-xs text-rose-500 dark:text-rose-500">
+                  Perkiraan nilai barang hilang
+                </p>
+              </div>
             </div>
 
-            {/* Plus */}
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                Selisih Plus (lebih)
-              </p>
-              <p className="mt-2 text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                +{stats.totalQtyPlus} pcs
-              </p>
-              <p className="mt-1 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                +{rupiah(stats.totalNilaiPlus)}
-              </p>
-              <p className="mt-0.5 text-[11px] text-emerald-500 dark:text-emerald-600">
-                Estimasi surplus HPP
-              </p>
+            {/* Stok lebih dari catatan */}
+            <div className="flex flex-col rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300">
+                  ↑
+                </span>
+                <div>
+                  <p className="text-base font-bold leading-tight text-emerald-700 dark:text-emerald-300">
+                    Stok Lebih
+                  </p>
+                  <p className="text-xs text-emerald-600/90 dark:text-emerald-400/90">
+                    Lebih banyak dari catatan
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 border-t border-emerald-100 pt-3 dark:border-emerald-500/20">
+                <p className="text-2xl font-extrabold tabular-nums leading-none text-emerald-700 dark:text-emerald-300">
+                  {stats.totalQtyPlus}{" "}
+                  <span className="text-sm font-semibold">barang</span>
+                </p>
+                <p className="mt-2 text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  ≈ {rupiah(stats.totalNilaiPlus)}
+                </p>
+                <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-500">
+                  Perkiraan nilai barang lebih
+                </p>
+              </div>
             </div>
 
-            {/* Net */}
+            {/* Selisih uang total */}
             <div
-              className={`rounded-2xl border p-4 ${
+              className={`flex flex-col rounded-2xl border p-4 ${
                 stats.netNilaiSelisih < 0
                   ? "border-rose-200 bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/15"
                   : stats.netNilaiSelisih > 0
@@ -299,36 +364,72 @@ export default function StockOpnameDetail({
                     : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
               }`}
             >
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Net Nilai Selisih
-              </p>
-              <p
-                className={`mt-2 text-xl font-bold tabular-nums ${
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold ${
+                    stats.netNilaiSelisih < 0
+                      ? "bg-rose-200/70 text-rose-700 dark:bg-rose-500/25 dark:text-rose-200"
+                      : stats.netNilaiSelisih > 0
+                        ? "bg-emerald-200/70 text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-200"
+                        : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                  }`}
+                >
+                  =
+                </span>
+                <div>
+                  <p className="text-base font-bold leading-tight text-slate-700 dark:text-slate-200">
+                    Selisih Uang
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Hilang &amp; lebih digabung
+                  </p>
+                </div>
+              </div>
+              <div
+                className={`mt-3 border-t pt-3 ${
                   stats.netNilaiSelisih < 0
-                    ? "text-rose-700 dark:text-rose-300"
+                    ? "border-rose-200 dark:border-rose-500/30"
                     : stats.netNilaiSelisih > 0
-                      ? "text-emerald-700 dark:text-emerald-300"
-                      : "text-slate-700 dark:text-slate-300"
+                      ? "border-emerald-200 dark:border-emerald-500/30"
+                      : "border-slate-200 dark:border-slate-700"
                 }`}
               >
-                {stats.netNilaiSelisih > 0 ? "+" : ""}
-                {stats.netNilaiSelisih === 0
-                  ? "Rp 0"
-                  : rupiah(stats.netNilaiSelisih)}
-              </p>
-              <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
-                Minus + Plus (estimasi HPP)
-              </p>
+                <p
+                  className={`text-2xl font-extrabold tabular-nums leading-none ${
+                    stats.netNilaiSelisih < 0
+                      ? "text-rose-700 dark:text-rose-300"
+                      : stats.netNilaiSelisih > 0
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-slate-700 dark:text-slate-300"
+                  }`}
+                >
+                  {stats.netNilaiSelisih > 0 ? "+" : ""}
+                  {stats.netNilaiSelisih === 0
+                    ? "Rp 0"
+                    : rupiah(stats.netNilaiSelisih)}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  {stats.netNilaiSelisih < 0
+                    ? "Toko rugi sebesar ini"
+                    : stats.netNilaiSelisih > 0
+                      ? "Toko untung sebesar ini"
+                      : "Stok pas, tidak ada selisih"}
+                </p>
+              </div>
             </div>
           </div>
         </section>
       ) : null}
 
-      <StockOpnameImportPanel
-        sessionId={session.id}
-        canEdit={canEdit}
-        onApplied={refresh}
-      />
+      {/* Panel Import Excel hanya relevan saat sesi masih dihitung (COUNTING).
+          Setelah sesi final/selesai, panel ini disembunyikan. */}
+      {canEdit ? (
+        <StockOpnameImportPanel
+          sessionId={session.id}
+          canEdit={canEdit}
+          onApplied={refresh}
+        />
+      ) : null}
 
       <StockOpnameReviewTable
         sessionId={session.id}

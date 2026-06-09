@@ -1,4 +1,4 @@
-import { requireCashier } from "@/lib/auth-session";
+import { requireOwner } from "@/lib/auth-session";
 import {
   applyStockOpnameImportRows,
   stockOpnameErrorPayload,
@@ -17,7 +17,7 @@ export async function POST(
     params: Promise<{ id: string }>;
   },
 ) {
-  const auth = await requireCashier(request);
+  const auth = await requireOwner(request);
 
   if (!auth.ok) {
     return auth.response;

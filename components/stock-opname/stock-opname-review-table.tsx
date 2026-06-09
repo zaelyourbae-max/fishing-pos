@@ -10,7 +10,6 @@ export type StockOpnameItemRow = {
   productNameSnapshot: string;
   categorySnapshot: string | null;
   unitSnapshot: string | null;
-  rackLocationSnapshot: string | null;
   systemStock: number;
   physicalStock: number | null;
   difference: number | null;
@@ -53,14 +52,13 @@ export default function StockOpnameReviewTable({
         item.productSkuSnapshot,
         item.barcodeSnapshot,
         item.categorySnapshot,
-        item.rackLocationSnapshot,
       ]
         .filter(Boolean)
         .some((value) => value?.toLowerCase().includes(normalized)),
     );
   }, [items, query]);
 
-  const pageSize = 50;
+  const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const visibleItems = filtered.slice(
@@ -144,9 +142,6 @@ export default function StockOpnameReviewTable({
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               Review Selisih
             </h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Manual edit dipakai untuk koreksi hasil import sebelum review.
-            </p>
           </div>
           <input
             value={query}
@@ -167,16 +162,18 @@ export default function StockOpnameReviewTable({
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+          <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-600 dark:bg-slate-900 dark:text-slate-300">
             <tr>
-              <th className="px-4 py-3">Produk</th>
-              <th className="px-4 py-3">Lokasi</th>
-              <th className="px-4 py-3">Sistem</th>
-              <th className="px-4 py-3">Fisik</th>
-              <th className="px-4 py-3">Selisih</th>
-              <th className="px-4 py-3">Nilai Selisih</th>
-              <th className="px-4 py-3">Catatan</th>
-              <th className="px-4 py-3">Aksi</th>
+              <th className="px-4 py-3 max-sm:sticky max-sm:left-0 max-sm:z-20 max-sm:border-r max-sm:border-slate-200 max-sm:bg-slate-50 dark:max-sm:border-slate-800 dark:max-sm:bg-slate-900">
+                Produk
+              </th>
+              <th className="px-4 py-3">Kategori</th>
+              <th className="px-4 py-3 text-center">Stok Catatan</th>
+              <th className="px-4 py-3 text-center">Stok Asli</th>
+              <th className="px-4 py-3 text-center">Selisih Stok</th>
+              <th className="px-4 py-3 text-center">Selisih Uang</th>
+              <th className="px-4 py-3 text-center">Catatan</th>
+              <th className="px-4 py-3 text-center">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -192,7 +189,7 @@ export default function StockOpnameReviewTable({
 
               return (
                 <tr key={item.id}>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:border-r max-sm:border-slate-200 max-sm:bg-card dark:max-sm:border-slate-800">
                     <div className="font-semibold text-slate-900 dark:text-slate-100">
                       {item.productNameSnapshot}
                     </div>
@@ -202,15 +199,14 @@ export default function StockOpnameReviewTable({
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {item.categorySnapshot || "-"}
-                    {item.rackLocationSnapshot
-                      ? ` / Rak ${item.rackLocationSnapshot}`
-                      : ""}
                   </td>
-                  <td className="px-4 py-3">{item.systemStock}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">{item.systemStock}</td>
+                  <td className="px-4 py-3 text-center">
                     <input
                       value={draft.physicalStock}
                       disabled={!canEdit}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       onChange={(event) =>
                         setEditing((current) => ({
                           ...current,
@@ -228,7 +224,7 @@ export default function StockOpnameReviewTable({
                       </div>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 font-semibold">
+                  <td className="px-4 py-3 text-center text-base font-bold tabular-nums">
                     <span
                       className={
                         (difference ?? 0) === 0
@@ -238,18 +234,18 @@ export default function StockOpnameReviewTable({
                             : "text-rose-600 dark:text-rose-300"
                       }
                     >
-                      {difference ?? "-"}
+                      {(difference ?? 0) > 0 ? `+${difference}` : (difference ?? "-")}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-semibold tabular-nums">
+                  <td className="px-4 py-3 text-center text-base font-bold tabular-nums">
                     {(difference ?? 0) === 0 ? (
                       <span className="text-slate-400">—</span>
                     ) : item.costPriceSnapshot === 0 ? (
                       <span
                         className="text-xs font-medium text-amber-600 dark:text-amber-400"
-                        title="HPP belum diisi saat opname dibuat"
+                        title="Harga modal belum diisi saat opname dibuat"
                       >
-                        ⚠ HPP 0
+                        ⚠ Belum ada harga
                       </span>
                     ) : (
                       <span
@@ -266,7 +262,7 @@ export default function StockOpnameReviewTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">
                     <input
                       value={draft.notes}
                       disabled={!canEdit}
@@ -282,7 +278,7 @@ export default function StockOpnameReviewTable({
                       className="w-48 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-950"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">
                     <button
                       type="button"
                       disabled={
