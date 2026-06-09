@@ -2,7 +2,7 @@
 
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatRupiahInput, normalizeRupiahInput, parseRupiahInput } from "@/lib/rupiah-input";
 
 type ProductEditButtonProps = {
@@ -12,8 +12,6 @@ type ProductEditButtonProps = {
     barcode: string | null;
     name: string;
     brand: string | null;
-    type: string | null;
-    size: string | null;
     variant: string | null;
     price: number;
     costPrice: number;
@@ -22,30 +20,12 @@ type ProductEditButtonProps = {
     unit: string;
     category: string | null;
     supplierName: string | null;
-    rackLocation: string | null;
     description: string | null;
     imageUrl: string | null;
     hasStockHistory: boolean;
   };
   categories: string[];
 };
-
-async function uploadProductImage(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch("/api/products/images", {
-    method: "POST",
-    body: formData,
-  });
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Gagal upload foto produk.");
-  }
-
-  return String(payload.data?.imageUrl ?? "");
-}
 
 export default function ProductEditButton({
   product,
@@ -59,8 +39,6 @@ export default function ProductEditButton({
     barcode: product.barcode ?? "",
     name: product.name,
     brand: product.brand ?? "",
-    type: product.type ?? "",
-    size: product.size ?? "",
     variant: product.variant ?? "",
     price: String(product.price),
     costPrice: String(product.costPrice),
@@ -69,21 +47,8 @@ export default function ProductEditButton({
     unit: product.unit,
     category: product.category ?? "",
     supplier: product.supplierName ?? "",
-    rackLocation: product.rackLocation ?? "",
     description: product.description ?? "",
-    imageUrl: product.imageUrl ?? "",
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState(product.imageUrl ?? "");
-  const [imageInputKey, setImageInputKey] = useState(0);
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreview);
-      }
-    };
-  }, [imagePreview]);
 
   function updateForm(key: keyof typeof form, value: string) {
     setForm((current) => ({
@@ -97,9 +62,6 @@ export default function ProductEditButton({
     setLoading(true);
 
     try {
-      const uploadedImageUrl = imageFile
-        ? await uploadProductImage(imageFile)
-        : form.imageUrl;
       const response = await fetch(`/api/products/${product.id}`, {
         method: "PATCH",
         headers: {
@@ -111,7 +73,6 @@ export default function ProductEditButton({
           costPrice: parseRupiahInput(form.costPrice),
           stock: product.stock,
           minStock: Number(form.minStock),
-          imageUrl: uploadedImageUrl,
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -121,7 +82,6 @@ export default function ProductEditButton({
       }
 
       setOpen(false);
-      setImageFile(null);
       router.refresh();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Gagal update produk.");
@@ -193,18 +153,6 @@ export default function ProductEditButton({
                   placeholder="Brand"
                 />
                 <input
-                  value={form.type}
-                  onChange={(event) => updateForm("type", event.target.value)}
-                  className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                  placeholder="Type"
-                />
-                <input
-                  value={form.size}
-                  onChange={(event) => updateForm("size", event.target.value)}
-                  className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                  placeholder="Size"
-                />
-                <input
                   value={form.variant}
                   onChange={(event) => updateForm("variant", event.target.value)}
                   className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
@@ -216,12 +164,6 @@ export default function ProductEditButton({
                   className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
                   placeholder="Supplier"
                 />
-                <input
-                  value={form.rackLocation}
-                  onChange={(event) => updateForm("rackLocation", event.target.value)}
-                  className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                  placeholder="Lokasi rak"
-                />
               </div>
               <datalist id="product-categories">
                 {categories.map((category) => (
@@ -232,26 +174,36 @@ export default function ProductEditButton({
 
             <section className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">
-                Harga, HPP &amp; Satuan
+                Harga &amp; Stok
               </h3>
               <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-4">
-                <input
-                  value={form.unit}
-                  onChange={(event) => updateForm("unit", event.target.value)}
-                  className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                  placeholder="Unit utama (pcs, meter, gram, dll)"
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatRupiahInput(form.price)}
-                  onChange={(event) => updateForm("price", normalizeRupiahInput(event.target.value))}
-                  className="min-h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                  placeholder="Harga jual / sellPrice"
-                />
                 <label className="space-y-1.5">
                   <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Harga Modal / HPP
+                    Satuan Barang
+                  </span>
+                  <input
+                    value={form.unit}
+                    onChange={(event) => updateForm("unit", event.target.value)}
+                    className="min-h-10 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
+                    placeholder="pcs, meter, gram, kg, pack, roll, dll"
+                  />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Harga Jual
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatRupiahInput(form.price)}
+                    onChange={(event) => updateForm("price", normalizeRupiahInput(event.target.value))}
+                    className="min-h-10 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
+                    placeholder="Contoh: 50.000"
+                  />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Harga Modal
                   </span>
                   <input
                     type="text"
@@ -259,15 +211,15 @@ export default function ProductEditButton({
                     value={formatRupiahInput(form.costPrice)}
                     onChange={(event) => updateForm("costPrice", normalizeRupiahInput(event.target.value))}
                     className="min-h-10 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                    placeholder="Harga modal / HPP"
+                    placeholder="Contoh: 35.000"
                   />
                   <span className="block text-xs text-slate-500 dark:text-slate-400">
-                    Digunakan untuk menghitung laba dan margin. Tidak ditampilkan ke kasir.
+                    Harga beli dari supplier. Tidak terlihat oleh kasir.
                   </span>
                 </label>
                 <label className="space-y-1.5">
                   <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Batas stok rendah
+                    Stok Minimal
                   </span>
                   <input
                     type="number"
@@ -275,10 +227,10 @@ export default function ProductEditButton({
                     value={form.minStock}
                     onChange={(event) => updateForm("minStock", event.target.value)}
                     className="min-h-10 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                    placeholder="Min stok"
+                    placeholder="Contoh: 5"
                   />
                   <span className="block text-xs text-slate-500 dark:text-slate-400">
-                    Mengatur batas peringatan stok rendah, bukan koreksi stok fisik.
+                    Saat stok turun ke angka ini, sistem memberi peringatan.
                   </span>
                 </label>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm dark:border-amber-500/30 dark:bg-amber-500/10 sm:px-4 sm:py-3">
@@ -300,7 +252,7 @@ export default function ProductEditButton({
 
             <section className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">
-                Catatan &amp; Foto
+                Catatan
               </h3>
               <textarea
                 value={form.description}
@@ -309,61 +261,6 @@ export default function ProductEditButton({
                 placeholder="Catatan produk"
               />
             </section>
-
-            <div className="mt-3 sm:mt-4">
-              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 sm:text-sm">
-                Foto Produk
-              </label>
-              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div
-                  className="h-20 w-20 rounded-xl border border-slate-200 bg-slate-50 bg-contain bg-center bg-no-repeat dark:border-slate-800 dark:bg-slate-950 sm:h-24 sm:w-24"
-                  style={{
-                    backgroundImage: imagePreview
-                      ? `url("${imagePreview}")`
-                      : undefined,
-                  }}
-                >
-                  {!imagePreview ? (
-                    <div className="flex h-full items-center justify-center px-2 text-center text-xs text-slate-400">
-                      Preview
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <input
-                    key={imageInputKey}
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0] ?? null;
-                      setImageFile(file);
-                      setImagePreview(
-                        file ? URL.createObjectURL(file) : form.imageUrl,
-                      );
-                    }}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-3"
-                  />
-                  {imagePreview ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (imagePreview.startsWith("blob:")) {
-                          URL.revokeObjectURL(imagePreview);
-                        }
-                        setImageFile(null);
-                        setImagePreview("");
-                        setImageInputKey((key) => key + 1);
-                        updateForm("imageUrl", "");
-                      }}
-                      className="mt-2 text-sm font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-300"
-                    >
-                      Hapus foto
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            </div>
 
             <div className="sticky bottom-0 -mx-4 -mb-4 mt-4 flex flex-col-reverse gap-2.5 border-t border-slate-200 bg-white/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:static sm:m-0 sm:mt-5 sm:flex-row sm:justify-end sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
               <button

@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import {
+  ArrowDown,
+  ArrowUp,
   Boxes,
+  ChevronRight,
   DollarSign,
+  Minus,
   Package,
   Plus,
   Upload,
 } from "lucide-react";
 
+import ProductActionsMenu from "@/components/products/product-actions-menu";
 import ProductEditButton from "@/components/products/product-edit-button";
 import ProductFilterForm from "@/components/products/product-filter-form";
 import ProductStatusActionButton from "@/components/products/product-status-action-button";
@@ -18,10 +23,15 @@ import { canManageProducts, canViewCostPrice } from "@/lib/auth-session";
 import { requireStoreOpenPage } from "@/lib/page-guards";
 import {
   getProductAnalyticsWhere,
+  getProductVelocity,
   parseProductAnalyticsFilter,
-  PRODUCT_ANALYTICS_FILTERS,
+  parseSalesVelocityFilter,
   PRODUCT_ANALYTICS_FILTER_LABELS,
-  type ProductAnalyticsFilter,
+  rankFastMoving,
+  SALES_VELOCITY_FILTER_LABELS,
+  SALES_VELOCITY_FILTERS,
+  SALES_VELOCITY_WINDOW_DAYS,
+  type ProductVelocity,
 } from "@/lib/product-analytics";
 import { prisma } from "@/lib/prisma";
 
@@ -58,25 +68,19 @@ function compactProductValues(values: Array<string | null | undefined>) {
 
 function productIdentityMeta(product: {
   brand: string | null;
-  type: string | null;
-  size: string | null;
   variant: string | null;
 }) {
   return compactProductValues([
     product.brand,
-    product.type,
-    product.size,
     product.variant,
   ]);
 }
 
 function productCategoryLocationMeta(product: {
   category: string | null;
-  rackLocation: string | null;
 }) {
   return compactProductValues([
     product.category ?? "Tanpa kategori",
-    product.rackLocation ? `Rak ${product.rackLocation}` : null,
   ]);
 }
 
@@ -148,7 +152,7 @@ function pageHref(
 }
 
 function analyticsFilterHref(
-  filter: ProductAnalyticsFilter | null,
+  filter: string | null,
   params: {
     status: string;
     q: string;
@@ -179,26 +183,17 @@ function analyticsFilterHref(
 }
 
 function ProductImage({
-  imageUrl,
   name,
   className = "h-12 w-12 rounded-xl",
 }: {
-  imageUrl: string | null;
   name: string;
   className?: string;
 }) {
-  if (imageUrl) {
-    return (
-      <span
-        className={`block shrink-0 border border-slate-200 bg-cover bg-center dark:border-slate-800 ${className}`}
-        style={{ backgroundImage: `url("${imageUrl}")` }}
-        aria-label={name}
-      />
-    );
-  }
-
   return (
-    <span className={`flex shrink-0 items-center justify-center bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300 ${className}`}>
+    <span
+      aria-label={name}
+      className={`flex shrink-0 items-center justify-center bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300 ${className}`}
+    >
       <Package className="h-5 w-5 sm:h-6 sm:w-6" />
     </span>
   );
@@ -219,6 +214,69 @@ const statusFilters = [
   },
 ] as const;
 
+// Urutan chip = tangga perputaran (Fast -> Slow -> Dead), lalu Stok Rendah
+// yang merupakan sumbu berbeda (level stok, bukan kecepatan jual).
+const filterChips: { value: string; label: string }[] = [
+  ...SALES_VELOCITY_FILTERS.map((value) => ({
+    value,
+    label: SALES_VELOCITY_FILTER_LABELS[value],
+  })),
+  { value: "slow-moving", label: PRODUCT_ANALYTICS_FILTER_LABELS["slow-moving"] },
+  { value: "dead-stock", label: PRODUCT_ANALYTICS_FILTER_LABELS["dead-stock"] },
+  { value: "low-stock", label: PRODUCT_ANALYTICS_FILTER_LABELS["low-stock"] },
+];
+
+const trendMeta: Record<
+  ProductVelocity["trend"],
+  { Icon: typeof ArrowUp; className: string; label: string }
+> = {
+  up: { Icon: ArrowUp, className: "text-emerald-600 dark:text-emerald-400", label: "Naik" },
+  new: { Icon: ArrowUp, className: "text-emerald-600 dark:text-emerald-400", label: "Baru" },
+  down: { Icon: ArrowDown, className: "text-red-600 dark:text-red-400", label: "Turun" },
+  flat: { Icon: Minus, className: "text-slate-400 dark:text-slate-500", label: "Stabil" },
+};
+
+function VelocityBadge({ velocity }: { velocity: ProductVelocity | undefined }) {
+  if (!velocity) {
+    return null;
+  }
+
+  const meta = trendMeta[velocity.trend];
+  const { Icon } = meta;
+
+  return (
+    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800 dark:bg-teal-500/10 dark:text-teal-200">
+      <Icon className={`h-3 w-3 ${meta.className}`} aria-label={meta.label} />
+      Laku {velocity.recentQty} unit
+      <span className="font-medium text-teal-700/70 dark:text-teal-200/60">
+        ({SALES_VELOCITY_WINDOW_DAYS} hari)
+      </span>
+    </span>
+  );
+}
+
+// Varian "sambungan di atas kartu" untuk tampilan HP/tablet: strip tipis yang
+// menyatu di tepi atas kartu (full-bleed via margin negatif), teks rata tengah,
+// supaya info perputaran tidak memakan ruang di blok judul.
+function VelocityStrip({ velocity }: { velocity: ProductVelocity | undefined }) {
+  if (!velocity) {
+    return null;
+  }
+
+  const meta = trendMeta[velocity.trend];
+  const { Icon } = meta;
+
+  return (
+    <div className="-mx-2.5 -mt-2.5 mb-2.5 flex items-center justify-center gap-1.5 rounded-t-xl border-b border-teal-100 bg-teal-50 px-3 py-1.5 text-[11px] font-bold text-teal-800 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200 sm:-mx-4 sm:-mt-4 sm:mb-3 sm:rounded-t-2xl">
+      <Icon className={`h-3 w-3 ${meta.className}`} aria-label={meta.label} />
+      Laku {velocity.recentQty} unit
+      <span className="font-medium text-teal-700/70 dark:text-teal-200/60">
+        · {SALES_VELOCITY_WINDOW_DAYS} hari
+      </span>
+    </div>
+  );
+}
+
 export default async function ProductsPage({
   searchParams,
 }: ProductsPageProps) {
@@ -234,6 +292,8 @@ export default async function ProductsPage({
   const q = String(params.q ?? "").trim();
   const selectedCategory = String(params.category ?? "").trim();
   const analyticsFilter = parseProductAnalyticsFilter(params.filter);
+  const velocityFilter = parseSalesVelocityFilter(params.filter);
+  const activeFilter = velocityFilter ?? analyticsFilter;
   const analyticsWhere = getProductAnalyticsWhere(analyticsFilter);
   const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
   const where: Prisma.ProductWhereInput = {
@@ -261,8 +321,95 @@ export default async function ProductsPage({
         }
       : {}),
   };
-  const [products, totalProducts, summaryProducts, categories] =
-    await Promise.all([
+
+  const productInclude = {
+    supplier: {
+      select: {
+        name: true,
+      },
+    },
+    _count: {
+      select: {
+        purchaseItems: true,
+        saleItems: true,
+        saleReturnItems: true,
+        stockMovements: true,
+        supplierReturnItems: true,
+      },
+    },
+  } satisfies Prisma.ProductInclude;
+  type ProductRow = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
+
+  const categoriesQuery = prisma.product.findMany({
+    where: {
+      category: {
+        not: null,
+      },
+    },
+    distinct: ["category"],
+    orderBy: {
+      category: "asc",
+    },
+    select: {
+      category: true,
+    },
+  });
+
+  let products: ProductRow[];
+  let totalProducts: number;
+  let summaryProducts: { stock: number; price: number; costPrice: number }[];
+  let categories: { category: string | null }[];
+  // Diisi hanya pada filter "Paling Laku"/"Melambat" untuk menampilkan badge
+  // jumlah terjual + tren naik/turun per produk.
+  let velocityById: Map<number, ProductVelocity> | null = null;
+
+  if (velocityFilter) {
+    const velocity = await getProductVelocity();
+    const ranked = rankFastMoving(velocity);
+    velocityById = new Map(ranked.map((item) => [item.productId, item]));
+
+    // Ranking dibuat dari data penjualan; di sini disaring agar tunduk pada
+    // status/kategori/pencarian.
+    const candidateIds = ranked.map((item) => item.productId);
+    const matchWhere: Prisma.ProductWhereInput = {
+      ...where,
+      id: { in: candidateIds.length ? candidateIds : [-1] },
+    };
+    const matchedRows = await prisma.product.findMany({
+      where: matchWhere,
+      select: { id: true },
+    });
+    const matchedSet = new Set(matchedRows.map((row) => row.id));
+    const orderedIds = candidateIds.filter((id) => matchedSet.has(id));
+
+    totalProducts = orderedIds.length;
+    const pageIds = orderedIds.slice(
+      (currentPage - 1) * PAGE_SIZE,
+      (currentPage - 1) * PAGE_SIZE + PAGE_SIZE,
+    );
+
+    const [pageRows, summaryRows, categoryRows] = await Promise.all([
+      prisma.product.findMany({
+        where: { id: { in: pageIds.length ? pageIds : [-1] } },
+        include: productInclude,
+      }),
+      prisma.product.findMany({
+        where: { id: { in: orderedIds.length ? orderedIds : [-1] } },
+        select: { stock: true, price: true, costPrice: true },
+      }),
+      categoriesQuery,
+    ]);
+
+    // Prisma tak bisa mengurutkan sesuai posisi array id, jadi kembalikan
+    // urutan ranking secara manual.
+    const rowById = new Map(pageRows.map((row) => [row.id, row]));
+    products = pageIds
+      .map((id) => rowById.get(id))
+      .filter((row): row is ProductRow => Boolean(row));
+    summaryProducts = summaryRows;
+    categories = categoryRows;
+  } else {
+    [products, totalProducts, summaryProducts, categories] = await Promise.all([
       prisma.product.findMany({
         where,
         orderBy: {
@@ -270,22 +417,7 @@ export default async function ProductsPage({
         },
         skip: (currentPage - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
-        include: {
-          supplier: {
-            select: {
-              name: true,
-            },
-          },
-          _count: {
-            select: {
-              purchaseItems: true,
-              saleItems: true,
-              saleReturnItems: true,
-              stockMovements: true,
-              supplierReturnItems: true,
-            },
-          },
-        },
+        include: productInclude,
       }),
       prisma.product.count({
         where,
@@ -298,21 +430,9 @@ export default async function ProductsPage({
           costPrice: true,
         },
       }),
-      prisma.product.findMany({
-        where: {
-          category: {
-            not: null,
-          },
-        },
-        distinct: ["category"],
-        orderBy: {
-          category: "asc",
-        },
-        select: {
-          category: true,
-        },
-      }),
+      categoriesQuery,
     ]);
+  }
   const categoryOptions = categories
     .map((product) => product.category)
     .filter((category): category is string => Boolean(category));
@@ -336,13 +456,10 @@ export default async function ProductsPage({
           <h1 className="page-title">
             Inventory Produk
           </h1>
-          <p className="mobile-section-copy">
-            Sistem POS Toko Pancing
-          </p>
         </div>
 
         {canManage ? (
-          <div className="grid gap-2 sm:flex-row sm:grid-cols-2 sm:gap-3 lg:flex">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 lg:flex">
             <Link
               href="/products/import"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-teal-300 hover:text-teal-700 active:bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100 dark:active:bg-slate-900 sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
@@ -361,85 +478,83 @@ export default async function ProductsPage({
         ) : null}
       </div>
 
+      {/* KPI card: pola laporan owner (MetricCard) — baris atas ikon+judul,
+          angka membentang penuh di bawah, keterangan berwarna. Layout vertikal
+          ini ramah mobile karena angka panjang (Rp ...) dapat lebar penuh. */}
       <div className={`grid grid-cols-2 gap-2 sm:gap-4 ${canViewCost ? "xl:grid-cols-4" : "lg:grid-cols-2"}`}>
         <Link
           href="/products?status=all"
-          className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
+          className="mobile-card-surface block p-3 text-left transition-colors hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:rounded-3xl sm:p-5"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
-            <Package className="h-5 w-5 sm:h-7 sm:w-7" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
+          <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-12 sm:w-12">
+              <Package className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+            <p className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Produk
-            </span>
-            <span className="metric-value mt-0.5 block whitespace-nowrap text-xl sm:mt-1 sm:text-2xl">
-              {totalProducts}
-            </span>
-            <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-              Produk
-            </span>
-          </span>
+            </p>
+            <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 dark:text-slate-500 sm:h-6 sm:w-6" />
+          </div>
+          <p className="metric-value mt-2 block break-words text-xl font-extrabold leading-snug tracking-tight tabular-nums sm:mt-3 sm:text-2xl">
+            {totalProducts}
+          </p>
+          <p className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-teal-700 dark:text-teal-300 sm:text-sm">
+            Lihat semua
+          </p>
         </Link>
 
-        <Link
-          href="/products"
-          className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
-            <Boxes className="h-5 w-5 sm:h-7 sm:w-7" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
+        <div className="mobile-card-surface p-3 text-left sm:rounded-3xl sm:p-5">
+          <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-12 sm:w-12">
+              <Boxes className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+            <p className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-sm">
               Total Stok
-            </span>
-            <span className="metric-value mt-0.5 block whitespace-nowrap text-xl sm:mt-1 sm:text-2xl">
-              {totalStock}
-            </span>
-            <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-              Unit
-            </span>
-          </span>
-        </Link>
+            </p>
+          </div>
+          <p className="metric-value mt-2 block break-words text-xl font-extrabold leading-snug tracking-tight tabular-nums sm:mt-3 sm:text-2xl">
+            {totalStock}
+          </p>
+          <p className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-slate-500 dark:text-slate-400 sm:text-sm">
+            Unit
+          </p>
+        </div>
 
         {canViewCost ? (
-          <Link
-            href="/reports"
-            className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 hover:border-teal-200 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-slate-900 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200 sm:h-14 sm:w-14 sm:rounded-2xl">
-              <DollarSign className="h-5 w-5 sm:h-7 sm:w-7" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
+          <div className="mobile-card-surface p-3 text-left sm:rounded-3xl sm:p-5">
+            <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200 sm:h-12 sm:w-12">
+                <DollarSign className="h-5 w-5 sm:h-6 sm:w-6" />
+              </span>
+              <p className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-sm">
                 Nilai Jual Stok
-              </span>
-            <span className="metric-value mt-0.5 block break-words text-base sm:mt-1 sm:text-2xl">
-                {rupiah(totalInventory)}
-              </span>
-              <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-                Harga jual x stok
-              </span>
-            </span>
-          </Link>
+              </p>
+            </div>
+            <p className="metric-value mt-2 block break-words text-xl font-extrabold leading-snug tracking-tight tabular-nums sm:mt-3 sm:text-2xl">
+              {rupiah(totalInventory)}
+            </p>
+            <p className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-emerald-700 dark:text-emerald-300 sm:text-sm">
+              Bila semua stok terjual
+            </p>
+          </div>
         ) : null}
 
         {canViewCost ? (
-          <div className="mobile-card-surface flex min-h-[86px] items-center gap-2.5 p-2.5 sm:min-h-32 sm:gap-4 sm:rounded-3xl sm:p-5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 sm:h-14 sm:w-14 sm:rounded-2xl">
-              <DollarSign className="h-5 w-5 sm:h-7 sm:w-7" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-sm">
+          <div className="mobile-card-surface p-3 text-left sm:rounded-3xl sm:p-5">
+            <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 sm:h-12 sm:w-12">
+                <DollarSign className="h-5 w-5 sm:h-6 sm:w-6" />
+              </span>
+              <p className="min-w-0 flex-1 text-[13px] font-bold leading-tight text-slate-500 dark:text-slate-400 sm:text-sm">
                 Nilai Modal Stok
-              </span>
-              <span className="metric-value mt-0.5 block break-words text-base sm:mt-1 sm:text-2xl">
-                {rupiah(totalCostInventory)}
-              </span>
-              <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-sm">
-                {hasCostPrice ? "HPP x stok" : "HPP belum tersedia"}
-              </span>
-            </span>
+              </p>
+            </div>
+            <p className="metric-value mt-2 block break-words text-xl font-extrabold leading-snug tracking-tight tabular-nums sm:mt-3 sm:text-2xl">
+              {rupiah(totalCostInventory)}
+            </p>
+            <p className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-amber-700 dark:text-amber-300 sm:text-sm">
+              {hasCostPrice ? "Modal beli semua stok" : "Modal belum lengkap"}
+            </p>
           </div>
         ) : null}
       </div>
@@ -448,17 +563,8 @@ export default async function ProductsPage({
         data-search-results
         className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/70 sm:rounded-[28px]"
       >
-        <div className="flex flex-col gap-3 border-b border-slate-200 p-3 lg:flex-row lg:items-center lg:justify-between dark:border-slate-800 sm:gap-5 sm:p-5">
-          <div className="min-w-0">
-            <h2 className="mobile-section-heading">
-              Daftar Produk
-            </h2>
-            <p className="mobile-section-copy max-w-2xl">
-              Produk active tampil di POS. Produk inactive tersimpan untuk histori.
-            </p>
-          </div>
-
-          {canManage ? (
+        {canManage ? (
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-3 lg:flex-row lg:items-center lg:justify-end dark:border-slate-800 sm:gap-5 sm:p-5">
             <ProductStatusToggle
               active={status}
               options={statusFilters.map((filter) => ({
@@ -467,12 +573,12 @@ export default async function ProductsPage({
                 href: statusHref(filter.value, {
                   q,
                   category: selectedCategory,
-                  filter: analyticsFilter ?? "",
+                  filter: activeFilter ?? "",
                 }),
               }))}
             />
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <ProductFilterForm
           initialQ={q}
@@ -485,7 +591,7 @@ export default async function ProductsPage({
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Filter analitik
             </p>
-            <div className="flex min-w-0 gap-2 overflow-x-auto pb-0.5 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0">
+            <div className="flex min-w-0 gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0">
               <Link
                 href={analyticsFilterHref(null, {
                   status,
@@ -494,29 +600,29 @@ export default async function ProductsPage({
                 })}
                 scroll={false}
                 className={
-                  analyticsFilter === null
+                  activeFilter === null
                     ? "inline-flex min-h-9 shrink-0 items-center rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"
                     : "inline-flex min-h-9 shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:text-teal-200"
                 }
               >
                 Semua
               </Link>
-              {PRODUCT_ANALYTICS_FILTERS.map((filter) => (
+              {filterChips.map((chip) => (
                 <Link
-                  key={filter}
-                  href={analyticsFilterHref(filter, {
+                  key={chip.value}
+                  href={analyticsFilterHref(chip.value, {
                     status,
                     q,
                     category: selectedCategory,
                   })}
                   scroll={false}
                   className={
-                    analyticsFilter === filter
+                    activeFilter === chip.value
                       ? "inline-flex min-h-9 shrink-0 items-center rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 shadow-sm ring-1 ring-teal-100 dark:border-teal-400/30 dark:bg-teal-400/15 dark:text-teal-100 dark:ring-teal-400/20"
                       : "inline-flex min-h-9 shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:text-teal-200"
                   }
                 >
-                  {PRODUCT_ANALYTICS_FILTER_LABELS[filter]}
+                  {chip.label}
                 </Link>
               ))}
             </div>
@@ -558,7 +664,7 @@ export default async function ProductsPage({
                 >
                   <td className="px-4 py-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <ProductImage imageUrl={product.imageUrl} name={product.name} />
+                      <ProductImage name={product.name} />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-slate-950 dark:text-white">
                           {product.name}
@@ -567,6 +673,9 @@ export default async function ProductsPage({
                           <p className="mt-0.5 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                             {productIdentityMeta(product)}
                           </p>
+                        ) : null}
+                        {velocityById ? (
+                          <VelocityBadge velocity={velocityById.get(product.id)} />
                         ) : null}
                       </div>
                     </div>
@@ -651,8 +760,6 @@ export default async function ProductsPage({
                             barcode: product.barcode,
                             name: product.name,
                             brand: product.brand,
-                            type: product.type,
-                            size: product.size,
                             variant: product.variant,
                             price: product.price,
                             costPrice: product.costPrice,
@@ -661,7 +768,6 @@ export default async function ProductsPage({
                             unit: product.unit,
                             category: product.category,
                             supplierName: product.supplier?.name ?? null,
-                            rackLocation: product.rackLocation,
                             description: product.description,
                             imageUrl: product.imageUrl,
                             hasStockHistory:
@@ -707,40 +813,50 @@ export default async function ProductsPage({
           {products.map((product) => (
             <div
               key={product.id}
-              className="mobile-card-surface p-2.5 active:bg-slate-50 dark:active:bg-slate-900 sm:rounded-2xl sm:p-4"
+              className="mobile-card-surface relative p-2.5 active:bg-slate-50 dark:active:bg-slate-900 sm:rounded-2xl sm:p-4"
             >
-              <div className="flex min-w-0 items-start gap-2.5 sm:gap-4">
+              {velocityById ? (
+                <VelocityStrip velocity={velocityById.get(product.id)} />
+              ) : null}
+              <div
+                className={`flex min-w-0 items-start gap-2.5 sm:gap-4 ${
+                  canManage ? "pr-10 sm:pr-0" : ""
+                }`}
+              >
                 <ProductImage
-                  imageUrl={product.imageUrl}
                   name={product.name}
                   className="h-9 w-9 rounded-lg sm:h-12 sm:w-12 sm:rounded-xl"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="line-clamp-1 break-words text-sm font-bold leading-snug text-slate-950 dark:text-white sm:line-clamp-2">
+                      <p className="line-clamp-1 break-words text-[15px] font-bold leading-snug text-slate-950 dark:text-white sm:line-clamp-2 sm:text-base">
                         {product.name}
                       </p>
                       {productIdentityMeta(product) ? (
-                        <p className="mt-0.5 line-clamp-1 break-words text-[11px] font-semibold text-slate-500 dark:text-slate-400 sm:text-xs">
+                        <p className="mt-0.5 line-clamp-1 break-words text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {productIdentityMeta(product)}
                         </p>
                       ) : null}
-                      <p className="mt-0.5 line-clamp-1 break-words text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
+                      <p className="mt-1 line-clamp-1 break-words text-xs text-slate-500 dark:text-slate-400">
                         {product.sku ?? product.barcode ?? "-"} -{" "}
                         {productCategoryLocationMeta(product)}
                       </p>
                     </div>
-                    <span className="shrink-0 text-right text-sm font-extrabold tabular-nums text-slate-950 dark:text-white sm:whitespace-nowrap">
+                    <span
+                      className={`shrink-0 whitespace-nowrap text-right text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white sm:text-base ${
+                        canManage ? "hidden sm:block" : ""
+                      }`}
+                    >
                       {rupiah(product.price)}
                       <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
                         / {product.unit}
                       </span>
                     </span>
                   </div>
-                  <div className="mt-1.5 grid grid-cols-3 gap-1 text-[11px] sm:mt-3 sm:gap-2 sm:text-xs">
-                    <div className="mobile-mini-stat sm:rounded-xl sm:px-3 sm:py-2">
-                      <p className="font-medium text-slate-500 dark:text-slate-400">
+                  <div className="mt-2.5 grid grid-cols-3 gap-x-3 gap-y-2 text-sm sm:mt-3 sm:gap-2 sm:text-xs">
+                    <div className="text-center px-0 py-0 sm:rounded-xl sm:border sm:border-slate-100 sm:bg-slate-50/80 sm:px-3 sm:py-2 dark:sm:border-slate-800 dark:sm:bg-slate-900/70">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         Stok
                       </p>
                       <p
@@ -753,16 +869,16 @@ export default async function ProductsPage({
                         {product.stock} {product.unit}
                       </p>
                     </div>
-                    <div className="mobile-mini-stat sm:rounded-xl sm:px-3 sm:py-2">
-                      <p className="font-medium text-slate-500 dark:text-slate-400">
+                    <div className="text-center px-0 py-0 sm:rounded-xl sm:border sm:border-slate-100 sm:bg-slate-50/80 sm:px-3 sm:py-2 dark:sm:border-slate-800 dark:sm:bg-slate-900/70">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         Min
                       </p>
                       <p className="mt-0.5 font-bold tabular-nums text-slate-900 dark:text-slate-100">
                         {product.minStock}
                       </p>
                     </div>
-                    <div className="mobile-mini-stat sm:rounded-xl sm:px-3 sm:py-2">
-                      <p className="font-medium text-slate-500 dark:text-slate-400">
+                    <div className="text-center px-0 py-0 sm:rounded-xl sm:border sm:border-slate-100 sm:bg-slate-50/80 sm:px-3 sm:py-2 dark:sm:border-slate-800 dark:sm:bg-slate-900/70">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         Status
                       </p>
                       <p
@@ -776,14 +892,22 @@ export default async function ProductsPage({
                       </p>
                     </div>
                     {canViewCost ? (
-                      <div className="col-span-3 grid grid-cols-2 gap-1.5 sm:gap-2">
-                        <span className="mobile-mini-stat font-bold tabular-nums text-slate-600 dark:text-slate-300 sm:rounded-xl sm:px-3 sm:py-2">
+                      <div className="col-span-3 grid grid-cols-2 gap-x-3 gap-y-1.5 sm:gap-2">
+                        <span
+                          className={`px-0 py-0 font-bold tabular-nums text-slate-600 dark:text-slate-300 sm:rounded-xl sm:border sm:border-slate-100 sm:bg-slate-50/80 sm:px-3 sm:py-2 dark:sm:border-slate-800 dark:sm:bg-slate-900/70 ${
+                            canManage ? "hidden sm:block" : ""
+                          }`}
+                        >
                           HPP{" "}
                           {product.costPrice > 0
                             ? rupiah(product.costPrice)
                             : "belum lengkap"}
                         </span>
-                        <span className="mobile-mini-stat font-bold tabular-nums text-emerald-700 dark:text-emerald-300 sm:rounded-xl sm:px-3 sm:py-2">
+                        <span
+                          className={`px-0 py-0 font-bold tabular-nums text-emerald-700 dark:text-emerald-300 sm:rounded-xl sm:border sm:border-slate-100 sm:bg-slate-50/80 sm:px-3 sm:py-2 dark:sm:border-slate-800 dark:sm:bg-slate-900/70 ${
+                            canManage ? "hidden sm:block" : ""
+                          }`}
+                        >
                           Margin {marginLabel(product.price, product.costPrice)}
                         </span>
                       </div>
@@ -792,16 +916,26 @@ export default async function ProductsPage({
                 </div>
               </div>
               {canManage ? (
-                <div className="mt-2.5 border-t border-slate-100 pt-2.5 dark:border-slate-800 sm:mt-3 sm:pt-3">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      Aksi Produk
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                      Edit data berbeda dari koreksi stok
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
+                <ProductActionsMenu
+                  hasTopStrip={Boolean(velocityById?.get(product.id))}
+                  compactFigures={
+                    product.price >= 1_000_000 || product.costPrice >= 1_000_000
+                  }
+                  price={rupiah(product.price)}
+                  unit={product.unit}
+                  margin={
+                    canViewCost
+                      ? marginLabel(product.price, product.costPrice)
+                      : null
+                  }
+                  hpp={
+                    canViewCost
+                      ? product.costPrice > 0
+                        ? rupiah(product.costPrice)
+                        : "belum lengkap"
+                      : null
+                  }
+                >
                     <ProductEditButton
                       product={{
                         id: product.id,
@@ -809,8 +943,6 @@ export default async function ProductsPage({
                         barcode: product.barcode,
                         name: product.name,
                         brand: product.brand,
-                        type: product.type,
-                        size: product.size,
                         variant: product.variant,
                         price: product.price,
                         costPrice: product.costPrice,
@@ -819,7 +951,6 @@ export default async function ProductsPage({
                         unit: product.unit,
                         category: product.category,
                         supplierName: product.supplier?.name ?? null,
-                        rackLocation: product.rackLocation,
                         description: product.description,
                         imageUrl: product.imageUrl,
                         hasStockHistory:
@@ -847,8 +978,7 @@ export default async function ProductsPage({
                         isActive={product.isActive}
                       />
                     </div>
-                  </div>
-                </div>
+                </ProductActionsMenu>
               ) : null}
             </div>
           ))}
@@ -863,7 +993,7 @@ export default async function ProductsPage({
               status,
               q,
               category: selectedCategory,
-              filter: analyticsFilter ?? "",
+              filter: activeFilter ?? "",
             })
           }
         />

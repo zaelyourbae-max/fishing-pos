@@ -53,6 +53,126 @@ export function parseProductAnalyticsFilter(
   return null;
 }
 
+// "Fast Moving" tidak bisa diwakili where-clause biasa karena butuh ranking
+// jumlah unit terjual, jadi ditangani lewat getProductVelocity, bukan
+// getProductAnalyticsWhere. Garis 90 hari = pemisah Fast vs Slow Moving.
+export const SALES_VELOCITY_WINDOW_DAYS = 90;
+
+export const SALES_VELOCITY_FILTERS = ["fast-moving"] as const;
+
+export type SalesVelocityFilter = (typeof SALES_VELOCITY_FILTERS)[number];
+
+export type ProductTrend = "up" | "down" | "flat" | "new";
+
+export type ProductVelocity = {
+  productId: number;
+  recentQty: number;
+  priorQty: number;
+  trend: ProductTrend;
+};
+
+export const SALES_VELOCITY_FILTER_LABELS: Record<SalesVelocityFilter, string> =
+  {
+    "fast-moving": "Fast Moving",
+  };
+
+export function parseSalesVelocityFilter(
+  value: string | null | undefined,
+): SalesVelocityFilter | null {
+  if (
+    value &&
+    SALES_VELOCITY_FILTERS.includes(value as SalesVelocityFilter)
+  ) {
+    return value as SalesVelocityFilter;
+  }
+
+  return null;
+}
+
+export function deriveTrend(recentQty: number, priorQty: number): ProductTrend {
+  if (priorQty === 0) {
+    return recentQty > 0 ? "new" : "flat";
+  }
+
+  if (recentQty > priorQty * 1.1) {
+    return "up";
+  }
+
+  if (recentQty < priorQty * 0.9) {
+    return "down";
+  }
+
+  return "flat";
+}
+
+// Hitung unit terjual tiap produk di dua jendela 90 hari berurutan:
+// jendela terkini (0-90 hari) dan jendela sebelumnya (90-180 hari).
+export async function getProductVelocity({
+  now = new Date(),
+}: {
+  now?: Date;
+} = {}): Promise<ProductVelocity[]> {
+  const recentStart = cutoffDate(SALES_VELOCITY_WINDOW_DAYS, now);
+  const priorStart = cutoffDate(SALES_VELOCITY_WINDOW_DAYS * 2, now);
+
+  const [recentGroups, priorGroups] = await Promise.all([
+    prisma.saleItem.groupBy({
+      by: ["productId"],
+      where: {
+        sale: {
+          ...FINAL_SALE_STATUS_WHERE,
+          createdAt: { gte: recentStart },
+        },
+      },
+      _sum: { qty: true },
+    }),
+    prisma.saleItem.groupBy({
+      by: ["productId"],
+      where: {
+        sale: {
+          ...FINAL_SALE_STATUS_WHERE,
+          createdAt: { gte: priorStart, lt: recentStart },
+        },
+      },
+      _sum: { qty: true },
+    }),
+  ]);
+
+  const byProduct = new Map<number, { recentQty: number; priorQty: number }>();
+
+  for (const group of recentGroups) {
+    byProduct.set(group.productId, {
+      recentQty: group._sum.qty ?? 0,
+      priorQty: 0,
+    });
+  }
+
+  for (const group of priorGroups) {
+    const current = byProduct.get(group.productId) ?? {
+      recentQty: 0,
+      priorQty: 0,
+    };
+    current.priorQty = group._sum.qty ?? 0;
+    byProduct.set(group.productId, current);
+  }
+
+  return Array.from(byProduct.entries()).map(([productId, value]) => ({
+    productId,
+    recentQty: value.recentQty,
+    priorQty: value.priorQty,
+    trend: deriveTrend(value.recentQty, value.priorQty),
+  }));
+}
+
+// Paling Laku: ada penjualan di 90 hari terakhir, urut dari unit terbanyak.
+export function rankFastMoving(items: ProductVelocity[]): ProductVelocity[] {
+  return items
+    .filter((item) => item.recentQty > 0)
+    .sort(
+      (a, b) => b.recentQty - a.recentQty || b.priorQty - a.priorQty,
+    );
+}
+
 export function daysSince(date: Date, now = new Date()) {
   const diff = now.getTime() - date.getTime();
 

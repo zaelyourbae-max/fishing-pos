@@ -153,9 +153,6 @@ export default function ProductImportForm() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="page-title">Import Produk</h1>
-            <p className="mt-3 text-slate-400">
-              Upload Excel produk, preview validasi, lalu import ke PostgreSQL.
-            </p>
           </div>
         </div>
         <section className="surface-panel rounded-3xl p-5 sm:p-6">
@@ -240,12 +237,9 @@ export default function ProductImportForm() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="page-title">Import Produk</h1>
-          <p className="mt-3 text-slate-400">
-            Upload Excel produk, preview validasi, lalu import ke PostgreSQL.
-          </p>
         </div>
 
-        <div className="responsive-action-row">
+        <div className="responsive-action-row grid-cols-2">
           <Link
             href="/api/products/import/template"
             prefetch={false}
@@ -273,7 +267,7 @@ export default function ProductImportForm() {
         </div>
         <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto] lg:items-end">
           <div>
-            <label className="text-sm font-medium text-slate-300">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               File Excel .xlsx
             </label>
             <input
@@ -291,23 +285,25 @@ export default function ProductImportForm() {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={handlePreview}
-            disabled={loadingPreview}
-            className="rounded-2xl border border-teal-300 px-6 py-4 text-sm font-semibold text-teal-200 hover:bg-teal-600/10 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loadingPreview ? "Memproses..." : "Preview"}
-          </button>
+          <div className="grid grid-cols-2 gap-4 lg:contents">
+            <button
+              type="button"
+              onClick={handlePreview}
+              disabled={loadingPreview}
+              className="rounded-2xl border border-teal-300 px-6 py-4 text-sm font-semibold text-teal-200 hover:bg-teal-600/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loadingPreview ? "Memproses..." : "Preview"}
+            </button>
 
-          <button
-            type="button"
-            onClick={handleCommit}
-            disabled={!canImport || loadingCommit}
-            className="rounded-2xl bg-emerald-400 px-6 py-4 text-sm font-semibold text-white hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loadingCommit ? "Import..." : "Import"}
-          </button>
+            <button
+              type="button"
+              onClick={handleCommit}
+              disabled={!canImport || loadingCommit}
+              className="rounded-2xl bg-emerald-400 px-6 py-4 text-sm font-semibold text-white hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingCommit ? "Import..." : "Import"}
+            </button>
+          </div>
         </div>
 
         {/* R6 — Warning jika ada produk yang akan di-update */}
@@ -569,12 +565,7 @@ export default function ProductImportForm() {
             </div>
           ) : null}
         </section>
-      ) : (
-        <div className="rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-sm text-slate-400">
-          Belum ada preview. Download template, isi data produk, lalu upload file
-          .xlsx.
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

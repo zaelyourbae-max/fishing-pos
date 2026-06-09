@@ -3,6 +3,7 @@ import {
   buildProductImportPreview,
   PRODUCT_IMPORT_MAX_FILE_SIZE_BYTES,
   PRODUCT_IMPORT_HEADERS,
+  PRODUCT_IMPORT_TEMPLATE_HEADERS,
   type ProductImportInput,
 } from "@/lib/product-import";
 import ExcelJS from "exceljs";
@@ -65,14 +66,27 @@ function parseProductsSheet(workbook: ExcelJS.Workbook) {
     throw new Error("SHEET_NOT_FOUND");
   }
 
-  const headers = PRODUCT_IMPORT_HEADERS.map((header, index) =>
-    cellText(sheet.getRow(1).getCell(index + 1).value),
-  );
-  const validHeaders = PRODUCT_IMPORT_HEADERS.every(
-    (header, index) => headers[index] === header,
+  // Petakan kolom berdasarkan NAMA judul di baris 1, bukan urutan. Dengan
+  // begitu template baru (tanpa type/size/rackLocation) maupun template lama
+  // (lengkap 16 kolom) sama-sama terbaca, dan kolom yang tidak ada cukup
+  // dianggap kosong.
+  const columnIndexByHeader = new Map<string, number>();
+  sheet.getRow(1).eachCell((cell, colNumber) => {
+    const text = cellText(cell.value);
+    if (
+      (PRODUCT_IMPORT_HEADERS as readonly string[]).includes(text) &&
+      !columnIndexByHeader.has(text)
+    ) {
+      columnIndexByHeader.set(text, colNumber);
+    }
+  });
+
+  // Header dianggap valid jika semua kolom template tersedia.
+  const hasTemplateHeaders = PRODUCT_IMPORT_TEMPLATE_HEADERS.every((header) =>
+    columnIndexByHeader.has(header),
   );
 
-  if (!validHeaders) {
+  if (!hasTemplateHeaders) {
     throw new Error("INVALID_HEADERS");
   }
 
@@ -82,12 +96,18 @@ function parseProductsSheet(workbook: ExcelJS.Workbook) {
       return;
     }
 
-    const values = PRODUCT_IMPORT_HEADERS.map((header, index) => {
-      const cellValue = row.getCell(index + 1).value;
+    const values = PRODUCT_IMPORT_HEADERS.map((header) => {
+      const colNumber = columnIndexByHeader.get(header);
+
+      if (colNumber === undefined) {
+        return [header, ""];
+      }
+
+      const cellValue = row.getCell(colNumber).value;
 
       if (hasFormula(cellValue)) {
         throw new Error(
-          `FORMULA_NOT_ALLOWED:${rowNumber}:${excelColumnName(index + 1)}`,
+          `FORMULA_NOT_ALLOWED:${rowNumber}:${excelColumnName(colNumber)}`,
         );
       }
 

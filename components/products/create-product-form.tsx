@@ -1,25 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatRupiahInput, normalizeRupiahInput, parseRupiahInput } from "@/lib/rupiah-input";
-
-async function uploadProductImage(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch("/api/products/images", {
-    method: "POST",
-    body: formData,
-  });
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Gagal upload foto produk.");
-  }
-
-  return String(payload.data?.imageUrl ?? "");
-}
 
 export default function CreateProductForm() {
   const router = useRouter();
@@ -29,28 +13,14 @@ export default function CreateProductForm() {
   const [barcode, setBarcode] = useState("");
   const [category, setCategory] = useState("");
   const [brand, setBrand] = useState("");
-  const [type, setType] = useState("");
-  const [size, setSize] = useState("");
   const [variant, setVariant] = useState("");
   const [supplier, setSupplier] = useState("");
-  const [rackLocation, setRackLocation] = useState("");
   const [unit, setUnit] = useState("pcs");
   const [price, setPrice] = useState("");
   const [costPrice, setCostPrice] = useState("0");
   const [stock, setStock] = useState("");
   const [minStock, setMinStock] = useState("5");
   const [description, setDescription] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState("");
-  const [imageInputKey, setImageInputKey] = useState(0);
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreview);
-      }
-    };
-  }, [imagePreview]);
 
   async function handleSubmit(
     e: React.FormEvent
@@ -58,7 +28,6 @@ export default function CreateProductForm() {
     e.preventDefault();
 
     try {
-      const imageUrl = imageFile ? await uploadProductImage(imageFile) : "";
       const response = await fetch(
         "/api/products",
         {
@@ -73,18 +42,14 @@ export default function CreateProductForm() {
             barcode,
             category,
             brand,
-            type,
-            size,
             variant,
             supplier,
-            rackLocation,
             unit,
             price: parseRupiahInput(price),
             costPrice: parseRupiahInput(costPrice),
             stock,
             minStock,
             description,
-            imageUrl,
           }),
         }
       );
@@ -108,10 +73,6 @@ export default function CreateProductForm() {
       <h1 className="page-title">
         Tambah Produk
       </h1>
-
-      <p className="text-slate-400 mt-3">
-        Tambahkan data barang. Stok awal hanya untuk setup pertama.
-      </p>
 
       <form
         onSubmit={handleSubmit}
@@ -173,26 +134,6 @@ export default function CreateProductForm() {
               />
             </label>
             <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Type</span>
-              <input
-                type="text"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Opsional"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Size</span>
-              <input
-                type="text"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Opsional"
-              />
-            </label>
-            <label className="space-y-2">
               <span className="text-sm text-slate-600 dark:text-slate-300">Variant</span>
               <input
                 type="text"
@@ -215,16 +156,6 @@ export default function CreateProductForm() {
                 Boleh diisi sederhana sebagai asal barang.
               </p>
             </label>
-            <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Lokasi Rak</span>
-              <input
-                type="text"
-                value={rackLocation}
-                onChange={(e) => setRackLocation(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Contoh: A-01"
-              />
-            </label>
           </div>
         </section>
 
@@ -234,7 +165,7 @@ export default function CreateProductForm() {
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Satuan Utama *</span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Satuan Barang *</span>
               <input
                 type="text"
                 value={unit}
@@ -244,59 +175,53 @@ export default function CreateProductForm() {
               />
             </label>
             <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Harga Jual / sellPrice *</span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Harga Jual *</span>
               <input
                 type="text"
                 inputMode="numeric"
                 value={formatRupiahInput(price)}
                 onChange={(e) => setPrice(normalizeRupiahInput(e.target.value))}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Harga jual"
+                placeholder="Contoh: 50.000"
               />
             </label>
             <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">HPP / costPrice *</span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Harga Modal *</span>
               <input
                 type="text"
                 inputMode="numeric"
                 value={formatRupiahInput(costPrice)}
                 onChange={(e) => setCostPrice(normalizeRupiahInput(e.target.value))}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Harga modal / HPP"
+                placeholder="Contoh: 35.000"
               />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Digunakan untuk menghitung laba dan margin. Tidak ditampilkan ke kasir.
-              </p>
             </label>
             <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Stok awal *</span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Stok Awal *</span>
               <input
                 type="number"
                 min={0}
                 value={stock}
                 onChange={(e) => setStock(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Jumlah stok awal"
+                placeholder="Contoh: 20"
               />
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Isi hanya saat produk pertama kali dibuat. Untuk tambah stok barang lama, gunakan menu Pembelian.
+                Jumlah barang yang ada sekarang. Untuk tambah stok nanti, pakai menu Pembelian.
               </p>
             </label>
             <label className="space-y-2">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Min Stok *</span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Stok Minimal *</span>
               <input
                 type="number"
                 min={0}
                 value={minStock}
                 onChange={(e) => setMinStock(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Batas stok rendah"
+                placeholder="Contoh: 5"
               />
             </label>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Gunakan 1 satuan utama per produk. Contoh: joran = pcs, tali = meter, timah = gram, PE = pack.
-          </p>
         </section>
 
         <section className="space-y-4">
@@ -314,63 +239,20 @@ export default function CreateProductForm() {
           </label>
         </section>
 
-        <div>
-          <label className="text-sm text-slate-300">
-            Foto Produk
-          </label>
-
-          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div
-              className="h-24 w-24 rounded-xl border border-slate-200 bg-slate-50 bg-contain bg-center bg-no-repeat dark:border-slate-800 dark:bg-slate-900"
-              style={{
-                backgroundImage: imagePreview ? `url("${imagePreview}")` : undefined,
-              }}
-            >
-              {!imagePreview ? (
-                <div className="flex h-full items-center justify-center px-2 text-center text-xs text-slate-400">
-                  Preview
-                </div>
-              ) : null}
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <input
-                key={imageInputKey}
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  const file = event.target.files?.[0] ?? null;
-                  setImageFile(file);
-                  setImagePreview(file ? URL.createObjectURL(file) : "");
-                }}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-900 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-              />
-              {imageFile ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (imagePreview.startsWith("blob:")) {
-                      URL.revokeObjectURL(imagePreview);
-                    }
-                    setImageFile(null);
-                    setImagePreview("");
-                    setImageInputKey((key) => key + 1);
-                  }}
-                  className="mt-2 text-sm font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-300"
-                >
-                  Hapus foto
-                </button>
-              ) : null}
-            </div>
-          </div>
+        <div className="flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
+          <button
+            type="submit"
+            className="w-full rounded-2xl bg-teal-600 px-6 py-3 font-semibold text-white transition-colors duration-150 hover:bg-teal-700 sm:w-auto"
+          >
+            Simpan Produk
+          </button>
+          <Link
+            href="/products"
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 transition-colors duration-150 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 sm:w-auto"
+          >
+            Batal
+          </Link>
         </div>
-
-        <button
-          type="submit"
-          className="rounded-2xl bg-teal-600 px-6 py-3 font-semibold text-white transition-colors duration-150 hover:bg-teal-700"
-        >
-          Simpan Produk
-        </button>
       </form>
     </div>
   );

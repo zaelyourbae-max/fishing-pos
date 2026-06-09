@@ -19,6 +19,23 @@ export const PRODUCT_IMPORT_HEADERS = [
   "notes",
 ] as const;
 
+// Kolom yang TIDAK ditampilkan di template unduhan & panduan. Tetap didukung
+// sistem (kolom DB & template lama yang masih memuatnya tetap bisa diimpor),
+// hanya tidak ikut dicetak di template baru.
+export const PRODUCT_IMPORT_HIDDEN_TEMPLATE_HEADERS = [
+  "type",
+  "size",
+  "rackLocation",
+] as const;
+
+// Kolom yang dicetak di template unduhan (tanpa type/size/rackLocation).
+export const PRODUCT_IMPORT_TEMPLATE_HEADERS = PRODUCT_IMPORT_HEADERS.filter(
+  (header) =>
+    !(PRODUCT_IMPORT_HIDDEN_TEMPLATE_HEADERS as readonly string[]).includes(
+      header,
+    ),
+);
+
 export const PRODUCT_IMPORT_MAX_ROWS = 5000;
 export const PRODUCT_IMPORT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 

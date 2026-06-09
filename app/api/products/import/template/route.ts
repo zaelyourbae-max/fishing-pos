@@ -1,5 +1,5 @@
 ﻿import { requireOwner } from "@/lib/auth-session";
-import { PRODUCT_IMPORT_HEADERS } from "@/lib/product-import";
+import { PRODUCT_IMPORT_TEMPLATE_HEADERS } from "@/lib/product-import";
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 
@@ -74,7 +74,7 @@ export async function GET(req: Request) {
   workbook.created = new Date();
 
   const sheet = workbook.addWorksheet("Products");
-  sheet.columns = PRODUCT_IMPORT_HEADERS.map((header) => ({
+  sheet.columns = PRODUCT_IMPORT_TEMPLATE_HEADERS.map((header) => ({
     header,
     key: header,
     width: Math.max(header.length + 6, 16),
@@ -126,9 +126,8 @@ export async function GET(req: Request) {
     { column: "minStock", status: "WAJIB", rules: "Angka bulat >= 0." },
     { column: "sku", status: "OPSIONAL", rules: "Jika kosong, sistem akan generate SKU otomatis." },
     { column: "barcode", status: "OPSIONAL", rules: "Jika diisi harus unik dan tidak boleh duplikat." },
-    { column: "brand/type/size/variant", status: "OPSIONAL", rules: "Isi sesuai kebutuhan master data." },
+    { column: "brand/variant", status: "OPSIONAL", rules: "Isi sesuai kebutuhan master data." },
     { column: "supplier", status: "OPSIONAL", rules: "Jika belum ada di database, supplier baru akan dibuat saat commit." },
-    { column: "rackLocation", status: "OPSIONAL", rules: "Contoh: A-01, B-04." },
     { column: "notes", status: "OPSIONAL", rules: "Catatan produk." },
     { column: "Formula Excel", status: "DILARANG", rules: "Jangan gunakan formula. Gunakan nilai final biasa." },
   ]);
@@ -149,8 +148,8 @@ export async function GET(req: Request) {
 
   // Header kolom contoh (sama persis dengan sheet Products)
   const exampleHeaderRow = guideSheet.addRow([
-    "sku", "barcode", "name", "category", "brand", "type", "size",
-    "variant", "supplier", "rackLocation", "unit", "costPrice",
+    "sku", "barcode", "name", "category", "brand",
+    "variant", "supplier", "unit", "costPrice",
     "sellPrice", "stock", "minStock", "notes",
   ]);
   exampleHeaderRow.eachCell((cell) => {
@@ -173,20 +172,20 @@ export async function GET(req: Request) {
   const exampleDataRows = [
     [
       "HOOK-001", "899100100001", "Kail Carbon No. 3", "Kail",
-      "HookMaster", "Carbon", "No. 3", "Hitam",
-      "Supplier Utama", "A-01", "pack", 8000, 12000, 50, 10,
+      "HookMaster", "Hitam",
+      "Supplier Utama", "pack", 8000, 12000, 50, 10,
       "Isi 10 pcs",
     ],
     [
       "LINE-010", "899100100002", "Senar Nylon 100m", "Senar",
-      "RiverLine", "Nylon", "0.30 mm", "Bening",
-      "Supplier Utama", "B-04", "roll", 18000, 25000, 20, 5,
+      "RiverLine", "Bening",
+      "Supplier Utama", "roll", 18000, 25000, 20, 5,
       "Ukuran 0.30 mm",
     ],
     [
       "", "", "Pelampung Kayu", "Aksesoris",
-      "", "Pelampung", "M", "",
-      "", "C-02", "pcs", 3000, 5000, 30, 8,
+      "", "",
+      "", "pcs", 3000, 5000, 30, 8,
       "SKU otomatis jika kosong",
     ],
   ];

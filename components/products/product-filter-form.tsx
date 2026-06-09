@@ -51,11 +51,12 @@ export default function ProductFilterForm({
         event.preventDefault();
         applyCategory(category);
       }}
-      className="grid gap-2.5 border-b border-slate-200 p-3 md:grid-cols-[1fr_270px_auto] dark:border-slate-800 sm:gap-3 sm:p-4"
+      className="grid grid-cols-2 gap-2.5 border-b border-slate-200 p-3 md:grid-cols-[1fr_270px_auto] dark:border-slate-800 sm:gap-3 sm:p-4"
     >
       <LiveSearchInput
         initialValue={initialQ}
         placeholder="Cari nama produk, SKU, barcode..."
+        className="col-span-2 md:col-span-1"
       />
       <select
         value={category}
@@ -65,7 +66,7 @@ export default function ProductFilterForm({
         }}
         className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-500/10 sm:h-12 sm:rounded-2xl sm:px-4"
       >
-        <option value="">Semua kategori/laci</option>
+        <option value="">Laci</option>
         {categoryOptions.map((option) => (
           <option key={option} value={option}>
             {option}
