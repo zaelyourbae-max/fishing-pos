@@ -21,7 +21,8 @@ import {
   X,
 } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
-import SaleMessageActions from "@/components/message-actions/sale-message-actions";
+// Disembunyikan sementara (menunggu integrasi AI):
+// import SaleMessageActions from "@/components/message-actions/sale-message-actions";
 import PendingExpiryCountdown from "@/components/sales/pending-expiry-countdown";
 import PaymentConfirmationModal from "@/components/pos/payment-confirmation-modal";
 import LocalLiveSearchInput from "@/components/search/local-live-search-input";
@@ -640,24 +641,6 @@ function ProductThumb({
   product: Product;
   className?: string;
 }) {
-  const baseClassName =
-    "flex shrink-0 items-center justify-center bg-slate-50";
-
-  if (product.imageUrl) {
-    return (
-      <div
-        className={`${baseClassName} bg-contain bg-center bg-no-repeat ${className}`}
-        role="img"
-        aria-label={product.name}
-        style={{
-          backgroundImage: `url("${product.imageUrl}")`,
-        }}
-      >
-        <span className="sr-only">{product.name}</span>
-      </div>
-    );
-  }
-
   return (
     <div
       className={`flex shrink-0 items-center justify-center border border-teal-100 bg-teal-50 text-teal-700 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300 ${className}`}
@@ -2607,9 +2590,11 @@ export default function PosApp({
               >
                 Open Invoice
               </Link>
-              <div className="sm:col-span-2">
+              {/* Disembunyikan sementara — menunggu integrasi AI (Send WhatsApp / Owner Report).
+                  Hidupkan lagi dengan membuka komentar di bawah saat fitur AI siap. */}
+              {/* <div className="sm:col-span-2">
                 <SaleMessageActions saleId={checkoutSuccess.id} compact />
-              </div>
+              </div> */}
             </div>
           </div>
           {checkoutSuccess.paymentMethod.toUpperCase().includes("QRIS") &&
@@ -2780,7 +2765,7 @@ export default function PosApp({
                     Aktif: {selectedCategory === "Semua" ? "Semua" : selectedCategory}
                   </p>
                 </div>
-                <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 [&::-webkit-scrollbar]:hidden">
+                <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1 sm:gap-2">
                   {[{ key: "Semua", label: "Semua" }, ...categoryOptions].map((category) => {
                     const active = selectedCategory === category.key;
 
@@ -2849,37 +2834,33 @@ export default function PosApp({
                     }
                   }}
                   className={`group mobile-card-surface flex min-h-0 cursor-pointer flex-col hover:border-teal-200 hover:bg-teal-50/20 active:bg-teal-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:hover:border-teal-500/40 dark:hover:bg-teal-500/10 dark:focus-visible:ring-offset-slate-950 sm:min-h-[190px] sm:rounded-2xl sm:p-3 ${
-                    productView === "grid" ? "p-2" : "p-2.5"
+                    productView === "grid" ? "p-3 sm:p-2" : "p-3 sm:p-2.5"
                   } ${product.stock <= 5 ? "sm:border-red-200 dark:sm:border-red-900/60" : ""}`}
                 >
                   {/* Mobile layout */}
-                  <div className="sm:hidden">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <ProductThumb
-                        product={product}
-                        className="h-7 w-7 rounded-lg"
-                      />
+                  <div className="flex h-full flex-col sm:hidden">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                          {product.brand || product.category || "—"}
+                        </p>
+                        <h3 className="text-[15px] font-bold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
+                          {product.name}
+                        </h3>
+                      </div>
                       <button
                         onClick={(event) => {
                           event.stopPropagation();
                           addToCart(product);
                         }}
                         disabled={product.stock <= 0}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white text-base font-bold hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white text-lg font-bold hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
                         type="button"
                         aria-label={`Tambah ${product.name}`}
                       >
                         +
                       </button>
                     </div>
-
-                    <p className="text-[10px] font-semibold text-teal-600">
-                      {product.brand || product.category || "—"}
-                    </p>
-
-                    <h3 className="text-[13px] font-semibold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
-                      {product.name}
-                    </h3>
 
                     {(product.type || product.size || product.variant) && (
                       <div className="flex flex-wrap gap-1 mt-1 mb-1">
@@ -2901,15 +2882,12 @@ export default function PosApp({
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-slate-100">
-                      <span className="text-[13px] font-semibold text-teal-600">
+                    <div className="pt-2 mt-auto border-t border-slate-100 text-right dark:border-slate-800">
+                      <span className="whitespace-nowrap text-[14px] font-semibold text-teal-600">
                         {rupiah(product.price)}
-                      </span>
-                      <span
-                        className={`text-[11px] ${product.stock <= 5 ? "text-red-500" : "text-slate-400"}`}
-                      >
-                        {product.stock <= 5 && "⚠ "}Sisa{" "}
-                        {product.stock} {product.unit}
+                        <span className="text-[11px] font-normal text-slate-400">
+                          /{product.unit || "pcs"}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -2923,10 +2901,10 @@ export default function PosApp({
                         className="h-11 w-11 shrink-0 rounded-xl"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-semibold text-teal-600 truncate">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 truncate">
                           {product.brand || product.category || "—"}
                         </p>
-                        <h3 className="text-[13px] font-semibold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
+                        <h3 className="text-[15px] font-bold text-slate-950 dark:text-slate-50 leading-snug line-clamp-2 break-words mt-0.5">
                           {product.name}
                         </h3>
                       </div>
@@ -2970,15 +2948,13 @@ export default function PosApp({
                       </div>
                     )}
 
-                    {/* Baris bawah: harga + stok */}
-                    <div className="flex items-center justify-between pt-2 mt-auto border-t border-slate-100 dark:border-slate-800">
-                      <span className="text-base font-semibold text-teal-600 dark:text-teal-400">
+                    {/* Baris bawah: harga/satuan (rata kanan, seperti mobile) */}
+                    <div className="pt-2 mt-auto border-t border-slate-100 text-right dark:border-slate-800">
+                      <span className="whitespace-nowrap text-base font-semibold text-teal-600 dark:text-teal-400">
                         {rupiah(product.price)}
-                      </span>
-                      <span
-                        className={`text-xs ${product.stock <= 5 ? "text-red-500" : "text-slate-400"}`}
-                      >
-                        {product.stock <= 5 && "⚠ "}Sisa {product.stock} {product.unit}
+                        <span className="text-xs font-normal text-slate-400">
+                          /{product.unit || "pcs"}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -3124,10 +3100,10 @@ export default function PosApp({
 
         <aside
           data-mobile-sheet
-          className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] min-w-0 flex-col overflow-hidden rounded-t-[22px] border-t border-slate-200 bg-[#f6f8fb] shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 xl:hidden ${
+          className={`fixed inset-x-3 bottom-3 z-50 flex max-h-[88dvh] min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200 bg-[#f6f8fb] shadow-2xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 xl:hidden ${
             mobileCartSheetOpen
               ? "visible translate-y-0 pointer-events-auto"
-              : "invisible translate-y-full pointer-events-none"
+              : "invisible translate-y-[120%] pointer-events-none"
           }`}
         >
           <div className="shrink-0 px-3 pb-2 pt-2">
@@ -3156,22 +3132,6 @@ export default function PosApp({
             ref={mobileCartScrollRef}
             className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 pb-2 [-webkit-overflow-scrolling:touch]"
           >
-            <section className="rounded-2xl border border-teal-200 bg-teal-50 p-3 dark:border-teal-500/30 dark:bg-teal-500/10">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
-                    Total Bayar
-                  </p>
-                  <p className="text-2xl font-extrabold tabular-nums text-slate-950 dark:text-slate-50">
-                    {rupiah(grandTotal)}
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-teal-700 ring-1 ring-teal-100 dark:bg-slate-950 dark:text-teal-200 dark:ring-teal-500/20">
-                  {cartItemCount} item
-                </span>
-              </div>
-            </section>
-
             <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 dark:border-slate-800">
                 <div className="flex min-w-0 items-center gap-2">
@@ -3504,6 +3464,22 @@ export default function PosApp({
                     ))}
                   </div>
                 </div>
+
+                <section className="rounded-2xl border border-teal-200 bg-teal-50 p-3 dark:border-teal-500/30 dark:bg-teal-500/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
+                        Total Bayar
+                      </p>
+                      <p className="text-2xl font-extrabold tabular-nums text-slate-950 dark:text-slate-50">
+                        {rupiah(grandTotal)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-teal-700 ring-1 ring-teal-100 dark:bg-slate-950 dark:text-teal-200 dark:ring-teal-500/20">
+                      {cartItemCount} item
+                    </span>
+                  </div>
+                </section>
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">

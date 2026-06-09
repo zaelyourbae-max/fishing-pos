@@ -32,6 +32,12 @@ export function canUsePOS(role: string | null) {
   return isRoleSlug(role);
 }
 
+// Modul Performa: owner melihat semua kasir, kasir melihat dirinya sendiri.
+// Keduanya boleh akses; pemisahan datanya ditangani di halaman.
+export function canAccessPerformance(role: string | null) {
+  return isRoleSlug(role);
+}
+
 export function canAccessCustomers(role: string | null) {
   return isRoleSlug(role);
 }
@@ -53,7 +59,8 @@ export function canAccessSuppliers(role: string | null) {
 }
 
 export function canAccessStockOpname(role: string | null) {
-  return isRoleSlug(role);
+  // Stock Opname hanya untuk owner/developer. Kasir tidak punya akses.
+  return isOwnerRole(role);
 }
 
 export function canManageStockOpname(role: string | null) {

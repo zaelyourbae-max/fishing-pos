@@ -36,6 +36,23 @@ export function transactionStatusLabel(status: TransactionStatus | string) {
   return String(status);
 }
 
+/**
+ * Ubah cancelReason menjadi teks yang ramah dibaca. Kode sistem (mis. dari
+ * pembatalan otomatis) diterjemahkan; alasan manual yang diketik kasir
+ * ditampilkan apa adanya.
+ */
+export function formatCancelReason(reason: string | null | undefined) {
+  if (!reason) return "";
+
+  const trimmed = reason.trim();
+
+  if (trimmed === "AUTO_EXPIRED_PENDING_PAYMENT_15_MINUTES") {
+    return "Batal otomatis — pembayaran tidak selesai dalam 15 menit.";
+  }
+
+  return trimmed;
+}
+
 export function paymentStatusLabel(status: PaymentStatus | string) {
   if (status === PaymentStatus.PAID) return "PAID";
   if (status === PaymentStatus.WAITING_PROOF) return "WAITING_PROOF";

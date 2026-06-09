@@ -340,9 +340,7 @@ export default function UserManager({ users }: UserManagerProps) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">User Management</h1>
-          <p className="mt-3 text-slate-500 dark:text-slate-400">
-            Kelola user dan role akses toko dengan mudah.
-          </p>
+
         </div>
         <button
           type="button"

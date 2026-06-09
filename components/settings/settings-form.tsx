@@ -253,9 +253,7 @@ export default function SettingsForm({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">Pengaturan</h1>
-          <p className="mt-3 max-w-2xl text-sm font-medium text-slate-500 dark:text-slate-400 sm:text-base">
-            Atur konfigurasi toko, pembayaran, dan informasi sistem.
-          </p>
+
         </div>
 
         <button
@@ -289,9 +287,6 @@ export default function SettingsForm({
             <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
               Informasi Toko
             </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Profil dasar yang dipakai untuk laporan dan pesan transaksi.
-            </p>
           </div>
         </div>
 
@@ -370,9 +365,6 @@ export default function SettingsForm({
               <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
                 Transfer Bank
               </h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Informasi rekening untuk pembayaran via transfer.
-              </p>
             </div>
           </div>
 
@@ -439,9 +431,6 @@ export default function SettingsForm({
               <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
                 QRIS Statis
               </h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Upload QR Code untuk pembayaran QRIS.
-              </p>
             </div>
           </div>
 
@@ -520,9 +509,6 @@ export default function SettingsForm({
             <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
               Metode Pembayaran
             </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Aktifkan metode pembayaran yang tersedia di POS.
-            </p>
           </div>
         </div>
 
@@ -540,9 +526,6 @@ export default function SettingsForm({
                   <h3 className="break-words text-base font-bold text-slate-950 dark:text-slate-50">
                     {method.name}
                   </h3>
-                  <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">
-                    {methodDescription(method.type)}
-                  </p>
                 </div>
               </div>
 
@@ -590,9 +573,6 @@ export default function SettingsForm({
             <h2 className="text-lg font-bold text-slate-950 dark:text-slate-50">
               Warna Tampilan
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Pilih warna aksen sistem. Tersimpan di perangkat ini &amp; berlaku untuk mode terang maupun gelap.
-            </p>
           </div>
         </div>
         <PalettePicker />

@@ -2,7 +2,9 @@ import { Code2, Info } from "lucide-react";
 import SettingsForm from "@/components/settings/settings-form";
 import StoreAutoOpenCard from "@/components/settings/store-auto-open-card";
 import LoyaltyConfigCard from "@/components/settings/loyalty-config-card";
+import ArchiveDataCard from "@/components/settings/archive-data-card";
 import { requireOwnerPage } from "@/lib/page-guards";
+import { getArchivePreview, getArchiveStats } from "@/lib/archive";
 import { getLoyaltyConfig } from "@/lib/loyalty-settings";
 import { getAllPaymentMethods, getPaymentSettings } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
@@ -12,22 +14,32 @@ import packageJson from "@/package.json";
 
 export default async function SettingsPage() {
   const session = await requireOwnerPage();
-  const [settings, owner, paymentMethods, paymentSettings, storeStatus, loyaltyConfig] =
-    await Promise.all([
-      getSettings(),
-      prisma.user.findUnique({
-        where: {
-          id: session.sub,
-        },
-        select: {
-          email: true,
-        },
-      }),
-      getAllPaymentMethods(),
-      getPaymentSettings(),
-      getStoreStatus(),
-      getLoyaltyConfig(),
-    ]);
+  const [
+    settings,
+    owner,
+    paymentMethods,
+    paymentSettings,
+    storeStatus,
+    loyaltyConfig,
+    archivePreview,
+    archiveStats,
+  ] = await Promise.all([
+    getSettings(),
+    prisma.user.findUnique({
+      where: {
+        id: session.sub,
+      },
+      select: {
+        email: true,
+      },
+    }),
+    getAllPaymentMethods(),
+    getPaymentSettings(),
+    getStoreStatus(),
+    getLoyaltyConfig(),
+    getArchivePreview(),
+    getArchiveStats(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -44,6 +56,17 @@ export default async function SettingsPage() {
       <LoyaltyConfigCard
         initialInterval={loyaltyConfig.interval}
         initialMinPurchase={loyaltyConfig.minPurchase}
+      />
+      <ArchiveDataCard
+        initialPreview={{
+          thresholdDate: archivePreview.thresholdDate.toISOString(),
+          ageYears: archivePreview.ageYears,
+          eligibleCount: archivePreview.eligibleCount,
+          oldestDate: archivePreview.oldestDate?.toISOString() ?? null,
+          newestDate: archivePreview.newestDate?.toISOString() ?? null,
+          grossValue: archivePreview.grossValue,
+        }}
+        initialStats={archiveStats}
       />
 
       {/* Kredensial developer — selalu di paling bawah halaman. */}
