@@ -4,6 +4,7 @@ import {
   canUsePOS,
   isOwnerRole,
 } from "@/lib/permissions";
+import { cookieSecure } from "@/lib/cookie-config";
 import { prisma } from "@/lib/prisma";
 
 export {
@@ -150,7 +151,7 @@ function unauthenticatedResponse(clearCookie = false) {
     res.cookies.set("pos_session", "", {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: cookieSecure(),
       path: "/",
       maxAge: 0,
     });

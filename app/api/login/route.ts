@@ -1,4 +1,5 @@
 import { createSessionToken } from "@/lib/auth-session";
+import { cookieSecure } from "@/lib/cookie-config";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
     response.cookies.set("pos_session", token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: cookieSecure(),
       path: "/",
       maxAge: 60 * 60 * 12,
     });
